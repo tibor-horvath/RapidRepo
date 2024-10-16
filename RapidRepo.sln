@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35303.130
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RapidRepo", "RapidRepo\RapidRepo.csproj", "{B81467F7-7329-4BC5-BFF7-36CEC7AFE1F0}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RapidRepo.Tests", "RapidRepo.Tests\RapidRepo.Tests.csproj", "{019B7CAC-3AF9-47D6-9BCB-6B9BE37207D4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B81467F7-7329-4BC5-BFF7-36CEC7AFE1F0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B81467F7-7329-4BC5-BFF7-36CEC7AFE1F0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B81467F7-7329-4BC5-BFF7-36CEC7AFE1F0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B81467F7-7329-4BC5-BFF7-36CEC7AFE1F0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{019B7CAC-3AF9-47D6-9BCB-6B9BE37207D4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{019B7CAC-3AF9-47D6-9BCB-6B9BE37207D4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{019B7CAC-3AF9-47D6-9BCB-6B9BE37207D4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{019B7CAC-3AF9-47D6-9BCB-6B9BE37207D4}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A44A2397-4103-4731-A2CC-6733C685D4FA}
+	EndGlobalSection
+EndGlobal
