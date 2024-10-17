@@ -12,4 +12,9 @@ public class TestDbContext : DbContext
     {
 
     }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Employee>().HasQueryFilter(e => !e.DeletedAt.HasValue);
+    }
 }
