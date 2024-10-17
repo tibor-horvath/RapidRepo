@@ -1,7 +1,7 @@
 ﻿using AutoFixture;
 using Microsoft.EntityFrameworkCore;
-using Repository.Tests.TestData;
 using RapidRepo.Tests.TestData;
+using Repository.Tests.TestData;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
 
@@ -12,7 +12,7 @@ public class BaseRepositoryTest : IDisposable
     internal TestDbContext _dbContext;
     internal EmployeeRepository _sut;
 
-    public BaseRepositoryTest()
+    protected BaseRepositoryTest(bool setQueryFilter = false)
     {
         _fixture = new Fixture();
 
@@ -24,7 +24,11 @@ public class BaseRepositoryTest : IDisposable
             .UseInMemoryDatabase(databaseName: $"TestDatabase-{Guid.NewGuid()}")
         .EnableSensitiveDataLogging()
             .Options;
-        _dbContext = new TestDbContext(options);
+        if (_dbContext != null)
+        {
+            _dbContext.Database.EnsureDeleted();
+        }
+        _dbContext = new TestDbContext(options, setQueryFilter);
         _sut = new EmployeeRepository(_dbContext);
     }
 

@@ -82,7 +82,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
                 DbContext.Attach(entity);
             }
 
-            ((IDeletableEntity<TId>)entity).DeletedAt = DateTime.UtcNow;
+            ((IDeletableEntity)entity).DeletedAt = DateTime.UtcNow;
         }
         else
         {
@@ -97,7 +97,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         if (IsDeletableEntity)
         {
             DbContext.AttachRange(entitiesToRemove);
-            entitiesToRemove.ForEach(e => ((IDeletableEntity<TId>)e).DeletedAt = DateTime.UtcNow);
+            entitiesToRemove.ForEach(e => ((IDeletableEntity)e).DeletedAt = DateTime.UtcNow);
         }
         else
         {

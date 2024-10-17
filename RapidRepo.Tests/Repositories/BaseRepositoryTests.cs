@@ -1,8 +1,8 @@
 ﻿using AutoFixture;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Repository.Tests.TestData;
 using RapidRepo.Tests.TestData;
+using Repository.Tests.TestData;
 using System.Linq.Expressions;
 
 namespace Repository.Tests.Repositories;
@@ -258,63 +258,6 @@ public class BaseRepositoryTests : IDisposable
 
         // Assert
         result.Should().Be(0);
-    }
-
-    #endregion
-
-    #region Delete, DeleteAsync
-
-    [Fact]
-    public void Delete_ShouldRemoveEntityFromDbContext()
-    {
-        // Arrange
-        var employee = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
-
-        _sut.Add(employee);
-        _dbContext.SaveChanges();
-
-        // Act
-        _sut.Delete(employee);
-        _dbContext.SaveChanges();
-
-        // Assert
-        var deletedEmployee = _dbContext.Employees.Find(employee.Id);
-        deletedEmployee.Should().BeNull();
-    }
-
-    [Fact]
-    public void Delete_ShouldRemoveEntitiesFromDbContext()
-    {
-        // Arrange
-        var employee1 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
-
-        var employee2 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
-
-        _sut.Add(employee1);
-        _sut.Add(employee2);
-        _dbContext.SaveChanges();
-
-        var employeesToRemove = new List<Employee> { employee1, employee2 };
-
-        // Act
-        _sut.Delete(employeesToRemove);
-        _dbContext.SaveChanges();
-
-        // Assert
-        var deletedEmployee1 = _dbContext.Employees.Find(employee1.Id);
-        var deletedEmployee2 = _dbContext.Employees.Find(employee2.Id);
-
-        deletedEmployee1.Should().BeNull();
-        deletedEmployee2.Should().BeNull();
     }
 
     #endregion

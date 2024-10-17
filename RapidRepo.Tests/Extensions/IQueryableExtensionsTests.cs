@@ -9,6 +9,12 @@ using Repository.Tests.TestData;
 namespace RapidRepo.Tests.Extensions;
 public class IQueryableExtensionsTests : BaseRepositoryTest
 {
+    public IQueryableExtensionsTests()
+        : base(setQueryFilter: true)
+    {
+
+    }
+
     [Fact]
     public void ApplyFilters_ShouldApplyCondition_WhenConditionIsNotNull()
     {
@@ -100,7 +106,8 @@ public class IQueryableExtensionsTests : BaseRepositoryTest
             .Build<Employee>()
             .Without(e => e.Id)
             .With(e => e.FirstName, "FirstName1")
-            .With(e => e.DeletedAt, DateTime.UtcNow)
+            .Without(e => e.DeletedAt)
+            .Without(e => e.DeletedBy)
             .Create();
 
         var employee2 = _fixture
@@ -109,14 +116,17 @@ public class IQueryableExtensionsTests : BaseRepositoryTest
             .With(e => e.FirstName, "FirstName2")
             .With(e => e.Manager, employee1)
             .Without(e => e.DeletedAt)
+            .Without(e => e.DeletedBy)
             .Create();
 
-        _sut.Add(employee1);
-        _sut.Add(employee2);
+        _dbContext.Employees.Add(employee1);
+        _dbContext.Employees.Add(employee2);
         _dbContext.SaveChanges();
 
+        Task.Delay(500);
+
         // Act
-        var result = _sut.GetById(id: 2, track: true)!;
+        var result = _sut.GetById(id: employee1.Id, track: true)!;
 
         // Assert
         bool tracked = _dbContext.Entry(result).State != EntityState.Detached;
@@ -131,7 +141,8 @@ public class IQueryableExtensionsTests : BaseRepositoryTest
             .Build<Employee>()
             .Without(e => e.Id)
             .With(e => e.FirstName, "FirstName1")
-            .With(e => e.DeletedAt, DateTime.UtcNow)
+            .Without(e => e.DeletedAt)
+            .Without(e => e.DeletedBy)
             .Create();
 
         var employee2 = _fixture
@@ -140,22 +151,25 @@ public class IQueryableExtensionsTests : BaseRepositoryTest
             .With(e => e.FirstName, "FirstName2")
             .With(e => e.Manager, employee1)
             .Without(e => e.DeletedAt)
+            .Without(e => e.DeletedBy)
             .Create();
 
-        _sut.Add(employee1);
-        _sut.Add(employee2);
+        _dbContext.Employees.Add(employee1);
+        _dbContext.Employees.Add(employee2);
         _dbContext.SaveChanges();
 
-        // Act
-        var result = _sut.GetById(id: 2, track: false)!;
+        Task.Delay(500);
 
-        // Assert
+        // Act
+        var result = _sut.GetById(id: employee1.Id, track: false)!;
+
+        // Assert        
         bool tracked = _dbContext.Entry(result).State == EntityState.Detached;
         tracked.Should().BeTrue();
     }
 
     [Fact]
-    public void IgnoreQueryFilters_ShouldReturnDeletedEmployees()
+    public void IgnoreQueryFilters_ShouldReturnDeletedEmployees_WhenIgnoreQueryFiltersTrue()
     {
         // Arrange
         var employee1 = _fixture
@@ -171,10 +185,11 @@ public class IQueryableExtensionsTests : BaseRepositoryTest
             .With(e => e.FirstName, "FirstName2")
             .With(e => e.Manager, employee1)
             .Without(e => e.DeletedAt)
+            .Without(e => e.DeletedBy)
             .Create();
 
-        _sut.Add(employee1);
-        _sut.Add(employee2);
+        _dbContext.Employees.Add(employee1);
+        _dbContext.Employees.Add(employee2);
         _dbContext.SaveChanges();
 
         // Act
@@ -185,7 +200,7 @@ public class IQueryableExtensionsTests : BaseRepositoryTest
     }
 
     [Fact]
-    public void IgnoreQueryFilters_ShouldReturnNotDeletedEmployees()
+    public void IgnoreQueryFilters_ShouldReturnOnlyNotDeletedEmployees_WhenIgnoreQueryFiltersFalse()
     {
         // Arrange
         var employee1 = _fixture
@@ -193,6 +208,7 @@ public class IQueryableExtensionsTests : BaseRepositoryTest
             .Without(e => e.Id)
             .With(e => e.FirstName, "FirstName1")
             .With(e => e.DeletedAt, DateTime.UtcNow)
+            .With(e => e.DeletedBy, Guid.NewGuid())
             .Create();
 
         var employee2 = _fixture
@@ -201,11 +217,14 @@ public class IQueryableExtensionsTests : BaseRepositoryTest
             .With(e => e.FirstName, "FirstName2")
             .With(e => e.Manager, employee1)
             .Without(e => e.DeletedAt)
+            .Without(e => e.DeletedBy)
             .Create();
 
-        _sut.Add(employee1);
-        _sut.Add(employee2);
+        _dbContext.Employees.Add(employee1);
+        _dbContext.Employees.Add(employee2);
         _dbContext.SaveChanges();
+
+        Task.Delay(500);
 
         // Act
         var result = _sut.GetAll(ignoreQueryFilters: false);

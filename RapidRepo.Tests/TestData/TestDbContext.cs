@@ -5,16 +5,24 @@ namespace RapidRepo.Tests.TestData;
 
 public class TestDbContext : DbContext
 {
-    internal DbSet<Employee> Employees { get; set; }
+    private bool _setQueryFilter;
 
-    public TestDbContext(DbContextOptions<TestDbContext> options)
+    internal DbSet<Employee> Employees { get; set; }
+    internal DbSet<Company> Companies { get; set; }
+
+    public TestDbContext(
+        DbContextOptions<TestDbContext> options,
+        bool setQueryFilter = false)
         : base(options)
     {
-
+        _setQueryFilter = setQueryFilter;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Employee>().HasQueryFilter(e => !e.DeletedAt.HasValue);
+        if (_setQueryFilter)
+        {
+            modelBuilder.Entity<Employee>().HasQueryFilter(e => e.DeletedAt != null && e.DeletedBy != null);
+        }
     }
 }
