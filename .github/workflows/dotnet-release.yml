@@ -6,9 +6,6 @@ on:
       - master
       - beta
       - pre-release
-  create:
-    tags:
-      - '*'
 
 jobs:
   build:
