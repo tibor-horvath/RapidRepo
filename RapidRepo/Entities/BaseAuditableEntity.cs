@@ -12,8 +12,23 @@ public class BaseAuditableEntity<TId, TKey> : BaseEntity<TId>, IAuditableEntity<
     where TId : struct
     where TKey : struct
 {
+    /// <summary>
+    /// Gets or sets the date and time when the entity was created.
+    /// </summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Gets or sets the user who created the entity.
+    /// </summary>
     public TKey CreatedBy { get; set; }
+
+    /// <summary>
+    /// Gets or sets the date and time when the entity was last modified.
+    /// </summary>
     public DateTime? ModifiedAt { get; set; }
+
+    /// <summary>
+    /// Gets or sets the user who last modified the entity.
+    /// </summary>
     public TKey? ModifiedBy { get; set; }
 }
