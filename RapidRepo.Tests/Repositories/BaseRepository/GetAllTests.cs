@@ -25,6 +25,7 @@ public class GetAllTests : BaseRepositoryTest
         _sut.Add(employee1);
         _sut.Add(employee2);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = _sut.GetAll(selector: e => new { e.FirstName });
@@ -51,13 +52,14 @@ public class GetAllTests : BaseRepositoryTest
         _sut.Add(employee1);
         _sut.Add(employee2);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = _sut.GetAll();
 
         // Assert
-        result.Should().Contain(employee1);
-        result.Should().Contain(employee2);
+        result.Should().ContainEquivalentOf(employee1);
+        result.Should().ContainEquivalentOf(employee2);
     }
 
     [Fact]
@@ -80,6 +82,7 @@ public class GetAllTests : BaseRepositoryTest
         _sut.Add(employee1);
         _sut.Add(employee2);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = _sut.GetAll(selector: e => new { e.FirstName, e.Manager });

@@ -41,6 +41,7 @@ public class DeleteTests
 
         _sut.Add(company);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         _sut.Delete(company);
@@ -49,5 +50,12 @@ public class DeleteTests
         // Assert
         var deletedCompany = _dbContext.Companies.Find(company.Id);
         deletedCompany.Should().BeNull();
+    }
+    private void DetachAllEntities()
+    {
+        foreach (var entry in _dbContext.ChangeTracker.Entries())
+        {
+            entry.State = EntityState.Detached;
+        }
     }
 }

@@ -37,4 +37,12 @@ public class BaseRepositoryTest : IDisposable
         _dbContext.Database.EnsureDeleted();
         _dbContext.Dispose();
     }
+
+    protected void DetachAllEntities()
+    {
+        foreach (var entry in _dbContext.ChangeTracker.Entries())
+        {
+            entry.State = EntityState.Detached;
+        }
+    }
 }

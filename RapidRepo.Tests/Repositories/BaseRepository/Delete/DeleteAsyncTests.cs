@@ -48,11 +48,13 @@ public class DeleteAsyncTests
         _sut.Add(company2);
         _dbContext.SaveChanges();
 
+
         var companiesToRemove = new List<Company> { company1, company2 };
 
         // Act
         _sut.Delete(companiesToRemove);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Assert
         var deletedCompany1 = _dbContext.Companies.Find(company1.Id);
@@ -60,5 +62,14 @@ public class DeleteAsyncTests
 
         deletedCompany1.Should().BeNull();
         deletedCompany2.Should().BeNull();
+    }
+
+
+    private void DetachAllEntities()
+    {
+        foreach (var entry in _dbContext.ChangeTracker.Entries())
+        {
+            entry.State = EntityState.Detached;
+        }
     }
 }

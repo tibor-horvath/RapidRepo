@@ -16,6 +16,7 @@ public class GetByIdAsyncTests : BaseRepositoryTest
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = await _sut.GetByIdAsync(employee.Id);
@@ -42,6 +43,7 @@ public class GetByIdAsyncTests : BaseRepositoryTest
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = await _sut.GetByIdAsync(id: testEmployeeId, selector: e => e.FirstName);
@@ -70,6 +72,7 @@ public class GetByIdAsyncTests : BaseRepositoryTest
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = await _sut.GetByIdAsync(id: testEmployeeId, selector: e => new { e.FirstName, e.LastName });
