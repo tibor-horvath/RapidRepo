@@ -16,6 +16,7 @@ public class GetByIdTests : BaseRepositoryTest
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = _sut.GetById(employee.Id);
@@ -42,6 +43,7 @@ public class GetByIdTests : BaseRepositoryTest
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = _sut.GetById(id: testEmployeeId, selector: e => e.FirstName);
@@ -70,6 +72,7 @@ public class GetByIdTests : BaseRepositoryTest
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = _sut.GetById(id: testEmployeeId, selector: e => new { e.FirstName, e.LastName });

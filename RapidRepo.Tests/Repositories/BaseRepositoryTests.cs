@@ -1,8 +1,8 @@
 ﻿using AutoFixture;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Repository.Tests.TestData;
 using RapidRepo.Tests.TestData;
+using Repository.Tests.TestData;
 using System.Linq.Expressions;
 
 namespace Repository.Tests.Repositories;
@@ -182,6 +182,8 @@ public class BaseRepositoryTests : IDisposable
         _sut.Add(employee2);
         _dbContext.SaveChanges();
 
+        DetachAllEntities();
+
         Expression<Func<Employee, bool>> condition = e => e.Id == employee1.Id || e.Id == employee2.Id;
 
         // Act
@@ -202,6 +204,8 @@ public class BaseRepositoryTests : IDisposable
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
+
+        DetachAllEntities();
 
         Expression<Func<Employee, bool>> condition = e => e.Id == employee.Id + 1;
 
@@ -230,6 +234,8 @@ public class BaseRepositoryTests : IDisposable
         _sut.Add(employee2);
         _dbContext.SaveChanges();
 
+        DetachAllEntities();
+
         Expression<Func<Employee, bool>> condition = e => e.Id == employee1.Id || e.Id == employee2.Id;
 
         // Act
@@ -251,6 +257,8 @@ public class BaseRepositoryTests : IDisposable
         _sut.Add(employee);
         _dbContext.SaveChanges();
 
+        DetachAllEntities();
+
         Expression<Func<Employee, bool>> condition = e => e.Id == employee.Id + 1;
 
         // Act
@@ -258,63 +266,6 @@ public class BaseRepositoryTests : IDisposable
 
         // Assert
         result.Should().Be(0);
-    }
-
-    #endregion
-
-    #region Delete, DeleteAsync
-
-    [Fact]
-    public void Delete_ShouldRemoveEntityFromDbContext()
-    {
-        // Arrange
-        var employee = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
-
-        _sut.Add(employee);
-        _dbContext.SaveChanges();
-
-        // Act
-        _sut.Delete(employee);
-        _dbContext.SaveChanges();
-
-        // Assert
-        var deletedEmployee = _dbContext.Employees.Find(employee.Id);
-        deletedEmployee.Should().BeNull();
-    }
-
-    [Fact]
-    public void Delete_ShouldRemoveEntitiesFromDbContext()
-    {
-        // Arrange
-        var employee1 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
-
-        var employee2 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
-
-        _sut.Add(employee1);
-        _sut.Add(employee2);
-        _dbContext.SaveChanges();
-
-        var employeesToRemove = new List<Employee> { employee1, employee2 };
-
-        // Act
-        _sut.Delete(employeesToRemove);
-        _dbContext.SaveChanges();
-
-        // Assert
-        var deletedEmployee1 = _dbContext.Employees.Find(employee1.Id);
-        var deletedEmployee2 = _dbContext.Employees.Find(employee2.Id);
-
-        deletedEmployee1.Should().BeNull();
-        deletedEmployee2.Should().BeNull();
     }
 
     #endregion
@@ -338,12 +289,13 @@ public class BaseRepositoryTests : IDisposable
         _sut.Add(employee1);
         _sut.Add(employee2);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = _sut.GetFirst();
 
         // Assert
-        result.Should().Be(employee1);
+        result.Should().BeEquivalentTo(employee1);
     }
 
     [Fact]
@@ -363,12 +315,13 @@ public class BaseRepositoryTests : IDisposable
         _sut.Add(employee1);
         _sut.Add(employee2);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = await _sut.GetFirstAsync();
 
         // Assert
-        result.Should().Be(employee1);
+        result.Should().BeEquivalentTo(employee1);
     }
 
     #endregion
@@ -392,12 +345,13 @@ public class BaseRepositoryTests : IDisposable
         _sut.Add(employee1);
         _sut.Add(employee2);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = _sut.GetFirstOrDefault();
 
         // Assert
-        result.Should().Be(employee1);
+        result.Should().BeEquivalentTo(employee1);
     }
 
     [Fact]
@@ -418,12 +372,13 @@ public class BaseRepositoryTests : IDisposable
         _sut.Add(employee2);
 
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = await _sut.GetFirstOrDefaultAsync();
 
         // Assert
-        result.Should().Be(employee1);
+        result.Should().BeEquivalentTo(employee1);
     }
 
     #endregion
@@ -453,14 +408,15 @@ public class BaseRepositoryTests : IDisposable
         _sut.Add(employee2);
         _sut.Add(employee3);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = _sut.GetAllPaged(pageIndex: 1, pageSize: 2);
 
         // Assert
-        result.Results.Should().Contain(employee1);
-        result.Results.Should().Contain(employee2);
-        result.Results.Should().NotContain(employee3);
+        result.Results.Should().ContainEquivalentOf(employee1);
+        result.Results.Should().ContainEquivalentOf(employee2);
+        result.Results.Should().NotContainEquivalentOf(employee3);
         result.TotalCount.Should().Be(3);
         result.Page.Should().Be(1);
         result.PageSize.Should().Be(2);
@@ -489,14 +445,15 @@ public class BaseRepositoryTests : IDisposable
         _sut.Add(employee2);
         _sut.Add(employee3);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = await _sut.GetPagedAsync(pageIndex: 1, pageSize: 2);
 
         // Assert
-        result.Results.Should().Contain(employee1);
-        result.Results.Should().Contain(employee2);
-        result.Results.Should().NotContain(employee3);
+        result.Results.Should().ContainEquivalentOf(employee1);
+        result.Results.Should().ContainEquivalentOf(employee2);
+        result.Results.Should().NotContainEquivalentOf(employee3);
         result.TotalCount.Should().Be(3);
         result.Page.Should().Be(1);
         result.PageSize.Should().Be(2);
@@ -517,12 +474,13 @@ public class BaseRepositoryTests : IDisposable
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = _sut.GetSingle();
 
         // Assert
-        result.Should().Be(employee);
+        result.Should().BeEquivalentTo(employee);
     }
 
     [Fact]
@@ -536,12 +494,13 @@ public class BaseRepositoryTests : IDisposable
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = await _sut.GetSingleAsync();
 
         // Assert
-        result.Should().Be(employee);
+        result.Should().BeEquivalentTo(employee);
     }
 
     #endregion
@@ -559,12 +518,13 @@ public class BaseRepositoryTests : IDisposable
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = _sut.GetSingleOrDefault();
 
         // Assert
-        result.Should().Be(employee);
+        result.Should().BeEquivalentTo(employee);
     }
 
     [Fact]
@@ -578,12 +538,13 @@ public class BaseRepositoryTests : IDisposable
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = await _sut.GetSingleOrDefaultAsync();
 
         // Assert
-        result.Should().Be(employee);
+        result.Should().BeEquivalentTo(employee);
     }
 
     #endregion
@@ -616,4 +577,12 @@ public class BaseRepositoryTests : IDisposable
     }
 
     #endregion
+
+    private void DetachAllEntities()
+    {
+        foreach (var entry in _dbContext.ChangeTracker.Entries())
+        {
+            entry.State = EntityState.Detached;
+        }
+    }
 }

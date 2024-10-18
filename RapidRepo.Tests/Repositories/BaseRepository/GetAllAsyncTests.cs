@@ -25,13 +25,14 @@ public class GetAllAsyncTests : BaseRepositoryTest
         _sut.Add(employee1);
         _sut.Add(employee2);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = await _sut.GetAllAsync();
 
         // Assert
-        result.Should().Contain(employee1);
-        result.Should().Contain(employee2);
+        result.Should().ContainEquivalentOf(employee1);
+        result.Should().ContainEquivalentOf(employee2);
     }
 
     [Fact]
@@ -54,6 +55,7 @@ public class GetAllAsyncTests : BaseRepositoryTest
         _sut.Add(employee1);
         _sut.Add(employee2);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = await _sut.GetAllAsync(selector: e => new { e.FirstName });
