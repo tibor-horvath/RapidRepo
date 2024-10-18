@@ -6,6 +6,9 @@ on:
       - master
       - beta
       - pre-release
+  create:
+    tags:
+      - '*'
 
 jobs:
   build:
@@ -63,3 +66,21 @@ jobs:
         run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+
+  publish_nuget:
+    needs: semantic_release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '8.x'
+
+      - name: Build NuGet package
+        run: dotnet pack --configuration Release -p:PackageVersion=$(git describe --abbrev=0 --tags)
+
+      - name: Publish NuGet package
+        run: dotnet nuget push .RapidRepo/RapidRepo/bin/Release/RapidRepo*.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }}
