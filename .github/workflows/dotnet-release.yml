@@ -73,7 +73,9 @@ jobs:
 
       - name: Get latest tag
         id: get-latest-tag
-        run: echo "LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1) || echo '0.0.0')" >> $GITHUB_ENV
+        run: |
+          TAG=$(git describe --tags $(git rev-list --tags --max-count=1) 2>/dev/null || echo '0.0.0')
+          echo "LATEST_TAG=$TAG" >> $GITHUB_ENV
 
       - name: Set environment variable
         run: echo "LATEST_TAG=${{ steps.get-latest-tag.outputs.LATEST_TAG }}" >> $GITHUB_ENV
