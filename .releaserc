@@ -23,7 +23,7 @@
 						"files": [ "./RapidRepo/RapidRepo.csproj" ]
 					}
 				],
-				"from": "<Version>.*</Version>",
+				"from": "<Version>/.*</Version>",
 				"to": "<Version>${nextRelease.version}</Version>",
 				"results": [
 					{

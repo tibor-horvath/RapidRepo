@@ -73,9 +73,10 @@ jobs:
 
       - name: Get latest tag
         id: get-latest-tag
-        run: echo "::set-output name=latest_tag::$(git describe --tags `git rev-list --tags --max-count=1`)"
-        env:
-          LATEST_TAG: ${{ steps.get-latest-tag.outputs.latest_tag }}
+        run: echo "LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1) || echo '0.0.0')" >> $GITHUB_ENV
+
+      - name: Set environment variable
+        run: echo "LATEST_TAG=${{ steps.get-latest-tag.outputs.LATEST_TAG }}" >> $GITHUB_ENV
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v1
