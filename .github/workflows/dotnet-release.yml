@@ -74,6 +74,8 @@ jobs:
       - name: Get latest tag
         id: get-latest-tag
         run: echo "::set-output name=latest_tag::$(git describe --tags `git rev-list --tags --max-count=1`)"
+        env:
+          LATEST_TAG: ${{ steps.get-latest-tag.outputs.latest_tag }}
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v1
@@ -81,7 +83,7 @@ jobs:
           dotnet-version: '8.x'
 
       - name: Build NuGet package
-        run: dotnet pack --configuration Release -p:PackageVersion=${{ steps.get-latest-tag.outputs.latest_tag }}
+        run: dotnet pack --configuration Release -p:PackageVersion=${{ env.LATEST_TAG }}
 
       - name: Publish NuGet package
         run: dotnet nuget push .RapidRepo/RapidRepo/bin/Release/RapidRepo*.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }}
