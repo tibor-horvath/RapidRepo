@@ -5,6 +5,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,7 +13,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="RapidRepo.Tests" />    
+    <InternalsVisibleTo Include="RapidRepo.Tests" />
+    <None Include="..\README.md" Pack="true" PackagePath="\"/>
   </ItemGroup>
 
 </Project>
