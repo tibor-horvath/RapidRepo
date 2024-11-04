@@ -79,16 +79,13 @@ jobs:
           TAG=$(git describe --tags $(git rev-list --tags --max-count=1) || echo '0.0.0')
           echo "LATEST_TAG=$TAG" >> $GITHUB_ENV
 
-      - name: Set environment variable
-        run: echo "LATEST_TAG=${{ steps.get-latest-tag.outputs.LATEST_TAG }}" >> $GITHUB_ENV
-
       - name: Set up .NET
         uses: actions/setup-dotnet@v1
         with:
           dotnet-version: '8.x'
 
       - name: Build NuGet package
-        run: dotnet pack --configuration Release -p:PackageVersion=${{ env.LATEST_TAG }}
+        run: dotnet pack --configuration Release -p:PackageVersion=${{ steps.get-latest-tag.outputs.LATEST_TAG }}
 
       - name: Publish NuGet package
         run: dotnet nuget push .RapidRepo/RapidRepo/bin/Release/RapidRepo*.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }}
