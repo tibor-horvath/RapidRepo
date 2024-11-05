@@ -20,6 +20,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
+        with:
+            fetch-depth: 0
 
       - name: Get latest tag
         id: get-latest-tag
