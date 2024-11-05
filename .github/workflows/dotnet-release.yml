@@ -27,7 +27,7 @@ jobs:
         id: get-latest-tag-before-semantic-release
         run: |
           TAG_BEFORE_RELEASE=$(git describe --tags $(git rev-list --tags --max-count=1) || echo '0.0.0')
-          echo "LATEST_TAG_BEFORE_SEMANTIC_RELEASE=TAG_BEFORE_RELEASE" >> "$GITHUB_OUTPUT"
+          echo "LATEST_TAG_BEFORE_SEMANTIC_RELEASE=$TAG_BEFORE_RELEASE" >> "$GITHUB_OUTPUT"          
 
       - name: Set up Node.js
         uses: actions/setup-node@v2
@@ -62,6 +62,7 @@ jobs:
         env:
           LATEST_TAG_BEFORE_SEMANTIC_RELEASE: ${{ steps.get-latest-tag-before-semantic-release.outputs.LATEST_TAG_BEFORE_SEMANTIC_RELEASE }}
         run: |
+          echo "LATEST_TAG_BEFORE_SEMANTIC_RELEASE=${{ env.LATEST_TAG_BEFORE_SEMANTIC_RELEASE }}"
           if [ "${{ env.LATEST_TAG_BEFORE_SEMANTIC_RELEASE }}" = "${{ env.LATEST_TAG }}" ]; then
             echo "Tags are the same. Skipping publish."
             exit 0
