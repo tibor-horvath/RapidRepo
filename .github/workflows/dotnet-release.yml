@@ -27,7 +27,8 @@ jobs:
         id: get-latest-tag-before-semantic-release
         run: |
           TAG_BEFORE_RELEASE=$(git describe --tags $(git rev-list --tags --max-count=1) || echo '0.0.0')
-          echo "LATEST_TAG_BEFORE_SEMANTIC_RELEASE=$TAG_BEFORE_RELEASE" >> "$GITHUB_OUTPUT"          
+          echo "LATEST_TAG_BEFORE_SEMANTIC_RELEASE=$TAG_BEFORE_RELEASE" >> "$GITHUB_OUTPUT"
+          echo $TAG_BEFORE_RELEASE
 
       - name: Set up Node.js
         uses: actions/setup-node@v2
