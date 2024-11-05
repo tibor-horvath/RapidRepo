@@ -1,55 +1,31 @@
 name: Release
 
 on:
-  push:
+  workflow_run:
+    workflows: ['Build']
+    types: [completed]
     branches:
       - master
       - beta
       - pre-release
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v1
-        with:
-          dotnet-version: '8.x'
-
-      - name: Build
-        run: dotnet build --configuration Release
-
-  test:
-    needs: build
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v1
-        with:
-          dotnet-version: '8.x'
-
-      - name: Test
-        run: dotnet test --configuration Release --logger trx
-
+jobs:  
   semantic_release:
-    needs: test
     runs-on: ubuntu-latest
     permissions:
-        contents: write # to be able to publish a GitHub release
-        issues: write # to be able to comment on released issues
-        pull-requests: write # to be able to comment on released pull requests
-        id-token: write # to enable use of OIDC for npm provenance
+        contents: write
+        issues: write
+        pull-requests: write
+        id-token: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
+
+      - name: Get latest tag
+        id: get-latest-tag
+        run: |
+          TAG=$(git describe --tags $(git rev-list --tags --max-count=1) || echo '0.0.0')
+          echo "LATEST_TAG_BEFORE_SEMANTIC_RELEASE=$TAG" >> $GITHUB_ENV
 
       - name: Set up Node.js
         uses: actions/setup-node@v2
@@ -63,3 +39,37 @@ jobs:
         run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+
+  publish_nuget:
+    needs: semantic_release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+            fetch-depth: 0
+
+      - name: Get latest tag
+        id: get-latest-tag
+        run: |
+          TAG=$(git describe --tags $(git rev-list --tags --max-count=1) || echo '0.0.0')
+          echo "LATEST_TAG=$TAG" >> $GITHUB_ENV
+
+      - name: Check if tags are different
+        id: check-tags
+        run: |
+          if [ "${{ env.LATEST_TAG_BEFORE_SEMANTIC_RELEASE }}" = "${{ env.LATEST_TAG }}" ]; then
+            echo "Tags are the same. Skipping publish."
+            exit 0
+          fi
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '8.x'
+
+      - name: Build NuGet package
+        run: dotnet pack --configuration Release -p:PackageVersion=${{ env.LATEST_TAG }}
+
+      - name: Publish NuGet package
+        run: dotnet nuget push **/bin/Release/RapidRepo*.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }}
