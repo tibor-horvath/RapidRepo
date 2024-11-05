@@ -61,11 +61,15 @@ jobs:
       - name: Check if tags are different
         id: check-tags
         run: |
-          echo "LATEST_TAG_BEFORE_SEMANTIC_RELEASE=${{ steps.get-latest-tag-before-semantic-release.outputs.LATEST_TAG_BEFORE_SEMANTIC_RELEASE }}"
-          if [ "${{ steps.get-latest-tag-before-semantic-release.outputs.LATEST_TAG_BEFORE_SEMANTIC_RELEASE }}" = "${{ env.LATEST_TAG }}" ]; then
-            echo "Tags are the same. Skipping publish."
-            exit 0
-          fi
+                echo "LATEST_TAG_BEFORE_SEMANTIC_RELEASE=${{ steps.get-latest-tag-before-semantic-release.outputs.LATEST_TAG_BEFORE_SEMANTIC_RELEASE }}"
+                if [ -z "${{ steps.get-latest-tag-before-semantic-release.outputs.LATEST_TAG_BEFORE_SEMANTIC_RELEASE }}" ]; then
+                echo "LATEST_TAG_BEFORE_SEMANTIC_RELEASE is empty. Skipping publish."
+                exit 0
+                fi
+                if [ "${{ steps.get-latest-tag-before-semantic-release.outputs.LATEST_TAG_BEFORE_SEMANTIC_RELEASE }}" = "${{ env.LATEST_TAG }}" ]; then
+                echo "Tags are the same. Skipping publish."
+                exit 0
+                fi
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v1
