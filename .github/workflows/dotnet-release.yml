@@ -4,7 +4,10 @@ on:
   workflow_run:
     workflows: ['Build']
     types: [completed]
-    branches: [master, beta, pre-release]
+    branches:
+      - master
+      - beta
+      - pre-release
 
 jobs:  
   semantic_release:
