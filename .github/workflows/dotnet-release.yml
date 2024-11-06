@@ -13,13 +13,22 @@ jobs:
   semantic_release:
     runs-on: ubuntu-latest
     permissions:
-        contents: write # to be able to publish a GitHub release
-        issues: write # to be able to comment on released issues
-        pull-requests: write # to be able to comment on released pull requests
-        id-token: write # to enable use of OIDC for npm provenance
+        contents: write
+        issues: write
+        pull-requests: write
+        id-token: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
+        with:
+            fetch-depth: 0
+
+      - name: Get latest tag before semantic release
+        id: get-latest-tag-before-semantic-release
+        run: |
+          TAG_BEFORE_RELEASE=$(git describe --tags $(git rev-list --tags --max-count=1) || echo '0.0.0')
+          echo "LATEST_TAG_BEFORE_SEMANTIC_RELEASE=$TAG_BEFORE_RELEASE" >> "$GITHUB_OUTPUT"
+          echo $TAG_BEFORE_RELEASE
 
       - name: Set up Node.js
         uses: actions/setup-node@v2
@@ -48,6 +57,19 @@ jobs:
         run: |
           TAG=$(git describe --tags $(git rev-list --tags --max-count=1) || echo '0.0.0')
           echo "LATEST_TAG=$TAG" >> $GITHUB_ENV
+
+      - name: Check if tags are different
+        id: check-tags
+        run: |
+                echo "LATEST_TAG_BEFORE_SEMANTIC_RELEASE=${{ steps.get-latest-tag-before-semantic-release.outputs.LATEST_TAG_BEFORE_SEMANTIC_RELEASE }}"
+                if [ -z "${{ steps.get-latest-tag-before-semantic-release.outputs.LATEST_TAG_BEFORE_SEMANTIC_RELEASE }}" ]; then
+                echo "LATEST_TAG_BEFORE_SEMANTIC_RELEASE is empty. Skipping publish."
+                exit 1
+                fi
+                if [ "${{ steps.get-latest-tag-before-semantic-release.outputs.LATEST_TAG_BEFORE_SEMANTIC_RELEASE }}" = "${{ env.LATEST_TAG }}" ]; then
+                echo "Tags are the same. Skipping publish."
+                exit 1
+                fi
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v1
