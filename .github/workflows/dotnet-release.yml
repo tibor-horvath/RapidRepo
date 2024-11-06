@@ -27,7 +27,7 @@ jobs:
         id: get-latest-tag-before-semantic-release
         run: |
           TAG_BEFORE_RELEASE=$(git describe --tags $(git rev-list --tags --max-count=1) || echo '0.0.0')
-          echo "LATEST_TAG_BEFORE_SEMANTIC_RELEASE=$TAG_BEFORE_RELEASE" >> "$GITHUB_OUTPUT"
+          echo "LATEST_TAG_BEFORE_SEMANTIC_RELEASE=$TAG_BEFORE_RELEASE" >> $GITHUB_OUTPUT
           echo $TAG_BEFORE_RELEASE
 
       - name: Set up Node.js
@@ -58,17 +58,17 @@ jobs:
           TAG=$(git describe --tags $(git rev-list --tags --max-count=1) || echo '0.0.0')
           echo "LATEST_TAG=$TAG" >> $GITHUB_ENV
 
-      - name: Check if tags are different
+      - name: Check if tags are different        
         id: check-tags
         run: |
                 echo "LATEST_TAG_BEFORE_SEMANTIC_RELEASE=${{ steps.get-latest-tag-before-semantic-release.outputs.LATEST_TAG_BEFORE_SEMANTIC_RELEASE }}"
                 if [ -z "${{ steps.get-latest-tag-before-semantic-release.outputs.LATEST_TAG_BEFORE_SEMANTIC_RELEASE }}" ]; then
                 echo "LATEST_TAG_BEFORE_SEMANTIC_RELEASE is empty. Skipping publish."
-                exit 1
+                echo "SKIP_PUBLISH=true" >> $GITHUB_OUTPUT
                 fi
                 if [ "${{ steps.get-latest-tag-before-semantic-release.outputs.LATEST_TAG_BEFORE_SEMANTIC_RELEASE }}" = "${{ env.LATEST_TAG }}" ]; then
                 echo "Tags are the same. Skipping publish."
-                exit 1
+                echo "SKIP_PUBLISH=true" >> $GITHUB_OUTPUT
                 fi
 
       - name: Set up .NET
@@ -77,7 +77,9 @@ jobs:
           dotnet-version: '8.x'
 
       - name: Build NuGet package
+        if: steps.check-tags.outputs.SKIP_PUBLISH != 'true'  
         run: dotnet pack --configuration Release -p:PackageVersion=${{ env.LATEST_TAG }}
 
       - name: Publish NuGet package
+        if: steps.check-tags.outputs.SKIP_PUBLISH != 'true'  
         run: dotnet nuget push **/bin/Release/RapidRepo*.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }}
