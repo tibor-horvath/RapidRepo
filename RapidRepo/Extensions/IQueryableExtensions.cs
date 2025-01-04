@@ -11,6 +11,7 @@ internal static class IQueryableExtensions
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true)
         where TEntity : BaseEntity<TId>
@@ -39,6 +40,11 @@ internal static class IQueryableExtensions
         if (include != null)
         {
             query = include(query);
+        }
+
+        if (useSplitQueries)
+        {
+            query = query.AsSplitQuery();
         }
 
         return query;
