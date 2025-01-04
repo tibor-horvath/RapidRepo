@@ -29,6 +29,63 @@ To use RapidRepo in your .NET application:
 5. Use the repository methods to perform data access and manipulation operations in your application.
 
 ### Example
+```csharp
+public class Product : BaseEntity<long>
+{
+    public string Name { get; set; }
+    public string Description { get; set; }
+}
+
+public interface IProductRepository : IRepository<Product, long>
+{
+   // Add custom methods here
+}   
+
+public class ProductRepository : BaseRepository<Product, long>, IProductRepository
+{ 
+    public ProductRepository(DbContext context) 
+    : base(context) 
+    {         
+    }
+    // Add custom methods here
+}
+
+public interface ITestUnitOfWork : IUnitOfWork<Guid>, IDisposable
+{
+    IProductRepository Products { get; }
+}
+
+public class TestUnitOfWork : UnitOfWork<Guid>, IITestUnitOfWork
+{
+    public IProductRepository Products { get; }
+
+    public override Guid DefaultUserId => default;
+
+    public UnitOfWork(
+        AppDbContext dbContext,
+        IProductRepository productRepository)
+        : base(dbContext)
+    {
+        Products = productRepository ?? throw new ArgumentNullException(nameof(productRepository));
+    }
+}
+
+// Usage in a service public class ProductService
+public class ProductService : IProductService
+{ 
+    private readonly IUnitOfWork _unitOfWork;
+
+    public ProductService(IUnitOfWork unitOfWork)
+    {
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<List<Product>> GetAllProductsAsync()
+    {
+        return await _unitOfWork.Products.GetAllAsync();
+    }
+}
+```
 
 ### License
 
