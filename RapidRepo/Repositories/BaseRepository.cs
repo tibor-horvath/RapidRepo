@@ -109,6 +109,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true)
     {
@@ -128,6 +129,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true,
         CancellationToken cancellationToken = default)
@@ -147,6 +149,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
     public virtual TEntity? GetById(
         TId id,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool track = true,
         bool ignoreQueryFilters = false)
     {
@@ -164,6 +167,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         TId id,
         Expression<Func<TEntity, TResult>> selector,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false)
     {
         return DbContext
@@ -182,6 +186,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
     public virtual async Task<TEntity?> GetByIdAsync(
         TId id,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool track = true,
         bool ignoreQueryFilters = false,
         CancellationToken cancellationToken = default)
@@ -200,6 +205,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true)
     {
@@ -219,6 +225,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true,
         CancellationToken cancellationToken = default)
@@ -239,6 +246,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true)
     {
@@ -258,6 +266,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true,
         CancellationToken cancellationToken = default)
@@ -278,6 +287,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true,
         int pageIndex = 1,
@@ -312,6 +322,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true,
         int pageIndex = 1,
@@ -346,6 +357,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true)
     {
@@ -365,6 +377,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true,
         CancellationToken cancellationToken = default)
@@ -385,6 +398,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true)
     {
@@ -404,6 +418,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true,
         CancellationToken cancellationToken = default)
@@ -448,6 +463,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         TId id,
         Expression<Func<TEntity, TResult>> selector,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         CancellationToken cancellationToken = default)
     {
@@ -468,6 +484,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false)
     {
         return DbContext
@@ -487,6 +504,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         CancellationToken cancellationToken = default)
     {
@@ -507,6 +525,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false)
     {
         return DbContext
@@ -526,6 +545,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         CancellationToken cancellationToken = default)
     {
@@ -546,6 +566,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false)
     {
         return DbContext
@@ -565,6 +586,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         CancellationToken cancellationToken = default)
     {
@@ -585,6 +607,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false)
     {
         return DbContext
@@ -604,6 +627,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         CancellationToken cancellationToken = default)
     {
@@ -624,6 +648,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false)
     {
         return DbContext
@@ -644,6 +669,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         CancellationToken cancellation = default)
     {
