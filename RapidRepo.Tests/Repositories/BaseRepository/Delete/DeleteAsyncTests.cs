@@ -1,23 +1,15 @@
-﻿using AutoFixture;
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using RapidRepo.Tests.TestData;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository.Delete;
 public class DeleteAsyncTests
 {
-    private readonly IFixture _fixture;
     internal TestDbContext _dbContext;
     private readonly CompanyRepository _sut;
 
     public DeleteAsyncTests()
     {
-        _fixture = new Fixture();
-
-        _fixture.Behaviors.OfType<ThrowingRecursionBehavior>().ToList()
-            .ForEach(b => _fixture.Behaviors.Remove(b));
-        _fixture.Behaviors.Add(new OmitOnRecursionBehavior());
-
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(databaseName: $"TestDatabase-{Guid.NewGuid()}")
         .EnableSensitiveDataLogging()
@@ -34,15 +26,15 @@ public class DeleteAsyncTests
     public void Delete_ShouldRemoveEntitiesFromDbContext()
     {
         // Arrange
-        var company1 = _fixture
-            .Build<Company>()
-            .Without(e => e.Id)
-            .Create();
+        var company1 = new Company
+        {
+            Name = "Company1",
+        };
 
-        var company2 = _fixture
-            .Build<Company>()
-            .Without(e => e.Id)
-            .Create();
+        var company2 = new Company
+        {
+            Name = "Company2",
+        };
 
         _sut.Add(company1);
         _sut.Add(company2);

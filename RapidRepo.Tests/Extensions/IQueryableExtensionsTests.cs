@@ -1,5 +1,4 @@
-﻿using AutoFixture;
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 using RapidRepo.Extensions;
@@ -101,23 +100,19 @@ public class IQueryableExtensionsTests : BaseRepositoryTest
     [Fact]
     public void ApplyFilters_ShouldNotApplyNoTracking_WhenTrackIsTrue()
     {
-        // Arrange
-        var employee1 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .With(e => e.FirstName, "FirstName1")
-            .Without(e => e.DeletedAt)
-            .Without(e => e.DeletedBy)
-            .Create();
+        // Arrange       
+        var employee1 = new Employee
+        {
+            FirstName = "FirstName1",
+            LastName = "LastName1",
+        };
 
-        var employee2 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .With(e => e.FirstName, "FirstName2")
-            .With(e => e.Manager, employee1)
-            .Without(e => e.DeletedAt)
-            .Without(e => e.DeletedBy)
-            .Create();
+        var employee2 = new Employee
+        {
+            FirstName = "FirstName2",
+            LastName = "LastName2",
+            Manager = employee1
+        };
 
         _dbContext.Employees.Add(employee1);
         _dbContext.Employees.Add(employee2);
@@ -136,22 +131,18 @@ public class IQueryableExtensionsTests : BaseRepositoryTest
     public void ApplyFilters_ShouldApplyNoTracking_WhenTrackIsFalse()
     {
         // Arrange
-        var employee1 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .With(e => e.FirstName, "FirstName1")
-            .Without(e => e.DeletedAt)
-            .Without(e => e.DeletedBy)
-            .Create();
+        var employee1 = new Employee
+        {
+            FirstName = "FirstName1",
+            LastName = "LastName1",
+        };
 
-        var employee2 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .With(e => e.FirstName, "FirstName2")
-            .With(e => e.Manager, employee1)
-            .Without(e => e.DeletedAt)
-            .Without(e => e.DeletedBy)
-            .Create();
+        var employee2 = new Employee
+        {
+            FirstName = "FirstName2",
+            LastName = "LastName2",
+            Manager = employee1
+        };
 
         _dbContext.Employees.Add(employee1);
         _dbContext.Employees.Add(employee2);
@@ -175,21 +166,18 @@ public class IQueryableExtensionsTests : BaseRepositoryTest
     public void IgnoreQueryFilters_ShouldReturnDeletedEmployees_WhenIgnoreQueryFiltersTrue()
     {
         // Arrange
-        var employee1 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .With(e => e.FirstName, "FirstName1")
-            .With(e => e.DeletedAt, DateTime.UtcNow)
-            .Create();
+        var employee1 = new Employee
+        {
+            FirstName = "FirstName1",
+            LastName = "LastName1"
+        };
 
-        var employee2 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .With(e => e.FirstName, "FirstName2")
-            .With(e => e.Manager, employee1)
-            .Without(e => e.DeletedAt)
-            .Without(e => e.DeletedBy)
-            .Create();
+        var employee2 = new Employee
+        {
+            FirstName = "FirstName2",
+            LastName = "LastName2",
+            Manager = employee1
+        };
 
         _dbContext.Employees.Add(employee1);
         _dbContext.Employees.Add(employee2);

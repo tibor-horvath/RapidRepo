@@ -1,5 +1,4 @@
-﻿using AutoFixture;
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using RapidRepo.Tests.TestData;
 using Repository.Tests.TestData;
@@ -9,20 +8,12 @@ namespace Repository.Tests.Repositories;
 
 public class BaseRepositoryTests : IDisposable
 {
-    private readonly IFixture _fixture;
-
     private TestDbContext _dbContext;
     private EmployeeRepository _sut;
 
 
     public BaseRepositoryTests()
     {
-        _fixture = new Fixture();
-
-        _fixture.Behaviors.OfType<ThrowingRecursionBehavior>().ToList()
-            .ForEach(b => _fixture.Behaviors.Remove(b));
-        _fixture.Behaviors.Add(new OmitOnRecursionBehavior());
-
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(databaseName: $"TestDatabase-{Guid.NewGuid()}")
             .EnableSensitiveDataLogging()
@@ -43,10 +34,12 @@ public class BaseRepositoryTests : IDisposable
     public void Add_ShouldAddEntityToDbContext()
     {
         // Arrange       
-        var employee = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
         // Act
         _sut.Add(employee);
@@ -64,11 +57,17 @@ public class BaseRepositoryTests : IDisposable
         // Arrange
         var numberOfEmployeesToAdd = 5;
 
-        var employees = _fixture
-        .Build<Employee>()
-        .Without(e => e.Id)
-        .CreateMany(numberOfEmployeesToAdd);
+        var employees = new List<Employee>();
 
+        for (var i = 0; i < numberOfEmployeesToAdd; i++)
+        {
+            employees.Add(new Employee
+            {
+                FirstName = "John",
+                LastName = "Doe",
+                DateOfBirth = new DateTime(1990, 1, 1)
+            });
+        }
 
 
         // Act
@@ -88,10 +87,12 @@ public class BaseRepositoryTests : IDisposable
     public void Any_ShouldReturnTrue_WhenConditionIsMet()
     {
         // Arrange
-        var employee = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
@@ -107,10 +108,12 @@ public class BaseRepositoryTests : IDisposable
     public void Any_ShouldReturnFalse_WhenConditionIsNotMet()
     {
         // Arrange
-        var employee = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
@@ -123,13 +126,15 @@ public class BaseRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async void AnyAsync_ShouldReturnTrue_WhenConditionIsMet()
+    public async Task AnyAsync_ShouldReturnTrue_WhenConditionIsMet()
     {
         // Arrange
-        var employee = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
@@ -142,13 +147,15 @@ public class BaseRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async void AnyAsync_ShouldReturnFalse_WhenConditionIsNotMet()
+    public async Task AnyAsync_ShouldReturnFalse_WhenConditionIsNotMet()
     {
         // Arrange
-        var employee = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
@@ -168,15 +175,19 @@ public class BaseRepositoryTests : IDisposable
     public void Count_ShouldReturnCorrectCount_WhenConditionIsMet()
     {
         // Arrange
-        var employee1 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee1 = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
-        var employee2 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee2 = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
         _sut.Add(employee1);
         _sut.Add(employee2);
@@ -197,10 +208,12 @@ public class BaseRepositoryTests : IDisposable
     public void Count_ShouldReturnZero_WhenConditionIsNotMet()
     {
         // Arrange
-        var employee = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
@@ -217,18 +230,22 @@ public class BaseRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async void CountAsync_ShouldReturnCorrectCount_WhenConditionIsMet()
+    public async Task CountAsync_ShouldReturnCorrectCount_WhenConditionIsMet()
     {
         // Arrange
-        var employee1 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee1 = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
-        var employee2 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee2 = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
         _sut.Add(employee1);
         _sut.Add(employee2);
@@ -246,13 +263,15 @@ public class BaseRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async void CountAsync_ShouldReturnZero_WhenConditionIsNotMet()
+    public async Task CountAsync_ShouldReturnZero_WhenConditionIsNotMet()
     {
         // Arrange
-        var employee = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
@@ -276,15 +295,19 @@ public class BaseRepositoryTests : IDisposable
     public void GetFirst_ShouldReturnFirstEntity()
     {
         // Arrange
-        var employee1 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee1 = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
-        var employee2 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee2 = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
         _sut.Add(employee1);
         _sut.Add(employee2);
@@ -299,18 +322,22 @@ public class BaseRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async void GetFirstAsync_ShouldReturnFirstEntity()
+    public async Task GetFirstAsync_ShouldReturnFirstEntity()
     {
         // Arrange
-        var employee1 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee1 = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
-        var employee2 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee2 = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
         _sut.Add(employee1);
         _sut.Add(employee2);
@@ -332,15 +359,19 @@ public class BaseRepositoryTests : IDisposable
     public void GetFirstOrDefault_ShouldReturnFirstOrDefaultEntity()
     {
         // Arrange
-        var employee1 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee1 = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
-        var employee2 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee2 = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
         _sut.Add(employee1);
         _sut.Add(employee2);
@@ -355,18 +386,22 @@ public class BaseRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async void GetFirstOrDefaultAsync_ShouldReturnFirstOrDefaultEntity()
+    public async Task GetFirstOrDefaultAsync_ShouldReturnFirstOrDefaultEntity()
     {
         // Arrange
-        var employee1 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee1 = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
-        var employee2 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee2 = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
         _sut.Add(employee1);
         _sut.Add(employee2);
@@ -389,20 +424,26 @@ public class BaseRepositoryTests : IDisposable
     public void GetPaged_ShouldReturnPagedEntities()
     {
         // Arrange
-        var employee1 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee1 = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
-        var employee2 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee2 = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
-        var employee3 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee3 = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
         _sut.Add(employee1);
         _sut.Add(employee2);
@@ -423,23 +464,29 @@ public class BaseRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async void GetPagedAsync_ShouldReturnPagedEntities()
+    public async Task GetPagedAsync_ShouldReturnPagedEntities()
     {
         // Arrange
-        var employee1 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee1 = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
-        var employee2 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee2 = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
-        var employee3 = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee3 = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
         _sut.Add(employee1);
         _sut.Add(employee2);
@@ -467,10 +514,12 @@ public class BaseRepositoryTests : IDisposable
     public void GetSingle_ShouldReturnSingleEntity()
     {
         // Arrange
-        var employee = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
@@ -484,13 +533,15 @@ public class BaseRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async void GetSingleAsync_ShouldReturnSingleEntity()
+    public async Task GetSingleAsync_ShouldReturnSingleEntity()
     {
         // Arrange
-        var employee = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
@@ -511,10 +562,12 @@ public class BaseRepositoryTests : IDisposable
     public void GetSingleOrDefault_ShouldReturnSingleOrDefaultEntity()
     {
         // Arrange
-        var employee = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
@@ -528,13 +581,15 @@ public class BaseRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async void GetSingleOrDefaultAsync_ShouldReturnSingleOrDefaultEntity()
+    public async Task GetSingleOrDefaultAsync_ShouldReturnSingleOrDefaultEntity()
     {
         // Arrange
-        var employee = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
@@ -555,10 +610,12 @@ public class BaseRepositoryTests : IDisposable
     public void Update_ShouldUpdateEntityInDbContext()
     {
         // Arrange
-        var employee = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
