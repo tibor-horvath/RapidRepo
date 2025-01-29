@@ -19,7 +19,9 @@ jobs:
         id-token: write
     steps:
       - name: Echo head branch name
-        run: echo ${{ github.event.workflow_run.head_branch }}
+        run: |
+          'branch:'
+          echo ${{ github.event.workflow_run.head_branch }}
 
       - name: Checkout repository
         uses: actions/checkout@v2
