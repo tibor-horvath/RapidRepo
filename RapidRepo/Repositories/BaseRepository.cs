@@ -14,13 +14,11 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
     where TId : struct
 {
     protected readonly DbContext DbContext;
-    protected readonly DbSet<TEntity> DbSet;
     protected readonly bool IsDeletableEntity;
 
     protected BaseRepository(DbContext dbContext)
     {
         DbContext = dbContext;
-        DbSet = DbContext.Set<TEntity>();
         IsDeletableEntity =
             typeof(IDeletableEntity<TId>).IsAssignableFrom(typeof(TEntity)) ||
             typeof(IDeletableEntity).IsAssignableFrom(typeof(TEntity));
@@ -28,30 +26,31 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
 
     public virtual void Add(TEntity entity)
     {
-        DbSet.Add(entity);
+        DbContext.Set<TEntity>().Add(entity);
     }
 
     public virtual void Add(IEnumerable<TEntity> entities)
     {
-        DbSet.AddRange(entities);
+        DbContext.Set<TEntity>().AddRange(entities);
     }
     public virtual bool Any(Expression<Func<TEntity, bool>> condition)
     {
-        return DbSet.Any(condition);
+        return DbContext.Set<TEntity>().Any(condition);
     }
 
     public virtual async Task<bool> AnyAsync(
         Expression<Func<TEntity, bool>> condition,
         CancellationToken cancellationToken = default)
     {
-        return await DbSet.AnyAsync(condition, cancellationToken);
+        return await DbContext.Set<TEntity>().AnyAsync(condition, cancellationToken);
     }
 
     public virtual int Count(
         Expression<Func<TEntity, bool>>? condition = null,
         bool ignoreQueryFilters = false)
     {
-        return DbSet
+        return DbContext
+            .Set<TEntity>()
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 condition: condition,
@@ -65,7 +64,8 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         bool ignoreQueryFilters = false,
         CancellationToken cancellationToken = default)
     {
-        return await DbSet
+        return await DbContext
+            .Set<TEntity>()
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 condition: condition,
@@ -82,7 +82,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
                 DbContext.Attach(entity);
             }
 
-            ((IDeletableEntity<TId>)entity).DeletedAt = DateTime.UtcNow;
+            ((IDeletableEntity)entity).DeletedAt = DateTime.UtcNow;
         }
         else
         {
@@ -97,7 +97,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         if (IsDeletableEntity)
         {
             DbContext.AttachRange(entitiesToRemove);
-            entitiesToRemove.ForEach(e => ((IDeletableEntity<TId>)e).DeletedAt = DateTime.UtcNow);
+            entitiesToRemove.ForEach(e => ((IDeletableEntity)e).DeletedAt = DateTime.UtcNow);
         }
         else
         {
@@ -109,10 +109,12 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true)
     {
-        return DbSet
+        return DbContext
+            .Set<TEntity>()
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 condition: condition,
@@ -127,11 +129,13 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true,
         CancellationToken cancellationToken = default)
     {
-        return await DbSet
+        return await DbContext
+            .Set<TEntity>()
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 condition: condition,
@@ -145,10 +149,12 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
     public virtual TEntity? GetById(
         TId id,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool track = true,
         bool ignoreQueryFilters = false)
     {
-        return DbSet
+        return DbContext
+            .Set<TEntity>()
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 include: include,
@@ -161,9 +167,11 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         TId id,
         Expression<Func<TEntity, TResult>> selector,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false)
     {
-        return DbSet
+        return DbContext
+            .Set<TEntity>()
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 condition: e => e.Id.Equals(id),
@@ -178,11 +186,13 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
     public virtual async Task<TEntity?> GetByIdAsync(
         TId id,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool track = true,
         bool ignoreQueryFilters = false,
         CancellationToken cancellationToken = default)
     {
-        return await DbSet
+        return await DbContext
+            .Set<TEntity>()
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 include: include,
@@ -195,88 +205,98 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true)
     {
-        return DbSet
-           .AsQueryable()
-           .ApplyFilters<TEntity, TId>(
+        return DbContext
+            .Set<TEntity>()
+            .AsQueryable()
+            .ApplyFilters<TEntity, TId>(
                 condition: condition,
                 orderBy: orderBy,
                 include: include,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: track)
-           .First();
+            .First();
     }
 
     public virtual async Task<TEntity> GetFirstAsync(
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true,
         CancellationToken cancellationToken = default)
     {
-        return await DbSet
-           .AsQueryable()
-           .ApplyFilters<TEntity, TId>(
+        return await DbContext
+            .Set<TEntity>()
+            .AsQueryable()
+            .ApplyFilters<TEntity, TId>(
                 condition: condition,
                 orderBy: orderBy,
                 include: include,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: track)
-           .FirstAsync(cancellationToken);
+            .FirstAsync(cancellationToken);
     }
 
     public virtual TEntity? GetFirstOrDefault(
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true)
     {
-        return DbSet
-           .AsQueryable()
-           .ApplyFilters<TEntity, TId>(
+        return DbContext
+            .Set<TEntity>()
+            .AsQueryable()
+            .ApplyFilters<TEntity, TId>(
                 condition: condition,
                 orderBy: orderBy,
                 include: include,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: track)
-           .FirstOrDefault();
+            .FirstOrDefault();
     }
 
     public virtual async Task<TEntity?> GetFirstOrDefaultAsync(
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true,
         CancellationToken cancellationToken = default)
     {
-        return await DbSet
-           .AsQueryable()
-           .ApplyFilters<TEntity, TId>(
+        return await DbContext
+            .Set<TEntity>()
+            .AsQueryable()
+            .ApplyFilters<TEntity, TId>(
                 condition: condition,
                 orderBy: orderBy,
                 include: include,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: track)
-           .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     public virtual Paged<TEntity> GetAllPaged(
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true,
         int pageIndex = 1,
         int pageSize = 10)
     {
-        var query = DbSet
-           .AsQueryable()
-           .ApplyFilters<TEntity, TId>(
+        var query = DbContext
+            .Set<TEntity>()
+            .AsQueryable()
+            .ApplyFilters<TEntity, TId>(
                 condition: condition,
                 orderBy: orderBy,
                 include: include,
@@ -302,15 +322,17 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true,
         int pageIndex = 1,
         int pageSize = 10,
         CancellationToken cancellationToken = default)
     {
-        var query = DbSet
-           .AsQueryable()
-           .ApplyFilters<TEntity, TId>(
+        var query = DbContext
+            .Set<TEntity>()
+            .AsQueryable()
+            .ApplyFilters<TEntity, TId>(
                 orderBy: orderBy,
                 include: include,
                 ignoreQueryFilters: ignoreQueryFilters,
@@ -335,84 +357,92 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true)
     {
-        return DbSet
-           .AsQueryable()
-           .ApplyFilters<TEntity, TId>(
+        return DbContext
+            .Set<TEntity>()
+            .AsQueryable()
+            .ApplyFilters<TEntity, TId>(
                 condition: condition,
                 orderBy: orderBy,
                 include: include,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: track)
-           .Single();
+            .Single();
     }
 
     public virtual async Task<TEntity> GetSingleAsync(
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true,
         CancellationToken cancellationToken = default)
     {
-        return await DbSet
-           .AsQueryable()
-           .ApplyFilters<TEntity, TId>(
+        return await DbContext
+            .Set<TEntity>()
+            .AsQueryable()
+            .ApplyFilters<TEntity, TId>(
                 condition: condition,
                 orderBy: orderBy,
                 include: include,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: track)
-           .SingleAsync(cancellationToken);
+            .SingleAsync(cancellationToken);
     }
 
     public virtual TEntity? GetSingleOrDefault(
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true)
     {
-        return DbSet
-           .AsQueryable()
-           .ApplyFilters<TEntity, TId>(
+        return DbContext
+            .Set<TEntity>()
+            .AsQueryable()
+            .ApplyFilters<TEntity, TId>(
                 condition: condition,
                 orderBy: orderBy,
                 include: include,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: track)
-           .SingleOrDefault();
+            .SingleOrDefault();
     }
 
     public virtual async Task<TEntity?> GetSingleOrDefaultAsync(
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true,
         CancellationToken cancellationToken = default)
     {
-        return await DbSet
-           .AsQueryable()
-           .ApplyFilters<TEntity, TId>(
+        return await DbContext
+            .Set<TEntity>()
+            .AsQueryable()
+            .ApplyFilters<TEntity, TId>(
                 condition: condition,
                 orderBy: orderBy,
                 include: include,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: track)
-           .SingleOrDefaultAsync(cancellationToken);
+            .SingleOrDefaultAsync(cancellationToken);
     }
 
     public virtual void Update(TEntity entity)
     {
-        DbSet.Update(entity);
+        DbContext.Set<TEntity>().Update(entity);
     }
 
     public virtual void DeleteById(TId id)
     {
-        var entity = DbSet.Find(id);
+        var entity = DbContext.Set<TEntity>().Find(id);
         if (entity != null)
         {
             Delete(entity);
@@ -421,22 +451,24 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
 
     public virtual void DeleteRange(IEnumerable<TEntity> entities)
     {
-        DbSet.RemoveRange(entities);
+        DbContext.Set<TEntity>().RemoveRange(entities);
     }
 
     public virtual void UpdateRange(IEnumerable<TEntity> entities)
     {
-        DbSet.UpdateRange(entities);
+        DbContext.Set<TEntity>().UpdateRange(entities);
     }
 
     public virtual Task<TResult?> GetByIdAsync<TResult>(
         TId id,
         Expression<Func<TEntity, TResult>> selector,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         CancellationToken cancellationToken = default)
     {
-        return DbSet
+        return DbContext
+            .Set<TEntity>()
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 condition: e => e.Id.Equals(id),
@@ -452,9 +484,11 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false)
     {
-        return DbSet
+        return DbContext
+            .Set<TEntity>()
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 condition: condition,
@@ -470,10 +504,12 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         CancellationToken cancellationToken = default)
     {
-        return DbSet
+        return DbContext
+            .Set<TEntity>()
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 condition: condition,
@@ -489,9 +525,11 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false)
     {
-        return DbSet
+        return DbContext
+            .Set<TEntity>()
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 condition: condition,
@@ -507,10 +545,12 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         CancellationToken cancellationToken = default)
     {
-        return DbSet
+        return DbContext
+            .Set<TEntity>()
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 condition: condition,
@@ -526,9 +566,11 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false)
     {
-        return DbSet
+        return DbContext
+            .Set<TEntity>()
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 condition: condition,
@@ -544,18 +586,20 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         CancellationToken cancellationToken = default)
     {
-        return await DbSet
-           .AsQueryable()
-           .ApplyFilters<TEntity, TId>(
-               condition: condition,
-               include: include,
-               ignoreQueryFilters: ignoreQueryFilters,
-               track: false)
-           .Select(selector)
-           .SingleOrDefaultAsync(cancellationToken);
+        return await DbContext
+            .Set<TEntity>()
+            .AsQueryable()
+            .ApplyFilters<TEntity, TId>(
+                condition: condition,
+                include: include,
+                ignoreQueryFilters: ignoreQueryFilters,
+                track: false)
+            .Select(selector)
+            .SingleOrDefaultAsync(cancellationToken);
     }
 
     public virtual TResult GetSingle<TResult>(
@@ -563,17 +607,19 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false)
     {
-        return DbSet
-             .AsQueryable()
-             .ApplyFilters<TEntity, TId>(
-                 condition: condition,
-                 include: include,
-                 ignoreQueryFilters: ignoreQueryFilters,
-                 track: false)
-             .Select(selector)
-             .Single();
+        return DbContext
+            .Set<TEntity>()
+            .AsQueryable()
+            .ApplyFilters<TEntity, TId>(
+                condition: condition,
+                include: include,
+                ignoreQueryFilters: ignoreQueryFilters,
+                track: false)
+            .Select(selector)
+            .Single();
     }
 
     public virtual async Task<TResult> GetSingleAsync<TResult>(
@@ -581,18 +627,20 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         CancellationToken cancellationToken = default)
     {
-        return await DbSet
-           .AsQueryable()
-           .ApplyFilters<TEntity, TId>(
-               condition: condition,
-               include: include,
-               ignoreQueryFilters: ignoreQueryFilters,
-               track: false)
-           .Select(selector)
-           .SingleAsync(cancellationToken);
+        return await DbContext
+            .Set<TEntity>()
+            .AsQueryable()
+            .ApplyFilters<TEntity, TId>(
+                condition: condition,
+                include: include,
+                ignoreQueryFilters: ignoreQueryFilters,
+                track: false)
+            .Select(selector)
+            .SingleAsync(cancellationToken);
     }
 
     public virtual IEnumerable<TResult> GetAll<TResult>(
@@ -600,18 +648,20 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false)
     {
-        return DbSet
-           .AsQueryable()
-           .ApplyFilters<TEntity, TId>(
-               condition: condition,
-               orderBy: orderBy,
-               include: include,
-               ignoreQueryFilters: ignoreQueryFilters,
-               track: false)
-           .Select(selector)
-           .ToList();
+        return DbContext
+            .Set<TEntity>()
+            .AsQueryable()
+            .ApplyFilters<TEntity, TId>(
+                condition: condition,
+                orderBy: orderBy,
+                include: include,
+                ignoreQueryFilters: ignoreQueryFilters,
+                track: false)
+            .Select(selector)
+            .ToList();
     }
 
     public virtual async Task<IEnumerable<TResult>> GetAllAsync<TResult>(
@@ -619,10 +669,12 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         CancellationToken cancellation = default)
     {
-        var query = DbSet
+        var query = DbContext
+            .Set<TEntity>()
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 condition: condition,

@@ -20,14 +20,14 @@
 			{
 				"replacements": [
 					{
-						"files": [ "SmartRepo/SmartRepo.csproj" ]
+						"files": [ "./RapidRepo/RapidRepo.csproj" ]
 					}
 				],
-				"from": "<Version>.*</Version>",
+				"from": "<Version>/.*</Version>",
 				"to": "<Version>${nextRelease.version}</Version>",
 				"results": [
 					{
-						"file": "SmartRepo/SmartRepo.csproj",
+						"file": "./RapidRepo/RapidRepo.csproj",
 						"hasChanged": true,
 						"numMatches": 1,
 						"numReplacements": 1
@@ -39,7 +39,7 @@
 		[
 			"@semantic-release/git",
 			{
-				"assets": [ "SmartRepo/SmartRepo.csproj" ],
+				"assets": [ "./RapidRepo/RapidRepo.csproj" ],
 				"message": "chore(release): ${nextRelease.version} [skip ci]"
 			}
 		],

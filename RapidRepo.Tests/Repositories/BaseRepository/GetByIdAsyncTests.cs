@@ -1,5 +1,4 @@
-﻿using AutoFixture;
-using FluentAssertions;
+﻿using FluentAssertions;
 using Repository.Tests.TestData;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
@@ -9,13 +8,15 @@ public class GetByIdAsyncTests : BaseRepositoryTest
     public async Task GetByIdAsync_ShouldReturnEntityWithMatchingId()
     {
         // Arrange
-        var employee = _fixture
-            .Build<Employee>()
-            .Without(e => e.Id)
-            .Create();
+        var employee = new Employee
+        {
+            FirstName = "TestFirstName",
+            LastName = "TestLastName",
+        };
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = await _sut.GetByIdAsync(employee.Id);
@@ -31,17 +32,26 @@ public class GetByIdAsyncTests : BaseRepositoryTest
         var fistNameExpected = "TestFirstName";
         var testEmployeeId = 78;
 
-        var employee = _fixture
-            .Build<Employee>()
-            .With(e => e.Id, testEmployeeId)
-            .With(e => e.FirstName, fistNameExpected)
-            .Create();
+        var employee = new Employee
+        {
+            Id = testEmployeeId,
+            FirstName = fistNameExpected,
+            LastName = "TestLastName",
+        };
 
-        var employees = _fixture.CreateMany<Employee>(4).ToList();
+        var employees = new List<Employee>
+        {
+            new Employee { Id = 1, FirstName = "FirstName1", LastName = "LastName1" },
+            new Employee { Id = 2, FirstName = "FirstName2", LastName = "LastName2" },
+            new Employee { Id = 3, FirstName = "FirstName3", LastName = "LastName3" },
+            new Employee { Id = 4, FirstName = "FirstName4", LastName = "LastName4" }
+        };
+
         employees.Add(employee);
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = await _sut.GetByIdAsync(id: testEmployeeId, selector: e => e.FirstName);
@@ -58,23 +68,31 @@ public class GetByIdAsyncTests : BaseRepositoryTest
         var lastNameExpected = "TestLastName";
         var testEmployeeId = 78;
 
-        var employee = _fixture
-            .Build<Employee>()
-            .With(e => e.Id, testEmployeeId)
-            .With(e => e.FirstName, fistNameExpected)
-            .With(e => e.LastName, lastNameExpected)
-            .Create();
+        var employee = new Employee
+        {
+            Id = testEmployeeId,
+            FirstName = fistNameExpected,
+            LastName = lastNameExpected
+        };
 
-        var employees = _fixture.CreateMany<Employee>(4).ToList();
+        var employees = new List<Employee>
+        {
+            new Employee { Id = 1, FirstName = "FirstName1", LastName = "LastName1" },
+            new Employee { Id = 2, FirstName = "FirstName2", LastName = "LastName2" },
+            new Employee { Id = 3, FirstName = "FirstName3", LastName = "LastName3" },
+            new Employee { Id = 4, FirstName = "FirstName4", LastName = "LastName4" }
+        };
+
         employees.Add(employee);
 
         _sut.Add(employee);
         _dbContext.SaveChanges();
+        DetachAllEntities();
 
         // Act
         var result = await _sut.GetByIdAsync(id: testEmployeeId, selector: e => new { e.FirstName, e.LastName });
 
         // Assert
-        result.Should().Be(new { FirstName = fistNameExpected, LastName = lastNameExpected });
+        result.Should().BeEquivalentTo(new { FirstName = fistNameExpected, LastName = lastNameExpected });
     }
 }

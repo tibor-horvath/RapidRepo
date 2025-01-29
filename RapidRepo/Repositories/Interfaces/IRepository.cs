@@ -33,11 +33,13 @@ public interface IRepository<TEntity, in TKey>
     /// </summary>
     /// <param name="id">The identifier of the entity.</param>
     /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
     /// <param name="track">Whether to track the entity in the context.</param>
     /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
     /// <returns>The entity with the specified identifier, or null if not found.</returns>
     TEntity? GetById(TKey id,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool track = true,
         bool ignoreQueryFilters = false);
 
@@ -48,11 +50,13 @@ public interface IRepository<TEntity, in TKey>
     /// <param name="id">The identifier of the entity.</param>
     /// <param name="selector">A function to select the result.</param>
     /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
     /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
     /// <returns>The result of the selector function for the entity with the specified identifier, or null if not found.</returns>
     TResult? GetById<TResult>(TKey id,
         Expression<Func<TEntity, TResult>> selector,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false);
 
     /// <summary>
@@ -60,12 +64,14 @@ public interface IRepository<TEntity, in TKey>
     /// </summary>
     /// <param name="id">The identifier of the entity.</param>
     /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
     /// <param name="track">Whether to track the entity in the context.</param>
     /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
     /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
     /// <returns>The entity with the specified identifier, or null if not found.</returns>
     Task<TEntity?> GetByIdAsync(TKey id,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool track = true,
         bool ignoreQueryFilters = false,
         CancellationToken cancellationToken = default);
@@ -77,12 +83,14 @@ public interface IRepository<TEntity, in TKey>
     /// <param name="id">The identifier of the entity.</param>
     /// <param name="selector">A function to select the result.</param>
     /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
     /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
     /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
     /// <returns>The result of the selector function for the entity with the specified identifier, or null if not found.</returns>
     Task<TResult?> GetByIdAsync<TResult>(TKey id,
         Expression<Func<TEntity, TResult>> selector,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         CancellationToken cancellationToken = default);
 
@@ -139,6 +147,7 @@ public interface IRepository<TEntity, in TKey>
     /// <param name="condition">The condition to filter entities.</param>
     /// <param name="orderBy">A function to order the entities.</param>
     /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
     /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
     /// <param name="track">Whether to track the entity in the context.</param>
     /// <returns>The first entity that matches the condition, or null if no match is found.</returns>
@@ -146,14 +155,27 @@ public interface IRepository<TEntity, in TKey>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true);
 
+    /// <summary>
+    /// Gets the first entity that matches the specified condition and applies a selector, or null if no match is found.
+    /// </summary>
+    /// <typeparam name="TResult">The type of the result.</typeparam>
+    /// <param name="selector">A function to select the result.</param>
+    /// <param name="condition">The condition to filter entities.</param>
+    /// <param name="orderBy">A function to order the entities.</param>
+    /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
+    /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
+    /// <returns>The result of the selector function for the first entity that matches the condition, or null if no match is found.</returns>
     TResult? GetFirstOrDefault<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false);
 
     /// <summary>
@@ -162,6 +184,7 @@ public interface IRepository<TEntity, in TKey>
     /// <param name="condition">The condition to filter entities.</param>
     /// <param name="orderBy">A function to order the entities.</param>
     /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
     /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
     /// <param name="track">Whether to track the entity in the context.</param>
     /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
@@ -169,15 +192,29 @@ public interface IRepository<TEntity, in TKey>
     Task<TEntity?> GetFirstOrDefaultAsync(Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Asynchronously gets the first entity that matches the specified condition and applies a selector, or null if no match is found.
+    /// </summary>
+    /// <typeparam name="TResult">The type of the result.</typeparam>
+    /// <param name="selector">A function to select the result.</param>
+    /// <param name="condition">The condition to filter entities.</param>
+    /// <param name="orderBy">A function to order the entities.</param>
+    /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
+    /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
+    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
+    /// <returns>The result of the selector function for the first entity that matches the condition, or null if no match is found.</returns>
     Task<TResult?> GetFirstOrDefaultAsync<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         CancellationToken cancellationToken = default);
 
@@ -187,20 +224,34 @@ public interface IRepository<TEntity, in TKey>
     /// <param name="condition">The condition to filter entities.</param>
     /// <param name="orderBy">A function to order the entities.</param>
     /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
     /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
     /// <param name="track">Whether to track the entity in the context.</param>
     /// <returns>The first entity that matches the condition.</returns>
     TEntity GetFirst(Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true);
 
+    /// <summary>
+    /// Gets the first entity that matches the specified condition and applies a selector.
+    /// </summary>
+    /// <typeparam name="TResult">The type of the result.</typeparam>
+    /// <param name="selector">A function to select the result.</param>
+    /// <param name="condition">The condition to filter entities.</param>
+    /// <param name="orderBy">A function to order the entities.</param>
+    /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
+    /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
+    /// <returns>The result of the selector function for the first entity that matches the condition.</returns>
     TResult GetFirst<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false);
 
     /// <summary>
@@ -209,6 +260,7 @@ public interface IRepository<TEntity, in TKey>
     /// <param name="condition">The condition to filter entities.</param>
     /// <param name="orderBy">A function to order the entities.</param>
     /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
     /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
     /// <param name="track">Whether to track the entity in the context.</param>
     /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
@@ -216,15 +268,29 @@ public interface IRepository<TEntity, in TKey>
     Task<TEntity> GetFirstAsync(Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Asynchronously gets the first entity that matches the specified condition and applies a selector.
+    /// </summary>
+    /// <typeparam name="TResult">The type of the result.</typeparam>
+    /// <param name="selector">A function to select the result.</param>
+    /// <param name="condition">The condition to filter entities.</param>
+    /// <param name="orderBy">A function to order the entities.</param>
+    /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
+    /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
+    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
+    /// <returns>The result of the selector function for the first entity that matches the condition.</returns>
     Task<TResult> GetFirstAsync<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         CancellationToken cancellationToken = default);
 
@@ -234,20 +300,34 @@ public interface IRepository<TEntity, in TKey>
     /// <param name="condition">The condition to filter entities.</param>
     /// <param name="orderBy">A function to order the entities.</param>
     /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
     /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
     /// <param name="track">Whether to track the entity in the context.</param>
     /// <returns>The single entity that matches the condition, or null if no match is found.</returns>
     TEntity? GetSingleOrDefault(Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true);
 
+    /// <summary>
+    /// Gets the single entity that matches the specified condition and applies a selector, or null if no match is found.
+    /// </summary>
+    /// <typeparam name="TResult">The type of the result.</typeparam>
+    /// <param name="selector">A function to select the result.</param>
+    /// <param name="condition">The condition to filter entities.</param>
+    /// <param name="orderBy">A function to order the entities.</param>
+    /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
+    /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
+    /// <returns>The result of the selector function for the single entity that matches the condition, or null if no match is found.</returns>
     TResult? GetSingleOrDefault<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false);
 
     /// <summary>
@@ -256,6 +336,7 @@ public interface IRepository<TEntity, in TKey>
     /// <param name="condition">The condition to filter entities.</param>
     /// <param name="orderBy">A function to order the entities.</param>
     /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
     /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
     /// <param name="track">Whether to track the entity in the context.</param>
     /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
@@ -264,15 +345,29 @@ public interface IRepository<TEntity, in TKey>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Gets the single entity that matches the specified condition and applies a selector, or null if no match is found.
+    /// </summary>
+    /// <typeparam name="TResult">The type of the result.</typeparam>
+    /// <param name="selector">A function to select the result.</param>
+    /// <param name="condition">The condition to filter entities.</param>
+    /// <param name="orderBy">A function to order the entities.</param>
+    /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
+    /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
+    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
+    /// <returns>The result of the selector function for the single entity that matches the condition, or null if no match is found.</returns>
     Task<TResult?> GetSingleOrDefaultAsync<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         CancellationToken cancellationToken = default);
 
@@ -282,20 +377,35 @@ public interface IRepository<TEntity, in TKey>
     /// <param name="condition">The condition to filter entities.</param>
     /// <param name="orderBy">A function to order the entities.</param>
     /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
     /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
     /// <param name="track">Whether to track the entity in the context.</param>
     /// <returns>The single entity that matches the condition.</returns>
     TEntity GetSingle(Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true);
 
+    /// <summary>
+    /// Gets the single entity that matches the specified condition and applies a selector.
+    /// </summary>
+    /// <typeparam name="TResult">The type of the result.</typeparam>
+    /// <param name="selector">A function to select the result.</param>
+    /// <param name="condition">The condition to filter entities.</param>
+    /// <param name="orderBy">A function to order the entities.</param>
+    /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
+    /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
+    /// <param name="track">Whether to track the entity in the context.</param>
+    /// <returns>The result of the selector function for the single entity that matches the condition.</returns>
     TResult GetSingle<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false);
 
     /// <summary>
@@ -304,6 +414,7 @@ public interface IRepository<TEntity, in TKey>
     /// <param name="condition">The condition to filter entities.</param>
     /// <param name="orderBy">A function to order the entities.</param>
     /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
     /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
     /// <param name="track">Whether to track the entity in the context.</param>
     /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
@@ -312,6 +423,7 @@ public interface IRepository<TEntity, in TKey>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true,
         CancellationToken cancellationToken = default);
@@ -325,6 +437,7 @@ public interface IRepository<TEntity, in TKey>
     /// <param name="condition">The condition to filter entities.</param>
     /// <param name="orderBy">A function to order the entities.</param>
     /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
     /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
     /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
     /// <returns>The single entity that matches the condition.</returns>
@@ -333,6 +446,7 @@ public interface IRepository<TEntity, in TKey>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         CancellationToken cancellationToken = default);
 
@@ -342,6 +456,7 @@ public interface IRepository<TEntity, in TKey>
     /// <param name="condition">The condition to filter entities.</param>
     /// <param name="orderBy">A function to order the entities.</param>
     /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
     /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
     /// <param name="track">Whether to track the entity in the context.</param>
     /// <returns>The entities that match the condition.</returns>
@@ -349,6 +464,7 @@ public interface IRepository<TEntity, in TKey>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true);
 
@@ -360,6 +476,7 @@ public interface IRepository<TEntity, in TKey>
     /// <param name="condition">The condition to filter entities.</param>
     /// <param name="orderBy">A function to order the entities.</param>
     /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
     /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
     /// <param name="track">Whether to track the entity in the context.</param>
     /// <returns>The entities that match the condition.</returns>
@@ -368,6 +485,7 @@ public interface IRepository<TEntity, in TKey>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false);
 
     /// <summary>
@@ -376,6 +494,7 @@ public interface IRepository<TEntity, in TKey>
     /// <param name="condition">The condition to filter entities.</param>
     /// <param name="orderBy">A function to order the entities.</param>
     /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
     /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
     /// <param name="track">Whether to track the entity in the context.</param>
     /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
@@ -384,6 +503,7 @@ public interface IRepository<TEntity, in TKey>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         bool track = true,
         CancellationToken cancellationToken = default);
@@ -396,6 +516,7 @@ public interface IRepository<TEntity, in TKey>
     /// <param name="condition">The condition to filter entities.</param>
     /// <param name="orderBy">A function to order the entities.</param>
     /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
     /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
     /// <param name="track">Whether to track the entity in the context.</param>
     /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
@@ -405,6 +526,7 @@ public interface IRepository<TEntity, in TKey>
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         CancellationToken cancellation = default);
 }
