@@ -17,12 +17,7 @@ jobs:
         issues: write
         pull-requests: write
         id-token: write
-    steps:
-      - name: Echo head branch name
-        run: |
-          'branch:'
-          echo ${{ github.event.workflow_run.head_branch }}
-
+    steps:      
       - name: Checkout repository
         uses: actions/checkout@v2
         with:
