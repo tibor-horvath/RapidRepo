@@ -191,36 +191,34 @@ public class IQueryableExtensionsTests : BaseRepositoryTest
         result.Should().HaveCount(2);
     }
 
-    //[Fact]
-    //public void IgnoreQueryFilters_ShouldReturnOnlyNotDeletedEmployees_WhenIgnoreQueryFiltersFalse()
-    //{
-    //    // Arrange
-    //    var employee1 = _fixture
-    //        .Build<Employee>()
-    //        .Without(e => e.Id)
-    //        .With(e => e.FirstName, "FirstName1")
-    //        .With(e => e.DeletedAt, DateTime.UtcNow)
-    //        .With(e => e.DeletedBy, Guid.NewGuid())
-    //        .Create();
+    [Fact]
+    public void IgnoreQueryFilters_ShouldReturnOnlyNotDeletedEmployees_WhenIgnoreQueryFiltersFalse()
+    {
+        // Arrange
+        var employee1 = new Employee
+        {
+            FirstName = "FirstName1",
+            LastName = "LastName1",
+            DeletedAt = DateTime.UtcNow,
+            DeletedBy = Guid.NewGuid()
+        };
 
-    //    var employee2 = _fixture
-    //        .Build<Employee>()
-    //        .Without(e => e.Id)
-    //        .With(e => e.FirstName, "FirstName2")
-    //        .With(e => e.Manager, employee1)
-    //        .Without(e => e.DeletedAt)
-    //        .Without(e => e.DeletedBy)
-    //        .Create();
+        var employee2 = new Employee
+        {
+            FirstName = "FirstName1",
+            LastName = "LastName1",
+            Manager = employee1
+        };
 
-    //    _dbContext.Employees.Add(employee1);
-    //    _dbContext.Employees.Add(employee2);
-    //    _dbContext.SaveChanges();
-    //    DetachAllEntities();
+        _dbContext.Employees.Add(employee1);
+        _dbContext.Employees.Add(employee2);
+        _dbContext.SaveChanges();
+        DetachAllEntities();
 
-    //    // Act
-    //    var result = _sut.GetAll(ignoreQueryFilters: false);
+        // Act
+        var result = _sut.GetAll(ignoreQueryFilters: false);
 
-    //    // Assert
-    //    result.Should().HaveCount(1);
-    //}
+        // Assert
+        result.Should().HaveCount(1);
+    }
 }
