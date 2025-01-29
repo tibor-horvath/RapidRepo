@@ -9,17 +9,19 @@ public class BaseRepositoryTest : IDisposable
     internal TestDbContext _dbContext;
     internal EmployeeRepository _sut;
 
-    protected BaseRepositoryTest(bool setQueryFilter = false)
+    protected BaseRepositoryTest()
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(databaseName: $"TestDatabase-{Guid.NewGuid()}")
-        .EnableSensitiveDataLogging()
+            .EnableSensitiveDataLogging()
             .Options;
-        if (_dbContext != null)
-        {
-            _dbContext.Database.EnsureDeleted();
-        }
-        _dbContext = new TestDbContext(options, setQueryFilter);
+
+        _dbContext?.Database.EnsureDeleted();
+
+        _dbContext = new TestDbContext(options);
+
+        _dbContext.Database.EnsureCreated();
+
         _sut = new EmployeeRepository(_dbContext);
     }
 
@@ -27,13 +29,22 @@ public class BaseRepositoryTest : IDisposable
     {
         _dbContext.Database.EnsureDeleted();
         _dbContext.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     protected void DetachAllEntities()
     {
-        foreach (var entry in _dbContext.ChangeTracker.Entries())
+        var changedEntries = _dbContext.ChangeTracker.Entries()
+            .Where(e => e.State == EntityState.Added ||
+                        e.State == EntityState.Modified ||
+                        e.State == EntityState.Deleted ||
+                        e.State == EntityState.Unchanged)
+            .ToList();
+
+        foreach (var entry in changedEntries)
         {
             entry.State = EntityState.Detached;
         }
     }
+
 }

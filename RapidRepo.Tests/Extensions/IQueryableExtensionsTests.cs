@@ -9,7 +9,7 @@ namespace RapidRepo.Tests.Extensions;
 public class IQueryableExtensionsTests : BaseRepositoryTest
 {
     public IQueryableExtensionsTests()
-        : base(setQueryFilter: true)
+        : base()
     {
 
     }
@@ -149,11 +149,6 @@ public class IQueryableExtensionsTests : BaseRepositoryTest
         _dbContext.SaveChanges();
         DetachAllEntities();
 
-        foreach (var entry in _dbContext.ChangeTracker.Entries<Employee>())
-        {
-            entry.State = EntityState.Detached;
-        }
-
         // Act
         var result = _sut.GetById(id: employee1.Id, track: false)!;
 
@@ -169,14 +164,15 @@ public class IQueryableExtensionsTests : BaseRepositoryTest
         var employee1 = new Employee
         {
             FirstName = "FirstName1",
-            LastName = "LastName1"
+            LastName = "LastName1",
+            DeletedAt = DateTime.UtcNow,
+            DeletedBy = Guid.NewGuid()
         };
 
         var employee2 = new Employee
         {
-            FirstName = "FirstName2",
-            LastName = "LastName2",
-            Manager = employee1
+            FirstName = "FirstName1",
+            LastName = "LastName1"
         };
 
         _dbContext.Employees.Add(employee1);
@@ -206,12 +202,10 @@ public class IQueryableExtensionsTests : BaseRepositoryTest
         var employee2 = new Employee
         {
             FirstName = "FirstName1",
-            LastName = "LastName1",
-            Manager = employee1
+            LastName = "LastName1"
         };
 
-        _dbContext.Employees.Add(employee1);
-        _dbContext.Employees.Add(employee2);
+        _dbContext.Employees.AddRange(employee1, employee2);
         _dbContext.SaveChanges();
         DetachAllEntities();
 
