@@ -3,7 +3,10 @@ name: Publish NuGet Package
 on:
   create:
     tags:
-      - '*'
+      - '**'
+  push:
+    tags:
+      - '**'
 
 jobs:
   publish:
