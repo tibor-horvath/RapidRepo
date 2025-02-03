@@ -1,14 +1,8 @@
 name: Publish NuGet Package
 
 on:
-  push:    
-    tags:        
-      - '*'           # Push events to every tag not containing /
-      - '**'          # Push events to every tag including hierarchical tags like v1.0/beta
-  create:
-    tags:        
-      - '*'           # Push events to every tag not containing /
-      - '**'          # Push events to every tag including hierarchical tags like v1.0/beta
+  release:
+    types: [published, prereleased]
 
 jobs:
   publish:
