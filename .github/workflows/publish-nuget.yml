@@ -1,14 +1,13 @@
 name: Publish NuGet Package
 
 on:
-  create:
-    tags:
-      - '[0-9]+.[0-9]+.[0-9]+'
-      - '[0-9]+.[0-9]+.[0-9]+*'
-  push:
-    tags:
-      - '[0-9]+.[0-9]+.[0-9]+'
-      - '[0-9]+.[0-9]+.[0-9]+*'
+  workflow_run:
+    workflows: ['Release']
+    types: [completed]
+    branches:
+      - master
+      - beta
+      - pre-release
 
 jobs:
   publish:
