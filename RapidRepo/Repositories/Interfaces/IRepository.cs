@@ -104,7 +104,23 @@ public interface IRepository<TEntity, in TKey>
     /// Adds multiple new entities to the repository.
     /// </summary>
     /// <param name="entities">The entities to add.</param>
-    void Add(IEnumerable<TEntity> entities);
+    void AddRange(IEnumerable<TEntity> entities);
+
+    /// <summary>
+    /// Adds a new entity to the repository asynchronously.
+    /// </summary>
+    /// <param name="entity">The entity to add.</param>
+    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
+    Task AddAsync(TEntity entity, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Adds multiple new entities to the repository asynchronously.
+    /// </summary>
+    /// <param name="entities">The entities to add.</param>
+    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
+    Task AddAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Deletes an entity by its identifier.
@@ -122,11 +138,6 @@ public interface IRepository<TEntity, in TKey>
     /// Deletes multiple entities from the repository.
     /// </summary>
     /// <param name="entities">The entities to delete.</param>
-    void Delete(IEnumerable<TEntity> entities);
-
-    /// <summary>
-    /// Deletes a range of entities from the repository.
-    /// </summary>
     void DeleteRange(IEnumerable<TEntity> entities);
 
     /// <summary>

@@ -3,14 +3,14 @@
 /// <summary>
 /// Represents an entity that can be marked as deleted.
 /// </summary>
-/// <typeparam name="TKey">The type of the user ID.</typeparam>
-public interface IDeletableEntity<TKey> : IDeletableEntity
-    where TKey : struct
+/// <typeparam name="TUserKey">The type of the user ID.</typeparam>
+public interface IDeletableEntity<TUserKey> : IDeletableEntity
+    where TUserKey : struct
 {
     /// <summary>
     /// Gets or sets the ID of the user who deleted the entity.
     /// </summary>
-    TKey? DeletedBy { get; set; }
+    TUserKey? DeletedBy { get; set; }
 }
 
 /// <summary>
