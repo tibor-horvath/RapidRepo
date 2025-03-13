@@ -88,7 +88,7 @@ public class DeleteTests : BaseRepositoryTest
         _dbContext.SaveChanges();
 
         // Assert
-        var deletedCompany = _dbContext.Companies.Find(company.Id);
+        var deletedCompany = _dbContext.Companies.FirstOrDefault(x => x.Id == company.Id);
         deletedCompany.Should().BeNull();
     }
 
