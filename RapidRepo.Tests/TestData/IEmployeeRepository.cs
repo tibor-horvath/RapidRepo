@@ -2,6 +2,6 @@
 
 namespace Repository.Tests.TestData;
 
-internal interface IEmployeeRepository : IRepository<Employee, int>
+public interface IEmployeeRepository : IRepository<Employee, int>
 {
 }

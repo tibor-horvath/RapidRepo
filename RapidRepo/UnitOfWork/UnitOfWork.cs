@@ -41,33 +41,48 @@ public abstract class UnitOfWork<TUserKey> : IUnitOfWork<TUserKey>, IDisposable
     /// <param name="userId">The optional user ID to associate with the audit.</param>
     private void ExecuteAudit(TUserKey? userId = null)
     {
-        var entities = DbContext.ChangeTracker.Entries()
-            .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified)
-            .Select(e => e.Entity)
-            .ToList();
+        var utcNow = DateTime.UtcNow;
+        var defaultUserKey = DefaultUserKey;
 
-        foreach (var entity in entities)
+        foreach (var entry in DbContext.ChangeTracker.Entries()
+            .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified))
         {
+            var entity = entry.Entity;
+            var state = entry.State;
+
             if (entity is IAuditableEntity<TUserKey> auditableEntityWithUserInfo)
             {
-                auditableEntityWithUserInfo.CreatedAt = DateTime.UtcNow;
-                auditableEntityWithUserInfo.CreatedBy = userId ?? DefaultUserKey;
+                if (state == EntityState.Added)
+                {
+                    auditableEntityWithUserInfo.CreatedAt = utcNow;
+                    auditableEntityWithUserInfo.CreatedBy = userId ?? defaultUserKey;
+                }
+                else if (state == EntityState.Modified)
+                {
+                    auditableEntityWithUserInfo.ModifiedAt = utcNow;
+                    auditableEntityWithUserInfo.ModifiedBy = userId ?? defaultUserKey;
+                }
             }
-
-            if (entity is IAuditableEntity auditableEntity)
+            else if (entity is IAuditableEntity auditableEntity)
             {
-                auditableEntity.CreatedAt = DateTime.UtcNow;
-            }
-
-            if (entity is IDeletableEntity softDeletableEntity && softDeletableEntity.DeletedAt != null)
-            {
-                softDeletableEntity.DeletedAt = DateTime.UtcNow;
+                if (state == EntityState.Added)
+                {
+                    auditableEntity.CreatedAt = utcNow;
+                }
+                else if (state == EntityState.Modified)
+                {
+                    auditableEntity.ModifiedAt = utcNow;
+                }
             }
 
             if (entity is IDeletableEntity<TUserKey> softDeletableEntityWithUserInfo && softDeletableEntityWithUserInfo.DeletedAt != null)
             {
-                softDeletableEntityWithUserInfo.DeletedAt = DateTime.UtcNow;
-                softDeletableEntityWithUserInfo.DeletedBy = userId ?? DefaultUserKey;
+                softDeletableEntityWithUserInfo.DeletedAt = utcNow;
+                softDeletableEntityWithUserInfo.DeletedBy = userId ?? defaultUserKey;
+            }
+            else if (entity is IDeletableEntity softDeletableEntity && softDeletableEntity.DeletedAt != null)
+            {
+                softDeletableEntity.DeletedAt = utcNow;
             }
         }
     }

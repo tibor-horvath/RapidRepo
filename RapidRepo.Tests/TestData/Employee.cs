@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Repository.Tests.TestData;
 
-public class Employee : BaseEntity<int>, IDeletableEntity<Guid>
+public class Employee : BaseEntity<int>, IAuditableDeletableEntity<Guid>
 {
     public required string FirstName { get; set; }
     public required string LastName { get; set; }
@@ -19,4 +19,8 @@ public class Employee : BaseEntity<int>, IDeletableEntity<Guid>
     public Employee? Manager { get; set; }
     public Guid? DeletedBy { get; set; }
     public DateTime? DeletedAt { get; set; }
+    public Guid CreatedBy { get; set; }
+    public Guid? ModifiedBy { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? ModifiedAt { get; set; }
 }
