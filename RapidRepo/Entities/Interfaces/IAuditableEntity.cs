@@ -3,19 +3,19 @@
 /// <summary>
 /// Represents an auditable entity with properties for tracking creation and modification information.
 /// </summary>
-/// <typeparam name="TKey">The type of the user ID.</typeparam>
-public interface IAuditableEntity<TKey> : IAuditableEntity
-    where TKey : struct
+/// <typeparam name="TUserKey">The type of the user ID.</typeparam>
+public interface IAuditableEntity<TUserKey> : IAuditableEntity
+    where TUserKey : struct
 {
     /// <summary>
     /// Gets or sets the user ID of the creator of the entity.
     /// </summary>
-    TKey CreatedBy { get; set; }
+    TUserKey CreatedBy { get; set; }
 
     /// <summary>
     /// Gets or sets the user ID of the last modifier of the entity.
     /// </summary>
-    TKey? ModifiedBy { get; set; }
+    TUserKey? ModifiedBy { get; set; }
 }
 
 /// <summary>

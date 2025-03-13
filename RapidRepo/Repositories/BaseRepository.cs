@@ -14,12 +14,12 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
     where TId : struct
 {
     protected readonly DbContext DbContext;
-    protected readonly bool IsDeletableEntity;
+    protected readonly bool SupportsSoftDelete;
 
     protected BaseRepository(DbContext dbContext)
     {
         DbContext = dbContext;
-        IsDeletableEntity =
+        SupportsSoftDelete =
             typeof(IDeletableEntity<TId>).IsAssignableFrom(typeof(TEntity)) ||
             typeof(IDeletableEntity).IsAssignableFrom(typeof(TEntity));
     }
@@ -29,10 +29,21 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         DbContext.Set<TEntity>().Add(entity);
     }
 
-    public virtual void Add(IEnumerable<TEntity> entities)
+    public virtual void AddRange(IEnumerable<TEntity> entities)
     {
         DbContext.Set<TEntity>().AddRange(entities);
     }
+
+    public virtual async Task AddAsync(TEntity entity, CancellationToken cancellationToken = default)
+    {
+        await DbContext.Set<TEntity>().AddAsync(entity, cancellationToken);
+    }
+
+    public virtual async Task AddAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
+    {
+        await DbContext.Set<TEntity>().AddRangeAsync(entities, cancellationToken);
+    }
+
     public virtual bool Any(Expression<Func<TEntity, bool>> condition)
     {
         return DbContext.Set<TEntity>().Any(condition);
@@ -75,7 +86,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
 
     public virtual void Delete(TEntity entity)
     {
-        if (IsDeletableEntity)
+        if (SupportsSoftDelete)
         {
             if (DbContext.Entry(entity).State == EntityState.Detached)
             {
@@ -90,11 +101,11 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         }
     }
 
-    public virtual void Delete(IEnumerable<TEntity> entities)
+    public virtual void DeleteRange(IEnumerable<TEntity> entities)
     {
         var entitiesToRemove = entities.ToList();
 
-        if (IsDeletableEntity)
+        if (SupportsSoftDelete)
         {
             DbContext.AttachRange(entitiesToRemove);
             entitiesToRemove.ForEach(e => ((IDeletableEntity)e).DeletedAt = DateTime.UtcNow);
@@ -447,11 +458,6 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         {
             Delete(entity);
         }
-    }
-
-    public virtual void DeleteRange(IEnumerable<TEntity> entities)
-    {
-        DbContext.Set<TEntity>().RemoveRange(entities);
     }
 
     public virtual void UpdateRange(IEnumerable<TEntity> entities)
