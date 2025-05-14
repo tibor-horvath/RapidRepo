@@ -329,7 +329,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         };
     }
 
-    public virtual async Task<Paged<TEntity>> GetPagedAsync(
+    public virtual async Task<Paged<TEntity>> GetAllPagedAsync(
         Expression<Func<TEntity, bool>>? condition = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
@@ -344,6 +344,7 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
             .Set<TEntity>()
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
+                condition: condition,
                 orderBy: orderBy,
                 include: include,
                 ignoreQueryFilters: ignoreQueryFilters,
@@ -352,8 +353,8 @@ public abstract class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         var totalCount = await query.CountAsync(cancellationToken);
 
         var results = await query.Skip((pageIndex - 1) * pageSize)
-                                 .Take(pageSize)
-                                 .ToListAsync(cancellationToken);
+                           .Take(pageSize)
+                           .ToListAsync(cancellationToken);
 
         return new Paged<TEntity>
         {

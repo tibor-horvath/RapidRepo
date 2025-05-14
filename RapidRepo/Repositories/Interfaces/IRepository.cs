@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore.Query;
+using RapidRepo.Dtos;
 using RapidRepo.Entities;
 using System.Linq.Expressions;
 
@@ -540,5 +541,51 @@ public interface IRepository<TEntity, in TKey>
         bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
         CancellationToken cancellation = default);
+
+    /// <summary>
+    /// Retrieves a paged collection of entities that match the specified condition.
+    /// </summary>
+    /// <param name="condition">The condition to filter entities.</param>
+    /// <param name="orderBy">A function to order the entities.</param>
+    /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
+    /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
+    /// <param name="track">Whether to track the entity in the context.</param>
+    /// <param name="pageIndex">The index of the page to retrieve (1-based).</param>
+    /// <param name="pageSize">The number of items per page.</param>
+    /// <returns>A paged collection of entities.</returns>
+    Paged<TEntity> GetAllPaged(
+        Expression<Func<TEntity, bool>>? condition = null,
+        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
+        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
+        bool ignoreQueryFilters = false,
+        bool track = true,
+        int pageIndex = 1,
+        int pageSize = 10);
+
+    /// <summary>
+    /// Asynchronously retrieves a paged collection of entities that match the specified condition.
+    /// </summary>
+    /// <param name="condition">The condition to filter entities.</param>
+    /// <param name="orderBy">A function to order the entities.</param>
+    /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
+    /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
+    /// <param name="track">Whether to track the entity in the context.</param>
+    /// <param name="pageIndex">The index of the page to retrieve (1-based).</param>
+    /// <param name="pageSize">The number of items per page.</param>
+    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result contains a paged collection of entities.</returns>
+    Task<Paged<TEntity>> GetAllPagedAsync(
+        Expression<Func<TEntity, bool>>? condition = null,
+        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
+        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
+        bool ignoreQueryFilters = false,
+        bool track = true,
+        int pageIndex = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default);
 }
 
