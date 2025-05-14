@@ -5,7 +5,7 @@ namespace RapidRepo.Tests.Repositories.BaseRepository;
 public class GetPagedAsyncTests : BaseRepositoryTest
 {
     [Fact]
-    public async Task GetPagedAsync_ShouldReturnPagedEntities()
+    public async Task GetAllPagedAsync_ShouldReturnPagedEntities()
     {
         // Arrange
         var employee1 = new Employee
@@ -36,7 +36,7 @@ public class GetPagedAsyncTests : BaseRepositoryTest
         DetachAllEntities();
 
         // Act
-        var result = await _sut.GetPagedAsync(pageIndex: 1, pageSize: 2);
+        var result = await _sut.GetAllPagedAsync(pageIndex: 1, pageSize: 2);
 
         // Assert
         result.Results.Should().ContainEquivalentOf(employee1);
