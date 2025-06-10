@@ -1,7 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Repository.Tests.TestData;
 
-namespace RapidRepo.Tests.TestData;
+namespace RapidRepo.Tests.Repositories.TestData;
 
 public class TestDbContext : DbContext
 {

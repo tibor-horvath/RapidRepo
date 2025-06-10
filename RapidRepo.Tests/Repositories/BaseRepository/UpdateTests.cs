@@ -1,8 +1,8 @@
 ﻿using FluentAssertions;
-using Repository.Tests.TestData;
+using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
-public class UpdateTests : BaseRepositoryTest
+public class UpdateTests : BaseWriteRepositoryTest
 {
     [Fact]
     public void Update_ShouldUpdateEntityInDbContext()

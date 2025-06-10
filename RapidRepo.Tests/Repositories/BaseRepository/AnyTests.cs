@@ -1,8 +1,8 @@
 ﻿using FluentAssertions;
-using Repository.Tests.TestData;
+using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
-public class AnyTests : BaseRepositoryTest
+public class AnyTests : BaseWriteRepositoryTest
 {
     [Fact]
     public void Any_ShouldReturnTrue_WhenConditionIsMet()

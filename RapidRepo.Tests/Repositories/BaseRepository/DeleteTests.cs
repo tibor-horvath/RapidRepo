@@ -1,10 +1,10 @@
 ﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using RapidRepo.Tests.TestData;
-using Repository.Tests.TestData;
+using RapidRepo.Tests.Repositories.BaseRepository.TestData;
+using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
-public class DeleteTests : BaseRepositoryTest
+public class DeleteTests : BaseWriteRepositoryTest
 {
     [Fact]
     public void Delete_ShouldRemoveEntityFromDbContext()

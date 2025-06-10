@@ -1,8 +1,8 @@
 ﻿using FluentAssertions;
-using Repository.Tests.TestData;
+using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
-public class GetFirstAsyncTests : BaseRepositoryTest
+public class GetFirstAsyncTests : BaseWriteRepositoryTest
 {
 
     [Fact]

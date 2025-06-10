@@ -1,8 +1,8 @@
 ﻿using FluentAssertions;
-using Repository.Tests.TestData;
+using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
-public class GetAllAsyncTests : BaseRepositoryTest
+public class GetAllAsyncTests : BaseWriteRepositoryTest
 {
     [Fact]
     public async Task GetAllAsync_ShouldReturnAllEntities()

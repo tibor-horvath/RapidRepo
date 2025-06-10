@@ -1,8 +1,8 @@
 ﻿using FluentAssertions;
-using Repository.Tests.TestData;
+using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
-public class GetByIdAsyncTests : BaseRepositoryTest
+public class GetByIdAsyncTests : BaseWriteRepositoryTest
 {
     [Fact]
     public async Task GetByIdAsync_ShouldReturnEntityWithMatchingId()
@@ -49,7 +49,7 @@ public class GetByIdAsyncTests : BaseRepositoryTest
 
         employees.Add(employee);
 
-        _sut.Add(employee);
+        _dbContext.Employees.AddRange(employees);
         _dbContext.SaveChanges();
         DetachAllEntities();
 

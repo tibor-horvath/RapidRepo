@@ -1,8 +1,8 @@
 ﻿using FluentAssertions;
-using Repository.Tests.TestData;
+using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
-public class AddAsyncTests : BaseRepositoryTest
+public class AddAsyncTests : BaseWriteRepositoryTest
 {
     [Fact]
     public async Task AddAsync_ShouldAddEntityToDbContext()

@@ -1,9 +1,9 @@
 ﻿using FluentAssertions;
-using Repository.Tests.TestData;
+using RapidRepo.Tests.Repositories.TestData;
 using System.Linq.Expressions;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
-public class CountTests : BaseRepositoryTest
+public class CountTests : BaseWriteRepositoryTest
 {
     [Fact]
     public void Count_ShouldReturnCorrectCount_WhenConditionIsMet()

@@ -1,15 +1,15 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using RapidRepo.Tests.TestData;
-using Repository.Tests.TestData;
+using RapidRepo.Tests.Repositories.BaseRepository.TestData;
+using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
 
-public class BaseRepositoryTest : IDisposable
+public class BaseWriteRepositoryTest : IDisposable
 {
     internal TestDbContext _dbContext;
     internal EmployeeRepository _sut;
 
-    protected BaseRepositoryTest()
+    protected BaseWriteRepositoryTest()
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(databaseName: $"TestDatabase-{Guid.NewGuid()}")

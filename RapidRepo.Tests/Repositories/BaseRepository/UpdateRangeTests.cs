@@ -1,8 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Repository.Tests.TestData;
+using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
-public class UpdateRangeTests : BaseRepositoryTest
+public class UpdateRangeTests : BaseWriteRepositoryTest
 {
     [Fact]
     public async Task UpdateRange_UpdatesEntities()

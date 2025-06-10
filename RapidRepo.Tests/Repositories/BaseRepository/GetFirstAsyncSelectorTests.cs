@@ -1,8 +1,8 @@
 ﻿using FluentAssertions;
-using Repository.Tests.TestData;
+using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
-public class GetFirstAsyncSelectorTests : BaseRepositoryTest
+public class GetFirstAsyncSelectorTests : BaseWriteRepositoryTest
 {
     [Fact]
     public async Task GetFirstAsync_WithSelector_ShouldReturnFirstEntity()

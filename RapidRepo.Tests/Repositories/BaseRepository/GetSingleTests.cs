@@ -1,8 +1,8 @@
 ﻿using FluentAssertions;
-using Repository.Tests.TestData;
+using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
-public class GetSingleTests : BaseRepositoryTest
+public class GetSingleTests : BaseWriteRepositoryTest
 {
     [Fact]
     public void GetSingle_ShouldReturnSingleEntity()
