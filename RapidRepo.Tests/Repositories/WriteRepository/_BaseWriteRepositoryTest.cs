@@ -3,7 +3,7 @@ using RapidRepo.Tests.Repositories.TestData;
 using RapidRepo.Tests.Repositories.WriteRepository.TestData;
 
 namespace RapidRepo.Tests.Repositories.WriteRepository;
-public class BaseWriteRepositoryTest
+public class BaseWriteRepositoryTest : IDisposable
 {
     internal TestDbContext _dbContext;
     internal WriteEmployeeRepository _sut;

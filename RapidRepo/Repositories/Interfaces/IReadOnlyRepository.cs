@@ -38,6 +38,23 @@ public interface IReadOnlyRepository<TEntity, in TKey>
     /// <param name="track">Whether to track the entity in the context.</param>
     /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
     /// <returns>The entity with the specified identifier, or null if not found.</returns>
+
+    /// <summary>
+    /// Counts the number of entities that match the specified condition.
+    /// </summary>
+    /// <param name="condition">The condition to filter entities.</param>
+    /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
+    /// <returns>The count of entities matching the condition.</returns>
+    int Count(Expression<Func<TEntity, bool>>? condition = null, bool ignoreQueryFilters = false);
+
+    /// <summary>
+    /// Asynchronously counts the number of entities that match the specified condition.
+    /// </summary>
+    /// <param name="condition">The condition to filter entities.</param>
+    /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
+    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
+    /// <returns>The count of entities matching the condition.</returns>
+    Task<int> CountAsync(Expression<Func<TEntity, bool>>? condition = null, bool ignoreQueryFilters = false, CancellationToken cancellationToken = default);
     TEntity? GetById(TKey id,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
         bool useSplitQueries = false,
@@ -352,7 +369,6 @@ public interface IReadOnlyRepository<TEntity, in TKey>
     /// <param name="include">A function to include related entities.</param>
     /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
     /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
-    /// <param name="track">Whether to track the entity in the context.</param>
     /// <returns>The result of the selector function for the single entity that matches the condition.</returns>
     TResult GetSingle<TResult>(
         Expression<Func<TEntity, TResult>> selector,
@@ -432,7 +448,6 @@ public interface IReadOnlyRepository<TEntity, in TKey>
     /// <param name="include">A function to include related entities.</param>
     /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
     /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
-    /// <param name="track">Whether to track the entity in the context.</param>
     /// <returns>The entities that match the condition.</returns>
     IEnumerable<TResult> GetAll<TResult>(
         Expression<Func<TEntity, TResult>> selector,
@@ -482,7 +497,7 @@ public interface IReadOnlyRepository<TEntity, in TKey>
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
         bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
-        CancellationToken cancellation = default);
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves a paged collection of entities that match the specified condition.

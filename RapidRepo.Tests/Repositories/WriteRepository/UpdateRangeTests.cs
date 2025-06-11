@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.WriteRepository;
@@ -49,8 +50,9 @@ public class UpdateRangeTests : BaseWriteRepositoryTest
 
         // Assert
         var updatedEmployees = await _dbContext.Employees.ToListAsync();
-        Assert.Equal(employees[0], updatedEmployees.First(e => e.Id == 1));
-        Assert.Equal(employees[1], updatedEmployees.First(e => e.Id == 2));
-        Assert.Equal(employees[2], updatedEmployees.First(e => e.Id == 3));
+        updatedEmployees.Should()
+            .BeEquivalentTo(employees,
+                opts => opts.WithoutStrictOrdering()
+                    .ExcludingMissingMembers());
     }
 }

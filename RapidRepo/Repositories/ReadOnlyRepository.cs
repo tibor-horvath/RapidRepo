@@ -15,14 +15,14 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
 
     public virtual bool Any(Expression<Func<TEntity, bool>> condition)
     {
-        return DbContext.Set<TEntity>().Any(condition);
+        return DbContext.Set<TEntity>().AsNoTracking().Any(condition);
     }
 
     public virtual async Task<bool> AnyAsync(
         Expression<Func<TEntity, bool>> condition,
         CancellationToken cancellationToken = default)
     {
-        return await DbContext.Set<TEntity>().AnyAsync(condition, cancellationToken);
+        return await DbContext.Set<TEntity>().AsNoTracking().AnyAsync(condition, cancellationToken);
     }
 
     public virtual int Count(
@@ -34,7 +34,8 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 condition: condition,
-                ignoreQueryFilters: ignoreQueryFilters)
+                ignoreQueryFilters: ignoreQueryFilters,
+                track: false)
             .Count();
     }
 
@@ -49,7 +50,8 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 condition: condition,
-                ignoreQueryFilters: ignoreQueryFilters)
+                ignoreQueryFilters: ignoreQueryFilters,
+                track: false)
             .CountAsync(cancellationToken);
     }
 
@@ -69,6 +71,7 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
                 condition: condition,
                 orderBy: orderBy,
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: track)
             .ToList();
@@ -90,6 +93,7 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
                 condition: condition,
                 orderBy: orderBy,
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: track)
             .ToListAsync(cancellationToken);
@@ -107,9 +111,9 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
-                track: track,
-                useSplitQueries: useSplitQueries)
+                track: track)
             .FirstOrDefault(e => e.Id.Equals(id));
     }
 
@@ -124,8 +128,8 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
             .Set<TEntity>()
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
-                condition: e => e.Id.Equals(id),
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: false)
             .Where(e => e.Id.Equals(id))
@@ -146,6 +150,7 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: track)
             .FirstOrDefaultAsync(e => e.Id.Equals(id), cancellationToken);
@@ -166,6 +171,7 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
                 condition: condition,
                 orderBy: orderBy,
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: track)
             .First();
@@ -187,6 +193,7 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
                 condition: condition,
                 orderBy: orderBy,
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: track)
             .FirstAsync(cancellationToken);
@@ -207,6 +214,7 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
                 condition: condition,
                 orderBy: orderBy,
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: track)
             .FirstOrDefault();
@@ -228,6 +236,7 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
                 condition: condition,
                 orderBy: orderBy,
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: track)
             .FirstOrDefaultAsync(cancellationToken);
@@ -250,6 +259,7 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
                 condition: condition,
                 orderBy: orderBy,
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: track);
 
@@ -286,6 +296,7 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
                 condition: condition,
                 orderBy: orderBy,
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: track);
 
@@ -319,6 +330,7 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
                 condition: condition,
                 orderBy: orderBy,
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: track)
             .Single();
@@ -340,6 +352,7 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
                 condition: condition,
                 orderBy: orderBy,
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: track)
             .SingleAsync(cancellationToken);
@@ -357,9 +370,10 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
             .Set<TEntity>()
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
-                condition: condition,
+               condition: condition,
                 orderBy: orderBy,
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: track)
             .SingleOrDefault();
@@ -381,6 +395,7 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
                 condition: condition,
                 orderBy: orderBy,
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: track)
             .SingleOrDefaultAsync(cancellationToken);
@@ -399,10 +414,11 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
             .Set<TEntity>()
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
-                condition: e => e.Id.Equals(id),
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: false)
+            .Where(e => e.Id.Equals(id))
             .Select(selector)
             .FirstOrDefaultAsync(cancellationToken);
     }
@@ -420,7 +436,9 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 condition: condition,
+                orderBy: orderBy,
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: false)
             .Select(selector)
@@ -441,7 +459,9 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 condition: condition,
+                orderBy: orderBy,
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: false)
             .Select(selector)
@@ -461,7 +481,9 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 condition: condition,
+                orderBy: orderBy,
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: false)
             .Select(selector)
@@ -482,7 +504,9 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 condition: condition,
+                orderBy: orderBy,
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: false)
             .Select(selector)
@@ -502,7 +526,9 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 condition: condition,
+                orderBy: orderBy,
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: false)
             .Select(selector)
@@ -523,7 +549,9 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 condition: condition,
+                orderBy: orderBy,
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: false)
             .Select(selector)
@@ -543,7 +571,9 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 condition: condition,
+                orderBy: orderBy,
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: false)
             .Select(selector)
@@ -564,7 +594,9 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
             .AsQueryable()
             .ApplyFilters<TEntity, TId>(
                 condition: condition,
+                orderBy: orderBy,
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: false)
             .Select(selector)
@@ -586,6 +618,7 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
                 condition: condition,
                 orderBy: orderBy,
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: false)
             .Select(selector)
@@ -599,7 +632,7 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
         bool useSplitQueries = false,
         bool ignoreQueryFilters = false,
-        CancellationToken cancellation = default)
+        CancellationToken cancellationToken = default)
     {
         var query = DbContext
             .Set<TEntity>()
@@ -608,11 +641,12 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
                 condition: condition,
                 orderBy: orderBy,
                 include: include,
+                useSplitQueries: useSplitQueries,
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: false);
 
         return await query
             .Select(selector)
-            .ToListAsync(cancellation);
+            .ToListAsync(cancellationToken);
     }
 }

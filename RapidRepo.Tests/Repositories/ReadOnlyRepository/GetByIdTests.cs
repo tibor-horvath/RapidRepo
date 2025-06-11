@@ -49,7 +49,7 @@ public class GetByIdTests : BaseReadOnlyRepositoryTest
 
         employees.Add(employee);
 
-        _dbContext.Employees.Add(employee);
+        _dbContext.Employees.AddRange(employees);
         _dbContext.SaveChanges();
         DetachAllEntities();
 

@@ -4,7 +4,7 @@ using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.ReadOnlyRepository;
 
-public class BaseReadOnlyRepositoryTest
+public class BaseReadOnlyRepositoryTest : IDisposable
 {
     internal TestDbContext _dbContext;
     internal ReadOnlyEmployeeRepository _sut;
