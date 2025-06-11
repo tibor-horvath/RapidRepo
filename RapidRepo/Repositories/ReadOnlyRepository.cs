@@ -108,7 +108,8 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
             .ApplyFilters<TEntity, TId>(
                 include: include,
                 ignoreQueryFilters: ignoreQueryFilters,
-                track: track)
+                track: track,
+                useSplitQueries: useSplitQueries)
             .FirstOrDefault(e => e.Id.Equals(id));
     }
 
