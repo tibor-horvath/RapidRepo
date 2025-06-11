@@ -1,8 +1,7 @@
 ﻿using RapidRepo.Entities;
 using RapidRepo.Entities.Interfaces;
-using Repository.Tests.TestData;
 
-namespace RapidRepo.Tests.TestData;
+namespace RapidRepo.Tests.Repositories.TestData;
 
 public class Company : BaseEntity<Guid>, IAuditableEntity, IDeletableEntity
 {

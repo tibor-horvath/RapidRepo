@@ -1,8 +1,8 @@
 ﻿using FluentAssertions;
-using Repository.Tests.TestData;
+using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
-public class GetFirstTests : BaseRepositoryTest
+public class GetFirstTests : BaseWriteRepositoryTest
 {
     [Fact]
     public void GetFirst_ShouldReturnFirstEntity()

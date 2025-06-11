@@ -1,9 +1,9 @@
 ﻿using FluentAssertions;
-using Repository.Tests.TestData;
+using RapidRepo.Tests.Repositories.TestData;
 using System.Linq.Expressions;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
-public class CountAsyncTests : BaseRepositoryTest
+public class CountAsyncTests : BaseWriteRepositoryTest
 {
     [Fact]
     public async Task CountAsync_ShouldReturnCorrectCount_WhenConditionIsMet()

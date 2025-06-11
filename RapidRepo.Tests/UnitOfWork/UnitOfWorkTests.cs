@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Moq;
-using RapidRepo.Tests.TestData;
-using Repository.Tests.TestData;
+using RapidRepo.Tests.Repositories.BaseRepository.TestData;
+using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.UnitOfWork;
 public class UnitOfWorkTests

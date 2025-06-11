@@ -1,7 +1,7 @@
-﻿using Repository.Tests.TestData;
+﻿using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
-public class DeleteByIdTests : BaseRepositoryTest
+public class DeleteByIdTests : BaseWriteRepositoryTest
 {
     [Fact]
     public async Task DeleteById_ShouldDeleteEntity_WhenEntityExists()

@@ -1,8 +1,8 @@
 ﻿using FluentAssertions;
-using Repository.Tests.TestData;
+using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
-public class GetPagedAsyncTests : BaseRepositoryTest
+public class GetPagedAsyncTests : BaseWriteRepositoryTest
 {
     [Fact]
     public async Task GetAllPagedAsync_ShouldReturnPagedEntities()

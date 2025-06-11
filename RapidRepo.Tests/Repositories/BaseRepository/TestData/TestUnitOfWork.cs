@@ -1,7 +1,7 @@
-﻿using RapidRepo.UnitOfWork;
-using Repository.Tests.TestData;
+﻿using RapidRepo.Tests.Repositories.TestData;
+using RapidRepo.UnitOfWork;
 
-namespace RapidRepo.Tests.TestData;
+namespace RapidRepo.Tests.Repositories.BaseRepository.TestData;
 
 internal class TestUnitOfWork : UnitOfWork<Guid>
 {

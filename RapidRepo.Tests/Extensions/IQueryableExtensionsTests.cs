@@ -3,10 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using Moq;
 using RapidRepo.Extensions;
 using RapidRepo.Tests.Repositories.BaseRepository;
-using Repository.Tests.TestData;
+using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Extensions;
-public class IQueryableExtensionsTests : BaseRepositoryTest
+public class IQueryableExtensionsTests : BaseWriteRepositoryTest
 {
     public IQueryableExtensionsTests()
         : base()

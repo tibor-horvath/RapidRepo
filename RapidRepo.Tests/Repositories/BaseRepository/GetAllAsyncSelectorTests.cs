@@ -1,7 +1,7 @@
-﻿using Repository.Tests.TestData;
+﻿using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
-public class GetAllAsyncSelectorTests : BaseRepositoryTest
+public class GetAllAsyncSelectorTests : BaseWriteRepositoryTest
 {
     [Fact]
     public async Task GetAllAsync_WithSelector_ReturnsCorrectData()

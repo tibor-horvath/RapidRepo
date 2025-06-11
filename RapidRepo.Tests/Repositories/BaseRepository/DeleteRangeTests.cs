@@ -1,10 +1,10 @@
 ﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using RapidRepo.Tests.TestData;
-using Repository.Tests.TestData;
+using RapidRepo.Tests.Repositories.BaseRepository.TestData;
+using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
-public class DeleteRangeTests : BaseRepositoryTest
+public class DeleteRangeTests : BaseWriteRepositoryTest
 {
     [Fact]
     public void DeleteRange_HardDelete_RemovesEntities()

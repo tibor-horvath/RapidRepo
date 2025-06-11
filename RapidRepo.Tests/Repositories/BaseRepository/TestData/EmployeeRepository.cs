@@ -1,7 +1,7 @@
 ﻿using RapidRepo.Repositories;
-using RapidRepo.Tests.TestData;
+using RapidRepo.Tests.Repositories.TestData;
 
-namespace Repository.Tests.TestData;
+namespace RapidRepo.Tests.Repositories.BaseRepository.TestData;
 
 public class EmployeeRepository : BaseRepository<Employee, int>, IEmployeeRepository
 {

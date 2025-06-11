@@ -1,7 +1,7 @@
-﻿using Repository.Tests.TestData;
+﻿using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
-public class GetAllSelectorTests : BaseRepositoryTest
+public class GetAllSelectorTests : BaseWriteRepositoryTest
 {
     [Fact]
     public void GetAll_WithSelector_ReturnsCorrectData()

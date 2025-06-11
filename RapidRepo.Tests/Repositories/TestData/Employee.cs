@@ -2,7 +2,7 @@
 using RapidRepo.Entities.Interfaces;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Repository.Tests.TestData;
+namespace RapidRepo.Tests.Repositories.TestData;
 
 public class Employee : BaseEntity<int>, IAuditableDeletableEntity<Guid>
 {

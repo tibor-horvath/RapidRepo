@@ -1,8 +1,8 @@
 ﻿using FluentAssertions;
-using Repository.Tests.TestData;
+using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
-public class AnyAsyncTests : BaseRepositoryTest
+public class AnyAsyncTests : BaseWriteRepositoryTest
 {
     [Fact]
     public async Task AnyAsync_ShouldReturnTrue_WhenConditionIsMet()
