@@ -51,20 +51,26 @@ public abstract class WriteRepository<TEntity, TId>(DbContext dbContext) : IWrit
         }
     }
 
-    public virtual void DeleteRange(IEnumerable<TEntity> entities)
-    {
-        var entitiesToRemove = entities.ToList();
+public virtual void DeleteRange(IEnumerable<TEntity> entities)
+{
+    var entitiesToRemove = entities.ToList();
 
-        if (SupportsSoftDelete)
+    if (SupportsSoftDelete)
+    {
+        foreach (var e in entitiesToRemove)
         {
-            DbContext.AttachRange(entitiesToRemove);
-            entitiesToRemove.ForEach(e => ((IDeletableEntity)e).DeletedAt = DateTime.UtcNow);
-        }
-        else
-        {
-            DbContext.RemoveRange(entitiesToRemove);
+            if (DbContext.Entry(e).State == EntityState.Detached)
+                DbContext.Attach(e);
+
+            if (e is IDeletableEntity deletable)
+                deletable.DeletedAt = DateTime.UtcNow;
         }
     }
+    else
+    {
+        DbContext.RemoveRange(entitiesToRemove);
+    }
+}
 
     public virtual void Update(TEntity entity)
     {
