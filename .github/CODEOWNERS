@@ -1,0 +1,11 @@
+# This file defines code owners for the repository
+# GitHub will automatically assign pull requests for review based on patterns
+
+# Default owners for the entire repository
+* @tibor-horvath
+
+# Add specific rules below to assign ownership to different paths or files
+# Example:
+# /docs/ @tibor-horvath
+# /src/ @tibor-horvath
+# *.md @tibor-horvath
