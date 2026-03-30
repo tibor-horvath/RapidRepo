@@ -10,7 +10,7 @@ All query methods accept optional `condition`, `orderBy`, and `include` paramete
 var products = await _unitOfWork.Products.GetAllAsync(
     condition: p => p.IsActive && p.Price > 10m,
     orderBy: q => q.OrderByDescending(p => p.Price).ThenBy(p => p.Name),
-    include: q => q.Include(p => p.Category).ThenInclude(c => c.Tags));
+    include: q => q.Include(p => p.Category));
 ```
 
 ---
