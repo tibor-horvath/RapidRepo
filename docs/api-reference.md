@@ -91,7 +91,7 @@ int count = await _unitOfWork.Products.CountAsync(p => p.IsActive);
 
 ### Common optional parameters
 
-All query methods share these optional parameters:
+#### `Get*` methods (`GetById`, `GetAll`, `GetAllPaged`, `GetFirst`, `GetFirstOrDefault`, `GetSingle`, `GetSingleOrDefault`)
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
@@ -101,6 +101,14 @@ All query methods share these optional parameters:
 | `track` | `bool` | `true` | EF change tracking (set `false` for read-only queries) |
 | `ignoreQueryFilters` | `bool` | `false` | Bypass global EF query filters |
 | `useSplitQueries` | `bool` | `false` | Use [EF split queries](https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries) for includes |
+
+#### `Any` / `AnyAsync`
+
+Only accepts a required `condition` predicate (and `cancellationToken` for the async variant). `orderBy`, `include`, `track`, `ignoreQueryFilters`, and `useSplitQueries` are **not** supported.
+
+#### `Count` / `CountAsync`
+
+Accepts an optional `condition` predicate and `ignoreQueryFilters`. `orderBy`, `include`, `track`, and `useSplitQueries` are **not** supported.
 
 ### Selector overloads
 
