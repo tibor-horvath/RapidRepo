@@ -83,7 +83,7 @@ public class ProductWriteRepository : WriteRepository<Product, long>, IProductWr
 
 ## Adding custom methods
 
-You can call any of the inherited `protected` query helpers directly from within your repository implementation, keeping the custom logic inside the data layer:
+You can call any of the inherited query methods/helpers directly from within your repository implementation, keeping the custom logic inside the data layer:
 
 ```csharp
 public interface IProductRepository : IRepository<Product, long>
