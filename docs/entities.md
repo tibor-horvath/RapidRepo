@@ -40,7 +40,7 @@ public class Product : BaseAuditableEntity<long>
 
 ## `BaseAuditableEntity<TId, TUserKey>`
 
-Extends `BaseAuditableEntity<TId>` and additionally tracks which user performed each operation. Both `TId` and `TUserKey` must be value types.
+Inherits directly from `BaseEntity<TId>` and implements `IAuditableEntity<TUserKey>` to track which user performed each operation. Both `TId` and `TUserKey` must be value types. Note: this variant does **not** include a `DeletedAt` property — see [Soft Delete](#soft-delete-ideletableentity) below.
 
 | Property | Type | Set on |
 |---|---|---|
@@ -70,10 +70,12 @@ public class Product : BaseAuditableEntity<long>, IDeletableEntity
 }
 
 // With user tracking
+// BaseAuditableEntity<TId, TUserKey> has no DeletedAt, so both interface members must be declared.
 public class Product : BaseAuditableEntity<long, Guid>, IDeletableEntity<Guid>
 {
     public string Name { get; set; } = string.Empty;
-    public Guid? DeletedBy { get; set; }
+    public DateTime? DeletedAt { get; set; }  // required by IDeletableEntity
+    public Guid? DeletedBy { get; set; }       // required by IDeletableEntity<Guid>
 }
 ```
 
