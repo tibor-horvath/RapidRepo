@@ -3,90 +3,98 @@
 [![Build](https://github.com/tibor-horvath/RapidRepo/actions/workflows/dotnet-build.yml/badge.svg)](https://github.com/tibor-horvath/RapidRepo/actions/workflows/dotnet-build.yml)
 [![Release](https://github.com/tibor-horvath/RapidRepo/actions/workflows/dotnet-release.yml/badge.svg)](https://github.com/tibor-horvath/RapidRepo/actions/workflows/dotnet-release.yml)
 
-## Documentation
+RapidRepo is a repository pattern implementation for .NET applications. It uses Entity Framework Core to provide a clean and consistent data access layer for common CRUD operations.
 
-RapidRepo is a comprehensive repository pattern implementation designed to streamline data access and manipulation in .NET applications. It leverages Entity Framework Core to provide a robust and flexible data access layer, ensuring that common data operations are handled efficiently and consistently.
+## Features
 
-### Purpose
+- Repository and Unit of Work abstractions
+- EF Core-based data access
+- Consistent and reusable CRUD patterns
+- Separation of business logic and persistence logic
+- Built-in auditing (`CreatedAt`, `CreatedBy`, `ModifiedAt`, `ModifiedBy`)
+- Built-in soft delete support (`DeletedAt`, `DeletedBy`)
+- Paged query results via `Paged<T>`
 
-The purpose of RapidRepo is to simplify data access and manipulation in .NET applications by providing a repository pattern implementation. It aims to offer a robust and flexible data access layer using Entity Framework Core.
+## Requirements
 
-### Features
+- .NET 10 SDK
+- Entity Framework Core-compatible `DbContext`
 
-- **Streamlined data access and manipulation**: Provides methods and abstractions that simplify common data operations in .NET applications.
-- **Repository pattern implementation**: Separates data access logic from business logic, offering a structured way to perform CRUD (Create, Read, Update, Delete) operations.
-- **Leveraging Entity Framework Core**: Uses a popular ORM framework to map database tables to .NET objects, simplifying database operations with object-oriented programming techniques.
-- **Efficient and consistent data operations**: Optimizes queries and data retrieval to minimize latency and improve performance, ensuring atomic and reliable data manipulation.
+## Installation
 
-### Usage
+```bash
+dotnet add package RapidRepo
+```
 
-To use RapidRepo in your .NET application:
+## Quick Start
 
-1. Install the RapidRepo NuGet package.
-2. Configure the database connection string in your application's configuration file.
-3. Create a repository class that inherits from the `BaseRepository` class provided by RapidRepo.
-4. Implement any additional custom repository methods as needed.
-5. Use the repository methods to perform data access and manipulation operations in your application.
-
-### Example
 ```csharp
+// 1. Define an entity
 public class Product : BaseEntity<long>
 {
-    public string Name { get; set; }
-    public string Description { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public decimal Price { get; set; }
 }
 
-public interface IProductRepository : IRepository<Product, long>
-{
-   // Add custom methods here
-}   
+// 2. Create a repository interface and implementation
+public interface IProductRepository : IRepository<Product, long> { }
 
 public class ProductRepository : BaseRepository<Product, long>, IProductRepository
-{ 
-    public ProductRepository(DbContext context) 
-    : base(context) 
-    {         
-    }
-    // Add custom methods here
+{
+    public ProductRepository(DbContext context) : base(context) { }
 }
 
-public interface ITestUnitOfWork : IUnitOfWork<Guid>, IDisposable
+// 3. Create a Unit of Work
+public interface IAppUnitOfWork : IUnitOfWork<Guid>, IDisposable
 {
     IProductRepository Products { get; }
 }
 
-public class TestUnitOfWork : UnitOfWork<Guid>, IITestUnitOfWork
+public class AppUnitOfWork : UnitOfWork<Guid>, IAppUnitOfWork
 {
     public IProductRepository Products { get; }
+    public override Guid DefaultUserKey => Guid.Empty;
 
-    public override Guid DefaultUserId => default;
-
-    public UnitOfWork(
-        AppDbContext dbContext,
-        IProductRepository productRepository)
+    public AppUnitOfWork(AppDbContext dbContext, IProductRepository productRepository)
         : base(dbContext)
     {
         Products = productRepository ?? throw new ArgumentNullException(nameof(productRepository));
     }
 }
 
-// Usage in a service public class ProductService
-public class ProductService : IProductService
-{ 
-    private readonly IUnitOfWork _unitOfWork;
+// 4. Register in DI (Program.cs)
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<IAppUnitOfWork, AppUnitOfWork>();
 
-    public ProductService(IUnitOfWork unitOfWork)
-    {
-        _unitOfWork = unitOfWork;
-    }
+// 5. Use in a service
+public class ProductService
+{
+    private readonly IAppUnitOfWork _unitOfWork;
+    public ProductService(IAppUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
 
-    public async Task<List<Product>> GetAllProductsAsync()
+    public async Task<IEnumerable<Product>> GetAllAsync()
+        => await _unitOfWork.Products.GetAllAsync();
+
+    public async Task CreateAsync(Product product)
     {
-        return await _unitOfWork.Products.GetAllAsync();
+        await _unitOfWork.Products.AddAsync(product);
+        await _unitOfWork.CommitAsync();
     }
 }
 ```
 
-### License
+## Documentation
 
-RapidRepo is licensed under the MIT License. See the [LICENSE](./LICENSE) file for more information.
+| Topic | Description |
+|---|---|
+| [Entities](docs/entities.md) | `BaseEntity`, `BaseAuditableEntity`, soft delete |
+| [Repositories](docs/repositories.md) | Interfaces, base classes, custom methods, DI registration |
+| [Unit of Work](docs/unit-of-work.md) | Setup, committing, auditing |
+| [API Reference](docs/api-reference.md) | All read and write methods with parameters |
+| [Advanced Usage](docs/advanced.md) | Filtering, projection, paging, bulk operations |
+
+## License
+
+RapidRepo is licensed under the MIT License. See [LICENSE](./LICENSE) for details.
