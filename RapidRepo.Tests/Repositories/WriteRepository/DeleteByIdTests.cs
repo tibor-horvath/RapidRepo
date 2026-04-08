@@ -1,4 +1,5 @@
 ﻿using RapidRepo.Tests.Repositories.TestData;
+using RapidRepo.Tests.Repositories.WriteRepository.TestData;
 
 namespace RapidRepo.Tests.Repositories.WriteRepository;
 public class DeleteByIdTests : BaseWriteRepositoryTest
@@ -37,5 +38,37 @@ public class DeleteByIdTests : BaseWriteRepositoryTest
 
         // Assert
         Assert.Null(exception);
+    }
+
+    [Fact]
+    public async Task DeleteById_ShouldDeleteEntity_WhenStringKeyIsUsed()
+    {
+        // Arrange
+        var repository = new WriteAccessTokenRepository(_dbContext);
+        var token = new AccessToken
+        {
+            Id = "token-1",
+            Value = "abc123"
+        };
+
+        _dbContext.AccessTokens.Add(token);
+        await _dbContext.SaveChangesAsync();
+
+        // Act
+        repository.DeleteById(token.Id);
+        await _dbContext.SaveChangesAsync();
+        DetachAllEntities();
+
+        // Assert
+        var deletedToken = await _dbContext.AccessTokens.FindAsync(token.Id);
+        Assert.Null(deletedToken);
+    }
+
+    [Fact]
+    public void DeleteById_ShouldThrowArgumentNullException_WhenIdIsNull_ForStringKey()
+    {
+        var repository = new WriteAccessTokenRepository(_dbContext);
+
+        Assert.Throws<ArgumentNullException>(() => repository.DeleteById(null!));
     }
 }

@@ -34,7 +34,7 @@ IEnumerable<Product> active = await _unitOfWork.Products.GetAllAsync(
 
 ### GetAllPaged
 
-Returns a `Paged<TEntity>` (or `Paged<TResult>` with a selector). Page index is 1-based.
+Returns a `Paged<TEntity>`. Page index is 1-based.
 
 ```csharp
 Paged<Product> page = await _unitOfWork.Products.GetAllPagedAsync(
@@ -130,7 +130,7 @@ IEnumerable<string> names = await _unitOfWork.Products.GetAllAsync(
 | `Add(entity)` | Stages a single entity for insert |
 | `AddRange(entities)` | Stages multiple entities for insert |
 | `AddAsync(entity)` | Async version of `Add` |
-| `AddAsync(entities)` | Async version of `AddRange` |
+| `AddRangeAsync(entities)` | Async version of `AddRange` |
 | `Update(entity)` | Marks a single entity as modified |
 | `UpdateRange(entities)` | Marks multiple entities as modified |
 | `Delete(entity)` | Marks a single entity for removal |

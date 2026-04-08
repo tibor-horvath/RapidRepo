@@ -53,4 +53,24 @@ public class AddTests : BaseWriteRepositoryTest
         _dbContext.Employees.Count().Should().Be(numberOfEmployeesToAdd);
         _dbContext.Employees.Select(e => e.Id).Should().OnlyHaveUniqueItems();
     }
+
+    [Fact]
+    public void Add_ShouldThrowArgumentNullException_WhenEntityIsNull()
+    {
+        // Act
+        Action act = () => _sut.Add(null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void AddRange_ShouldThrowArgumentNullException_WhenEntitiesIsNull()
+    {
+        // Act
+        Action act = () => _sut.AddRange(null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>();
+    }
 }

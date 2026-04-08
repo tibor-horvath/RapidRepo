@@ -12,7 +12,7 @@ namespace RapidRepo.Repositories.Interfaces;
 /// <typeparam name="TKey">The type of the entity identifier.</typeparam>
 public interface IReadOnlyRepository<TEntity, in TKey>
     where TEntity : BaseEntity<TKey>
-    where TKey : struct
+    where TKey : notnull
 {
     /// <summary>
     /// Checks if any entity matches the specified condition.

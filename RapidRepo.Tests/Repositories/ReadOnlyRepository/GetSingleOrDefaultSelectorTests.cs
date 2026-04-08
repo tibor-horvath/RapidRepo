@@ -63,4 +63,11 @@ public class GetSingleOrDefaultSelectorTests : BaseReadOnlyRepositoryTest
         // Assert
         result.Should().BeNull();
     }
+
+    [Fact]
+    public void GetSingleOrDefault_WithSelector_ShouldThrowArgumentNullException_WhenSelectorIsNull()
+    {
+        // Act
+        Assert.Throws<ArgumentNullException>(() => _sut.GetSingleOrDefault<string>(selector: null!));
+    }
 }

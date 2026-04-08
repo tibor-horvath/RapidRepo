@@ -5,7 +5,7 @@
 /// </summary>
 /// <typeparam name="TId">The type of the ID.</typeparam>
 public abstract class BaseEntity<TId>
-    where TId : struct
+    where TId : notnull
 {
     /// <summary>
     /// Gets or sets the ID of the entity.

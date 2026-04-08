@@ -15,7 +15,7 @@ internal static class IQueryableExtensions
         bool ignoreQueryFilters = false,
         bool track = true)
         where TEntity : BaseEntity<TId>
-        where TId : struct
+        where TId : notnull
     {
         if (!track)
         {

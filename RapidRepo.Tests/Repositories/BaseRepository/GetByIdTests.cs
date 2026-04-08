@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using RapidRepo.Tests.Repositories.BaseRepository.TestData;
 using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.BaseRepository;
@@ -94,5 +95,35 @@ public class GetByIdTests : BaseWriteRepositoryTest
 
         // Assert
         result.Should().Be(new { FirstName = fistNameExpected, LastName = lastNameExpected });
+    }
+
+    [Fact]
+    public void GetById_ShouldReturnEntity_WhenStringKeyIsUsed()
+    {
+        // Arrange
+        var repository = new AccessTokenRepository(_dbContext);
+        var token = new AccessToken
+        {
+            Id = "token-1",
+            Value = "abc123"
+        };
+
+        _dbContext.AccessTokens.Add(token);
+        _dbContext.SaveChanges();
+        DetachAllEntities();
+
+        // Act
+        var result = repository.GetById(token.Id);
+
+        // Assert
+        result.Should().BeEquivalentTo(token);
+    }
+
+    [Fact]
+    public void GetByIdSelector_ShouldThrowArgumentNullException_WhenSelectorIsNull()
+    {
+        Action act = () => _sut.GetById<string>(id: 1, selector: null!);
+
+        act.Should().Throw<ArgumentNullException>();
     }
 }

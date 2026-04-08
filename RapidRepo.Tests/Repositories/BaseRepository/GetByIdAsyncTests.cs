@@ -95,4 +95,12 @@ public class GetByIdAsyncTests : BaseWriteRepositoryTest
         // Assert
         result.Should().BeEquivalentTo(new { FirstName = fistNameExpected, LastName = lastNameExpected });
     }
+
+    [Fact]
+    public async Task GetByIdAsyncSelector_ShouldThrowArgumentNullException_WhenSelectorIsNull()
+    {
+        var act = async () => await _sut.GetByIdAsync<string>(id: 1, selector: null!);
+
+        await act.Should().ThrowAsync<ArgumentNullException>();
+    }
 }

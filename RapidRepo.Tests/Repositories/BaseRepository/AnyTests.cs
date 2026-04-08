@@ -45,4 +45,12 @@ public class AnyTests : BaseWriteRepositoryTest
         // Assert
         result.Should().BeFalse();
     }
+
+    [Fact]
+    public void Any_ShouldThrowArgumentNullException_WhenConditionIsNull()
+    {
+        Action act = () => _sut.Any(null!);
+
+        act.Should().Throw<ArgumentNullException>();
+    }
 }

@@ -63,4 +63,10 @@ public class GetFirstOrDefaultAsyncSelectorTests : BaseReadOnlyRepositoryTest
         // Assert
         result.Should().BeNull();
     }
+
+    [Fact]
+    public async Task GetFirstOrDefaultAsync_WithSelector_ShouldThrowArgumentNullException_WhenSelectorIsNull()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(() => _sut.GetFirstOrDefaultAsync<string>(selector: null!));
+    }
 }

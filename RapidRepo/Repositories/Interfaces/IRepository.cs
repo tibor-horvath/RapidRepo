@@ -9,7 +9,7 @@ namespace RapidRepo.Repositories.Interfaces;
 /// <typeparam name="TKey">The type of the entity identifier.</typeparam>
 public interface IRepository<TEntity, in TKey> : IReadOnlyRepository<TEntity, TKey>, IWriteRepository<TEntity, TKey>
     where TEntity : BaseEntity<TKey>
-    where TKey : struct
+    where TKey : notnull
 {
 
 }

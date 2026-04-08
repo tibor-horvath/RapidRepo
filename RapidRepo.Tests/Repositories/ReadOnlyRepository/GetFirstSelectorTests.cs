@@ -33,4 +33,10 @@ public class GetFirstSelectorTests : BaseReadOnlyRepositoryTest
         // Assert
         result.Should().BeEquivalentTo(new { employee1.FirstName, employee1.LastName });
     }
+
+    [Fact]
+    public void GetFirst_WithSelector_ShouldThrowArgumentNullException_WhenSelectorIsNull()
+    {
+        Assert.Throws<ArgumentNullException>(() => _sut.GetFirst<string>(selector: null!));
+    }
 }

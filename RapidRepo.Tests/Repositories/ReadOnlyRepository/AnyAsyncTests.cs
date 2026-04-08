@@ -45,4 +45,12 @@ public class AnyAsyncTests : BaseReadOnlyRepositoryTest
         // Assert
         result.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task AnyAsync_ShouldThrowArgumentNullException_WhenConditionIsNull()
+    {
+        var act = async () => await _sut.AnyAsync(null!);
+
+        await act.Should().ThrowAsync<ArgumentNullException>();
+    }
 }

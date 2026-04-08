@@ -1,7 +1,6 @@
-﻿using RapidRepo.Entities;
-using RapidRepo.Entities.Interfaces;
+﻿using RapidRepo.Entities.Interfaces;
 
-namespace Repository.Entities;
+namespace RapidRepo.Entities;
 
 /// <summary>
 /// Represents a base auditable entity with common audit fields.
@@ -9,7 +8,7 @@ namespace Repository.Entities;
 /// <typeparam name="TId">The type of the entity's identifier.</typeparam>
 /// <typeparam name="TUserKey">The type of the user identifier.</typeparam>
 public class BaseAuditableEntity<TId, TUserKey> : BaseEntity<TId>, IAuditableEntity<TUserKey>
-    where TId : struct
+    where TId : notnull
     where TUserKey : struct
 {
     /// <summary>
@@ -38,7 +37,7 @@ public class BaseAuditableEntity<TId, TUserKey> : BaseEntity<TId>, IAuditableEnt
 /// </summary>
 /// <typeparam name="TId">The type of the entity's identifier.</typeparam>
 public class BaseAuditableEntity<TId> : BaseEntity<TId>, IAuditableEntity
-    where TId : struct
+    where TId : notnull
 {
     /// <summary>
     /// Gets or sets the date and time when the entity was created.

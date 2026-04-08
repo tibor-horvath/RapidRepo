@@ -101,4 +101,12 @@ public class DeleteRangeTests : BaseWriteRepositoryTest
         var remainingCompanies = _dbContext.Companies.ToList();
         Assert.Empty(remainingCompanies);
     }
+
+    [Fact]
+    public void DeleteRange_ShouldThrowArgumentNullException_WhenEntitiesIsNull()
+    {
+        Action act = () => _sut.DeleteRange(null!);
+
+        act.Should().Throw<ArgumentNullException>();
+    }
 }

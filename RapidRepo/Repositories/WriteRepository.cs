@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RapidRepo.Entities;
 using RapidRepo.Entities.Interfaces;
 using RapidRepo.Repositories.Interfaces;
@@ -7,35 +7,40 @@ namespace RapidRepo.Repositories;
 
 public abstract class WriteRepository<TEntity, TId>(DbContext dbContext) : IWriteRepository<TEntity, TId>
     where TEntity : BaseEntity<TId>
-    where TId : struct
+    where TId : notnull
 {
-    protected readonly DbContext DbContext = dbContext;
+    protected readonly DbContext DbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     protected readonly bool SupportsSoftDelete =
-            typeof(IDeletableEntity<TId>).IsAssignableFrom(typeof(TEntity)) ||
             typeof(IDeletableEntity).IsAssignableFrom(typeof(TEntity));
 
     public virtual void Add(TEntity entity)
     {
+        ArgumentNullException.ThrowIfNull(entity);
         DbContext.Set<TEntity>().Add(entity);
     }
 
     public virtual void AddRange(IEnumerable<TEntity> entities)
     {
+        ArgumentNullException.ThrowIfNull(entities);
         DbContext.Set<TEntity>().AddRange(entities);
     }
 
     public virtual async Task AddAsync(TEntity entity, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(entity);
         await DbContext.Set<TEntity>().AddAsync(entity, cancellationToken);
     }
 
-    public virtual async Task AddAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
+    public virtual async Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(entities);
         await DbContext.Set<TEntity>().AddRangeAsync(entities, cancellationToken);
     }
 
     public virtual void Delete(TEntity entity)
     {
+        ArgumentNullException.ThrowIfNull(entity);
+
         if (SupportsSoftDelete)
         {
             if (DbContext.Entry(entity).State == EntityState.Detached)
@@ -53,6 +58,8 @@ public abstract class WriteRepository<TEntity, TId>(DbContext dbContext) : IWrit
 
 public virtual void DeleteRange(IEnumerable<TEntity> entities)
 {
+    ArgumentNullException.ThrowIfNull(entities);
+
     var entitiesToRemove = entities.ToList();
 
     if (SupportsSoftDelete)
@@ -74,11 +81,14 @@ public virtual void DeleteRange(IEnumerable<TEntity> entities)
 
     public virtual void Update(TEntity entity)
     {
+        ArgumentNullException.ThrowIfNull(entity);
         DbContext.Set<TEntity>().Update(entity);
     }
 
     public virtual void DeleteById(TId id)
     {
+        ArgumentNullException.ThrowIfNull(id);
+
         var entity = DbContext.Set<TEntity>().Find(id);
         if (entity != null)
         {
@@ -88,6 +98,7 @@ public virtual void DeleteRange(IEnumerable<TEntity> entities)
 
     public virtual void UpdateRange(IEnumerable<TEntity> entities)
     {
+        ArgumentNullException.ThrowIfNull(entities);
         DbContext.Set<TEntity>().UpdateRange(entities);
     }
 }
