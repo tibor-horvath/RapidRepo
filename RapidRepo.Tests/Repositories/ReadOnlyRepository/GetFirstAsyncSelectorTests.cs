@@ -33,4 +33,10 @@ public class GetFirstAsyncSelectorTests : BaseReadOnlyRepositoryTest
         // Assert
         result.Should().BeEquivalentTo(new { employee1.FirstName, employee1.LastName });
     }
+
+    [Fact]
+    public async Task GetFirstAsync_WithSelector_ShouldThrowArgumentNullException_WhenSelectorIsNull()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(() => _sut.GetFirstAsync<string>(selector: null!));
+    }
 }

@@ -23,4 +23,10 @@ public class GetAllAsyncSelectorTests : BaseReadOnlyRepositoryTest
         Assert.Contains(result, e => e.Id == 1 && e.FirstName == "John" && e.LastName == "Doe");
         Assert.Contains(result, e => e.Id == 2 && e.FirstName == "Jane" && e.LastName == "Smith");
     }
+
+    [Fact]
+    public async Task GetAllAsync_WithSelector_ShouldThrowArgumentNullException_WhenSelectorIsNull()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(() => _sut.GetAllAsync<string>(selector: null!));
+    }
 }

@@ -33,4 +33,14 @@ public class GetSingleSelectorTests : BaseReadOnlyRepositoryTest
         // Assert
         result.Should().BeEquivalentTo(new { employee1.FirstName, employee1.LastName });
     }
+
+    [Fact]
+    public void GetSingle_WithSelector_ShouldThrowArgumentNullException_WhenSelectorIsNull()
+    {
+        // Act
+        Action act = () => _sut.GetSingle<string>(selector: null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>();
+    }
 }

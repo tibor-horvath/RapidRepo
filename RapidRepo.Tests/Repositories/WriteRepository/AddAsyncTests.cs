@@ -51,4 +51,20 @@ public class AddAsyncTests : BaseWriteRepositoryTest
         _dbContext.Employees.Count().Should().Be(numberOfEmployeesToAdd);
         _dbContext.Employees.Select(e => e.Id).Should().OnlyHaveUniqueItems();
     }
+
+    [Fact]
+    public async Task AddAsync_ShouldThrowArgumentNullException_WhenEntityIsNull()
+    {
+        var act = async () => await _sut.AddAsync((Employee)null!);
+
+        await act.Should().ThrowAsync<ArgumentNullException>();
+    }
+
+    [Fact]
+    public async Task AddAsync_ShouldThrowArgumentNullException_WhenEntitiesIsNull()
+    {
+        var act = async () => await _sut.AddAsync((IEnumerable<Employee>)null!);
+
+        await act.Should().ThrowAsync<ArgumentNullException>();
+    }
 }

@@ -1,4 +1,5 @@
-﻿using FluentAssertions;
+using FluentAssertions;
+using RapidRepo.Tests.Repositories.ReadOnlyRepository.TestData;
 using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.ReadOnlyRepository;
@@ -94,5 +95,83 @@ public class GetByIdAsyncTests : BaseReadOnlyRepositoryTest
 
         // Assert
         result.Should().BeEquivalentTo(new { FirstName = fistNameExpected, LastName = lastNameExpected });
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_ShouldReturnEntity_WhenStringKeyIsUsed()
+    {
+        // Arrange
+        var repository = new ReadOnlyAccessTokenRepository(_dbContext);
+        var token = new AccessToken
+        {
+            Id = "token-async-1",
+            Value = "abc123"
+        };
+
+        _dbContext.AccessTokens.Add(token);
+        await _dbContext.SaveChangesAsync();
+        DetachAllEntities();
+
+        // Act
+        var result = await repository.GetByIdAsync(token.Id);
+
+        // Assert
+        result.Should().BeEquivalentTo(token);
+    }
+
+    [Fact]
+    public async Task GetByIdAsyncSelector_ShouldReturnValue_WhenStringKeyIsUsed()
+    {
+        // Arrange
+        var repository = new ReadOnlyAccessTokenRepository(_dbContext);
+        var token = new AccessToken
+        {
+            Id = "token-async-2",
+            Value = "xyz789"
+        };
+
+        _dbContext.AccessTokens.Add(token);
+        await _dbContext.SaveChangesAsync();
+        DetachAllEntities();
+
+        // Act
+        var result = await repository.GetByIdAsync(id: token.Id, selector: t => t.Value);
+
+        // Assert
+        result.Should().Be(token.Value);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_ShouldThrowArgumentNullException_WhenIdIsNull()
+    {
+        // Arrange
+        var repository = new ReadOnlyAccessTokenRepository(_dbContext);
+
+        // Act
+        var act = async () => await repository.GetByIdAsync(null!);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentNullException>();
+    }
+
+    [Fact]
+    public async Task GetByIdAsyncSelector_ShouldThrowArgumentNullException_WhenIdIsNull()
+    {
+        // Arrange
+        var repository = new ReadOnlyAccessTokenRepository(_dbContext);
+
+        // Act
+        var act = async () => await repository.GetByIdAsync(id: null!, selector: t => t.Value);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentNullException>();
+    }
+
+    [Fact]
+    public async Task GetByIdAsyncSelector_ShouldThrowArgumentNullException_WhenSelectorIsNull()
+    {
+        var act = async () => await _sut.GetByIdAsync<string>(id: 1, selector: null!);
+
+        await act.Should().ThrowAsync<ArgumentNullException>();
     }
 }

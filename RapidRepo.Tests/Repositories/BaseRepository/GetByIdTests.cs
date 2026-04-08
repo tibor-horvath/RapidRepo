@@ -118,4 +118,12 @@ public class GetByIdTests : BaseWriteRepositoryTest
         // Assert
         result.Should().BeEquivalentTo(token);
     }
+
+    [Fact]
+    public void GetByIdSelector_ShouldThrowArgumentNullException_WhenSelectorIsNull()
+    {
+        Action act = () => _sut.GetById<string>(id: 1, selector: null!);
+
+        act.Should().Throw<ArgumentNullException>();
+    }
 }

@@ -55,4 +55,14 @@ public class UpdateRangeTests : BaseWriteRepositoryTest
                 opts => opts.WithoutStrictOrdering()
                     .ExcludingMissingMembers());
     }
+
+    [Fact]
+    public void UpdateRange_ShouldThrowArgumentNullException_WhenEntitiesIsNull()
+    {
+        // Act
+        Action act = () => _sut.UpdateRange(null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>();
+    }
 }

@@ -118,4 +118,25 @@ public class GetByIdTests : BaseReadOnlyRepositoryTest
         // Assert
         result.Should().BeEquivalentTo(token);
     }
+
+    [Fact]
+    public void GetById_ShouldThrowArgumentNullException_WhenIdIsNull()
+    {
+        // Arrange
+        var repository = new ReadOnlyAccessTokenRepository(_dbContext);
+
+        // Act
+        Action act = () => repository.GetById(null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void GetByIdSelector_ShouldThrowArgumentNullException_WhenSelectorIsNull()
+    {
+        Action act = () => _sut.GetById<string>(id: 1, selector: null!);
+
+        act.Should().Throw<ArgumentNullException>();
+    }
 }

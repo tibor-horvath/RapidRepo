@@ -44,4 +44,16 @@ public class GetAllSelectorTests : BaseWriteRepositoryTest
         Assert.Contains(result, e => e.Id == 1 && e.FirstName == "John" && e.LastName == "Doe");
         Assert.Contains(result, e => e.Id == 2 && e.FirstName == "Jane" && e.LastName == "Smith");
     }
+
+    [Fact]
+    public void GetAll_WithSelector_ShouldThrowArgumentNullException_WhenSelectorIsNull()
+    {
+        Assert.Throws<ArgumentNullException>(() => _sut.GetAll<string>(selector: null!).ToList());
+    }
+
+    [Fact]
+    public async Task GetAllAsync_WithSelector_ShouldThrowArgumentNullException_WhenSelectorIsNull()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(() => _sut.GetAllAsync<string>(selector: null!));
+    }
 }

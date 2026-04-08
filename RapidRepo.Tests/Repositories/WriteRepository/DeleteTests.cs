@@ -115,4 +115,12 @@ public class DeleteTests : BaseWriteRepositoryTest
         // Assert
         act.Should().NotThrow();
     }
+
+    [Fact]
+    public void Delete_ShouldThrowArgumentNullException_WhenEntityIsNull()
+    {
+        Action act = () => _sut.Delete(null!);
+
+        act.Should().Throw<ArgumentNullException>();
+    }
 }

@@ -63,4 +63,12 @@ public class DeleteByIdTests : BaseWriteRepositoryTest
         var deletedToken = await _dbContext.AccessTokens.FindAsync(token.Id);
         Assert.Null(deletedToken);
     }
+
+    [Fact]
+    public void DeleteById_ShouldThrowArgumentNullException_WhenIdIsNull_ForStringKey()
+    {
+        var repository = new WriteAccessTokenRepository(_dbContext);
+
+        Assert.Throws<ArgumentNullException>(() => repository.DeleteById(null!));
+    }
 }

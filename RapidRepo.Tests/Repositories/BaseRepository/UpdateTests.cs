@@ -30,4 +30,14 @@ public class UpdateTests : BaseWriteRepositoryTest
         updatedEmployee.Should().BeEquivalentTo(employee);
         updatedEmployee!.FirstName.Should().Be("Updated Name");
     }
+
+    [Fact]
+    public void Update_ShouldThrowArgumentNullException_WhenEntityIsNull()
+    {
+        // Act
+        Action act = () => _sut.Update(null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>();
+    }
 }

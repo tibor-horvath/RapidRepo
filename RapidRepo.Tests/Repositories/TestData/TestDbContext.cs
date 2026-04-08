@@ -19,6 +19,10 @@ public class TestDbContext : DbContext
     {
         modelBuilder.Entity<Employee>().HasQueryFilter(e => e.DeletedAt == null && e.DeletedBy == null);
         modelBuilder.Entity<Company>().HasQueryFilter(e => e.DeletedAt == null);
-        modelBuilder.Entity<AccessToken>().HasKey(e => e.Id);
+        modelBuilder.Entity<AccessToken>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedNever();
+        });
     }
 }
