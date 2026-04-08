@@ -24,8 +24,8 @@ public abstract class BaseRepository<TEntity, TId> : ReadOnlyRepository<TEntity,
     public virtual Task AddAsync(TEntity entity, CancellationToken cancellationToken = default) =>
         _writeRepository.AddAsync(entity, cancellationToken);
 
-    public virtual Task AddAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default) =>
-        _writeRepository.AddAsync(entities, cancellationToken);
+    public virtual Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default) =>
+        _writeRepository.AddRangeAsync(entities, cancellationToken);
 
     public virtual void Delete(TEntity entity) => _writeRepository.Delete(entity);
 

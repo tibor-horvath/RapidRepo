@@ -37,7 +37,7 @@ public interface IWriteRepository<TEntity, in TKey>
     /// <param name="entities">The entities to add.</param>
     /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
-    Task AddAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default);
+    Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Deletes an entity by its identifier.

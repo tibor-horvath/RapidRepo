@@ -44,7 +44,7 @@ public class AddAsyncTests : BaseWriteRepositoryTest
         }
 
         // Act
-        await _sut.AddAsync(employees);
+        await _sut.AddRangeAsync(employees);
         await _dbContext.SaveChangesAsync();
 
         // Assert

@@ -31,7 +31,7 @@ public abstract class WriteRepository<TEntity, TId>(DbContext dbContext) : IWrit
         await DbContext.Set<TEntity>().AddAsync(entity, cancellationToken);
     }
 
-    public virtual async Task AddAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
+    public virtual async Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entities);
         await DbContext.Set<TEntity>().AddRangeAsync(entities, cancellationToken);

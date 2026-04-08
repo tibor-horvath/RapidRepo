@@ -102,7 +102,7 @@ var newProducts = new List<Product>
     new() { Name = "Widget B", Price = 14.99m },
 };
 
-await _unitOfWork.Products.AddAsync(newProducts);
+await _unitOfWork.Products.AddRangeAsync(newProducts);
 await _unitOfWork.CommitAsync(userId: currentUserId);
 
 // Update multiple entities
@@ -149,4 +149,3 @@ public class ProductRepository : BaseRepository<Product, long>, IProductReposito
     public async Task<bool> SkuExistsAsync(string sku)
         => await AnyAsync(p => p.Sku == sku);
 }
-```

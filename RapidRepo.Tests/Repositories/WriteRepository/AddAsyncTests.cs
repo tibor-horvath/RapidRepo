@@ -44,7 +44,7 @@ public class AddAsyncTests : BaseWriteRepositoryTest
         }
 
         // Act
-        await _sut.AddAsync(employees);
+        await _sut.AddRangeAsync(employees);
         await _dbContext.SaveChangesAsync();
 
         // Assert
@@ -63,7 +63,7 @@ public class AddAsyncTests : BaseWriteRepositoryTest
     [Fact]
     public async Task AddAsync_ShouldThrowArgumentNullException_WhenEntitiesIsNull()
     {
-        var act = async () => await _sut.AddAsync((IEnumerable<Employee>)null!);
+        var act = async () => await _sut.AddRangeAsync((IEnumerable<Employee>)null!);
 
         await act.Should().ThrowAsync<ArgumentNullException>();
     }
