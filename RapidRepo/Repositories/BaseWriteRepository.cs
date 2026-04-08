@@ -15,6 +15,6 @@ namespace RapidRepo.Repositories;
 public sealed class BaseWriteRepository<TEntity, TId>(DbContext dbContext)
     : WriteRepository<TEntity, TId>(dbContext)
     where TEntity : BaseEntity<TId>
-    where TId : struct
+    where TId : notnull
 {
 }

@@ -11,6 +11,7 @@ RapidRepo is a repository pattern implementation for .NET applications. It uses 
 - EF Core-based data access
 - Consistent and reusable CRUD patterns
 - Separation of business logic and persistence logic
+- Supports non-null entity key types (e.g. `int`, `Guid`, `string`)
 - Built-in auditing (`CreatedAt`, `CreatedBy`, `ModifiedAt`, `ModifiedBy`)
 - Built-in soft delete support (`DeletedAt`, `DeletedBy`)
 - Paged query results via `Paged<T>`

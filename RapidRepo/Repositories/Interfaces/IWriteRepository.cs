@@ -9,7 +9,7 @@ namespace RapidRepo.Repositories.Interfaces;
 /// <typeparam name="TKey">The type of the entity's identifier.</typeparam>
 public interface IWriteRepository<TEntity, in TKey>
     where TEntity : BaseEntity<TKey>
-    where TKey : struct
+    where TKey : notnull
 {
     /// <summary>
     /// Adds a new entity to the repository.

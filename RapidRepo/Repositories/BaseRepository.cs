@@ -6,7 +6,7 @@ namespace RapidRepo.Repositories;
 
 public abstract class BaseRepository<TEntity, TId> : ReadOnlyRepository<TEntity, TId>, IRepository<TEntity, TId>
     where TEntity : BaseEntity<TId>
-    where TId : struct
+    where TId : notnull
 {
     private readonly IWriteRepository<TEntity, TId> _writeRepository;
 

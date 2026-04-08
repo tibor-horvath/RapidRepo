@@ -6,10 +6,10 @@ All entities used with RapidRepo must inherit from one of the provided base clas
 
 ## `BaseEntity<TKey>`
 
-The simplest base class. Provides only an `Id` property. `TKey` must be a value type (e.g. `int`, `long`, `Guid`).
+The simplest base class. Provides only an `Id` property. `TKey` can be any non-null key type (for example `int`, `long`, `Guid`, or `string`).
 
 ```csharp
-public class Product : BaseEntity<long>
+public class Product : BaseEntity<string>
 {
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
@@ -40,7 +40,7 @@ public class Product : BaseAuditableEntity<long>
 
 ## `BaseAuditableEntity<TId, TUserKey>`
 
-Inherits directly from `BaseEntity<TId>` and implements `IAuditableEntity<TUserKey>` to track which user performed each operation. Both `TId` and `TUserKey` must be value types. Note: this variant does **not** include a `DeletedAt` property — see [Soft Delete](#soft-delete-ideletableentity) below.
+Inherits directly from `BaseEntity<TId>` and implements `IAuditableEntity<TUserKey>` to track which user performed each operation. `TId` can be any non-null key type, while `TUserKey` must be a value type. Note: this variant does **not** include a `DeletedAt` property — see [Soft Delete](#soft-delete-ideletableentity) below.
 
 | Property | Type | Set on |
 |---|---|---|

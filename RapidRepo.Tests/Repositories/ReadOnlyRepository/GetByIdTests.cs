@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using RapidRepo.Tests.Repositories.ReadOnlyRepository.TestData;
 using RapidRepo.Tests.Repositories.TestData;
 
 namespace RapidRepo.Tests.Repositories.ReadOnlyRepository;
@@ -94,5 +95,27 @@ public class GetByIdTests : BaseReadOnlyRepositoryTest
 
         // Assert
         result.Should().Be(new { FirstName = fistNameExpected, LastName = lastNameExpected });
+    }
+
+    [Fact]
+    public void GetById_ShouldReturnEntity_WhenStringKeyIsUsed()
+    {
+        // Arrange
+        var repository = new ReadOnlyAccessTokenRepository(_dbContext);
+        var token = new AccessToken
+        {
+            Id = "token-1",
+            Value = "abc123"
+        };
+
+        _dbContext.AccessTokens.Add(token);
+        _dbContext.SaveChanges();
+        DetachAllEntities();
+
+        // Act
+        var result = repository.GetById(token.Id);
+
+        // Assert
+        result.Should().BeEquivalentTo(token);
     }
 }

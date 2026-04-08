@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RapidRepo.Entities;
 using RapidRepo.Entities.Interfaces;
 using RapidRepo.Repositories.Interfaces;
@@ -7,11 +7,10 @@ namespace RapidRepo.Repositories;
 
 public abstract class WriteRepository<TEntity, TId>(DbContext dbContext) : IWriteRepository<TEntity, TId>
     where TEntity : BaseEntity<TId>
-    where TId : struct
+    where TId : notnull
 {
     protected readonly DbContext DbContext = dbContext;
     protected readonly bool SupportsSoftDelete =
-            typeof(IDeletableEntity<TId>).IsAssignableFrom(typeof(TEntity)) ||
             typeof(IDeletableEntity).IsAssignableFrom(typeof(TEntity));
 
     public virtual void Add(TEntity entity)

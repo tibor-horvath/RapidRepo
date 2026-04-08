@@ -9,7 +9,7 @@ using System.Linq.Expressions;
 namespace RapidRepo.Repositories;
 public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IReadOnlyRepository<TEntity, TId>
     where TEntity : BaseEntity<TId>
-    where TId : struct
+    where TId : notnull
 {
     protected readonly DbContext DbContext = dbContext;
 
