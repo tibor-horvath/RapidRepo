@@ -11,6 +11,7 @@ on:
 
 jobs:  
   semantic_release:
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
         contents: write
@@ -21,7 +22,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
         with:
-            ref: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+            ref: ${{ github.event.workflow_run.head_sha }}
             fetch-depth: 0
             
       - name: Set up Node.js
@@ -30,10 +31,10 @@ jobs:
           node-version: '22.x'
 
       - name: Install dependencies
-        run: npm install @semantic-release/git @semantic-release/github semantic-release-replace-plugin -D
+        run: npm ci
 
       - name: Run semantic-release
         run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-          GIT_HEAD: ${{ github.sha }}
+          GIT_HEAD: ${{ github.event.workflow_run.head_sha }}

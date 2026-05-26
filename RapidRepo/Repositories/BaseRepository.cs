@@ -35,5 +35,8 @@ public abstract class BaseRepository<TEntity, TId> : ReadOnlyRepository<TEntity,
 
     public virtual void DeleteById(TId id) => _writeRepository.DeleteById(id);
 
+    public virtual Task DeleteByIdAsync(TId id, CancellationToken cancellationToken = default) =>
+        _writeRepository.DeleteByIdAsync(id, cancellationToken);
+
     public virtual void UpdateRange(IEnumerable<TEntity> entities) => _writeRepository.UpdateRange(entities);
 }

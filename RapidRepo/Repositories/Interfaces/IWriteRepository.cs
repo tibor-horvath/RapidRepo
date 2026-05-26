@@ -46,6 +46,14 @@ public interface IWriteRepository<TEntity, in TKey>
     void DeleteById(TKey id);
 
     /// <summary>
+    /// Deletes an entity by its identifier asynchronously.
+    /// </summary>
+    /// <param name="id">The identifier of the entity to delete.</param>
+    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
+    Task DeleteByIdAsync(TKey id, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Deletes an entity from the repository.
     /// </summary>
     /// <param name="entity">The entity to delete.</param>
