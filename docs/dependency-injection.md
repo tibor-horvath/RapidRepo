@@ -37,6 +37,7 @@ This single call replaces one `AddScoped<>` line per repository. Any concrete, n
 | `RegisterAsSelf` | `bool` | `false` | Also registers each concrete type against itself. |
 | `ThrowOnAmbiguousRegistration` | `bool` | `true` | Throw when two concretes implement the same user-defined interface. |
 | `ThrowOnSingletonMisuse` | `bool` | `false` | Throw (instead of warn) when `Lifetime` is `Singleton`. |
+| `RegisterGenericRepositories` | `bool` | `false` | Register `Repository<,>` as the open-generic fallback for all three root interfaces. |
 | `ScanAssemblies(params Assembly[])` | method | — | Add one or more assemblies to scan. |
 | `ScanAssembliesContaining<TMarker>()` | method | — | Add the assembly that contains `TMarker`. |
 | `ScanCallingAssembly()` | method | — | Add the calling assembly (see note below). |
@@ -84,6 +85,22 @@ A type is registered if all of the following are true:
 4. Either no `Include` predicates are configured, or at least one `Include` predicate returns `true`.
 
 **Interface registration policy**: each concrete type is registered against every public interface it implements that itself derives (directly or transitively) from one of the three root interfaces — excluding the root interfaces themselves. This targets user-defined interfaces such as `IProductRepository`.
+
+---
+
+## Generic repositories
+
+Set `RegisterGenericRepositories = true` to register `Repository<,>` as an open-generic fallback for all three root interfaces. This lets you inject `IRepository<TEntity, TKey>`, `IReadOnlyRepository<TEntity, TKey>`, or `IWriteRepository<TEntity, TKey>` directly, without writing a custom class.
+
+```csharp
+builder.Services.AddRapidRepo(options =>
+{
+    options.RegisterGenericRepositories = true;
+    // ScanAssembliesContaining is still needed if you have custom repositories
+});
+```
+
+**Precedence**: specific registrations from assembly scanning always win over the open-generic fallback. An application that scans a custom `ProductRepository : IProductRepository` will continue to resolve `IProductRepository → ProductRepository`; injecting `IRepository<Product, long>` in the same application resolves via the generic fallback to `Repository<Product, long>`.
 
 ---
 
