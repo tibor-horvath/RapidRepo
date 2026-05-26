@@ -55,6 +55,10 @@ Console.WriteLine($"Page {page.Page} of {page.TotalPages} ({page.TotalCount} tot
 Console.WriteLine($"Has next: {page.HasNext}, Has previous: {page.HasPrevious}");
 ```
 
+> **Two-query pattern:** `GetAllPaged` / `GetAllPagedAsync` always issue two SQL statements — a `COUNT(*)` to get the total, then a `SELECT ... OFFSET ... FETCH` to get the page. For very large tables or high-latency connections this can be significant. If you already know the total count (e.g. from a cache), avoid the double round-trip by writing a custom repository method that skips the count query and constructs `Paged<T>` directly using `BuildQuery`.
+>
+> `pageIndex` must be ≥ 1 and `pageSize` must be ≥ 1; passing a lower value throws `ArgumentOutOfRangeException`.
+
 ---
 
 ## Disabling change tracking (read-only queries)
@@ -127,13 +131,14 @@ If no `userId` is passed, `DefaultUserKey` (defined in your `UnitOfWork` impleme
 
 ## Custom repository methods
 
-Encapsulate domain-specific queries inside the repository, reusing the built-in helpers:
+Encapsulate domain-specific queries inside the repository. Use the `BuildQuery` helper (available on `ReadOnlyRepository` and `BaseRepository`) to apply the standard filter chain — tracking, includes, query filters, split queries — without duplicating it:
 
 ```csharp
 public interface IProductRepository : IRepository<Product, long>
 {
     Task<IEnumerable<Product>> GetActiveByCategoryAsync(long categoryId);
     Task<bool> SkuExistsAsync(string sku);
+    Task<List<ProductSummary>> SearchAsync(string term, int limit);
 }
 
 public class ProductRepository : BaseRepository<Product, long>, IProductRepository
@@ -148,4 +153,33 @@ public class ProductRepository : BaseRepository<Product, long>, IProductReposito
 
     public async Task<bool> SkuExistsAsync(string sku)
         => await AnyAsync(p => p.Sku == sku);
+
+    public async Task<List<ProductSummary>> SearchAsync(string term, int limit)
+        => await BuildQuery(
+                condition: p => p.Name.Contains(term),
+                orderBy: q => q.OrderByDescending(p => p.CreatedAt),
+                track: false)
+            .Select(p => new ProductSummary(p.Id, p.Name, p.Price))
+            .Take(limit)
+            .ToListAsync();
 }
+```
+
+---
+
+## Setting up soft-delete query filters
+
+Register the soft-delete filter in your `DbContext.OnModelCreating` to exclude soft-deleted records from all queries by default:
+
+```csharp
+protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+    base.OnModelCreating(modelBuilder);
+
+    // Adds a HasQueryFilter(e => e.DeletedAt == null) to every entity
+    // that implements IDeletableEntity — no per-entity configuration needed.
+    modelBuilder.AddSoftDeleteQueryFilters();
+}
+```
+
+To include soft-deleted records in a specific query, pass `ignoreQueryFilters: true` (see the section above).
