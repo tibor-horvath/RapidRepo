@@ -26,6 +26,17 @@ public sealed class RapidRepoOptions
     /// <summary>Throw instead of warn when <see cref="Lifetime"/> is <see cref="ServiceLifetime.Singleton"/>. Default: <c>false</c>.</summary>
     public bool ThrowOnSingletonMisuse { get; set; }
 
+    /// <summary>
+    /// Register <see cref="RapidRepo.Repositories.Repository{TEntity,TId}"/> as the open-generic fallback
+    /// for <see cref="RapidRepo.Repositories.Interfaces.IRepository{TEntity,TKey}"/>,
+    /// <see cref="RapidRepo.Repositories.Interfaces.IReadOnlyRepository{TEntity,TKey}"/>, and
+    /// <see cref="RapidRepo.Repositories.Interfaces.IWriteRepository{TEntity,TKey}"/>.
+    /// Allows injecting root interfaces directly without creating a custom repository class.
+    /// Specific registrations from assembly scanning always take precedence.
+    /// Default: <c>false</c>.
+    /// </summary>
+    public bool RegisterGenericRepositories { get; set; }
+
     internal IReadOnlyList<Assembly> Assemblies => _assemblies;
     internal IReadOnlyList<Func<Type, bool>> Includes => _includes;
     internal IReadOnlyList<Func<Type, bool>> Excludes => _excludes;

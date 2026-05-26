@@ -36,11 +36,12 @@ public interface IProductWriteRepository : IWriteRepository<Product, long>
 
 Pick the implementation base class that matches your interface:
 
-| Base class | Use with |
-|---|---|
-| `BaseRepository<TEntity, TKey>` | `IRepository<TEntity, TKey>` |
-| `ReadOnlyRepository<TEntity, TKey>` | `IReadOnlyRepository<TEntity, TKey>` |
-| `WriteRepository<TEntity, TKey>` | `IWriteRepository<TEntity, TKey>` |
+| Base class | Use with | Notes |
+|---|---|---|
+| `BaseRepository<TEntity, TKey>` | user-defined `IRepository<,>` sub-interface | extend to add custom methods |
+| `ReadOnlyRepository<TEntity, TKey>` | user-defined `IReadOnlyRepository<,>` sub-interface | extend to add custom methods |
+| `WriteRepository<TEntity, TKey>` | user-defined `IWriteRepository<,>` sub-interface | extend to add custom methods |
+| `Repository<TEntity, TKey>` | `IRepository<TEntity, TKey>` directly | no customisation needed; used by `RegisterGenericRepositories` |
 
 ---
 
@@ -77,6 +78,31 @@ public class ProductWriteRepository : WriteRepository<Product, long>, IProductWr
     {
     }
 }
+```
+
+---
+
+## When no custom methods are needed
+
+If a repository adds no methods beyond standard CRUD, you do not need to create a custom interface or class. Enable `RegisterGenericRepositories` in `AddRapidRepo` and inject the root interface directly:
+
+```csharp
+// Program.cs
+builder.Services.AddRapidRepo(options =>
+{
+    options.RegisterGenericRepositories = true;
+});
+
+// Inject directly — no IUserRepository or UserRepository file needed
+public class UserService(IRepository<User, Guid> users) { ... }
+```
+
+When you later need a custom method, create the interface and class as normal — the specific registration will take precedence automatically.
+
+For manual DI registration without the extension package:
+
+```csharp
+builder.Services.AddScoped(typeof(IRepository<,>), typeof(Repository<,>));
 ```
 
 ---

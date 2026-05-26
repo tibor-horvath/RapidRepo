@@ -16,6 +16,7 @@ RapidRepo is a repository pattern implementation for .NET applications. It uses 
 - Built-in soft delete support (`DeletedAt`, `DeletedBy`)
 - Paged query results via `Paged<T>`
 - Convention-based DI registration via `AddRapidRepo(...)` (separate package)
+- Zero-boilerplate repositories via open-generic registration (`RegisterGenericRepositories`)
 
 ## Requirements
 
@@ -44,12 +45,20 @@ public class Product : BaseEntity<long>
     public decimal Price { get; set; }
 }
 
-// 2. Create a repository interface and implementation
-public interface IProductRepository : IRepository<Product, long> { }
+// 2a. Zero-boilerplate — inject the root interface directly (no custom class needed)
+//     Requires RegisterGenericRepositories = true in AddRapidRepo
+public class CatalogService(IRepository<Product, long> products) { ... }
+
+// 2b. Custom repository — only needed when adding methods beyond standard CRUD
+public interface IProductRepository : IRepository<Product, long>
+{
+    Task<IEnumerable<Product>> GetByCategoryAsync(long categoryId);
+}
 
 public class ProductRepository : BaseRepository<Product, long>, IProductRepository
 {
     public ProductRepository(DbContext context) : base(context) { }
+    public async Task<IEnumerable<Product>> GetByCategoryAsync(long categoryId) => ...;
 }
 
 // 3. Create a Unit of Work
