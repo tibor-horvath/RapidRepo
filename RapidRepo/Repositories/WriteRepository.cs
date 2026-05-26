@@ -96,6 +96,17 @@ public virtual void DeleteRange(IEnumerable<TEntity> entities)
         }
     }
 
+    public virtual async Task DeleteByIdAsync(TId id, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(id);
+
+        var entity = await DbContext.Set<TEntity>().FindAsync([id], cancellationToken);
+        if (entity != null)
+        {
+            Delete(entity);
+        }
+    }
+
     public virtual void UpdateRange(IEnumerable<TEntity> entities)
     {
         ArgumentNullException.ThrowIfNull(entities);

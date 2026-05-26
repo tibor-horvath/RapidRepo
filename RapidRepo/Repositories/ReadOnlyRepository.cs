@@ -263,6 +263,9 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
         int pageIndex = 1,
         int pageSize = 10)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThan(pageIndex, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
+
         var query = DbContext
             .Set<TEntity>()
             .AsQueryable()
@@ -300,6 +303,9 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
         int pageSize = 10,
         CancellationToken cancellationToken = default)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThan(pageIndex, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
+
         var query = DbContext
             .Set<TEntity>()
             .AsQueryable()
@@ -683,4 +689,18 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
             .Select(selector)
             .ToListAsync(cancellationToken);
     }
+
+    /// <summary>
+    /// Builds a queryable for <typeparamref name="TEntity"/> with the standard filters applied.
+    /// Use this in custom repository methods to avoid duplicating the filter-chaining logic.
+    /// </summary>
+    protected IQueryable<TEntity> BuildQuery(
+        Expression<Func<TEntity, bool>>? condition = null,
+        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
+        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
+        bool ignoreQueryFilters = false,
+        bool track = true)
+        => DbContext.Set<TEntity>().AsQueryable()
+            .ApplyFilters<TEntity, TId>(condition, orderBy, include, useSplitQueries, ignoreQueryFilters, track);
 }
