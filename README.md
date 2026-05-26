@@ -83,14 +83,22 @@ public class AppUnitOfWork : UnitOfWork<Guid>, IAppUnitOfWork
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 
-// Option A — one-liner with convention-based scanning (requires RapidRepo.Extensions.DependencyInjection)
+// Option A — zero-boilerplate (path 2a): enable open-generic fallback
 builder.Services.AddRapidRepo(options =>
 {
-    options.ScanAssembliesContaining<ProductRepository>();
+    options.RegisterGenericRepositories = true;
     options.UseUnitOfWork<IAppUnitOfWork, AppUnitOfWork>();
 });
 
-// Option B — manual registration (no extra package required)
+// Option B — custom repositories (path 2b): scan assemblies for IProductRepository etc.
+builder.Services.AddRapidRepo(options =>
+{
+    options.ScanAssembliesContaining<ProductRepository>();
+    options.RegisterGenericRepositories = true; // also allow direct IRepository<,> injection
+    options.UseUnitOfWork<IAppUnitOfWork, AppUnitOfWork>();
+});
+
+// Option C — manual registration (no extra package required)
 // builder.Services.AddScoped<IProductRepository, ProductRepository>();
 // builder.Services.AddScoped<IAppUnitOfWork, AppUnitOfWork>();
 
