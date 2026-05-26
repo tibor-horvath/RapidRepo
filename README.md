@@ -15,6 +15,7 @@ RapidRepo is a repository pattern implementation for .NET applications. It uses 
 - Built-in auditing (`CreatedAt`, `CreatedBy`, `ModifiedAt`, `ModifiedBy`)
 - Built-in soft delete support (`DeletedAt`, `DeletedBy`)
 - Paged query results via `Paged<T>`
+- Convention-based DI registration via `AddRapidRepo(...)` (separate package)
 
 ## Requirements
 
@@ -25,6 +26,12 @@ RapidRepo is a repository pattern implementation for .NET applications. It uses 
 
 ```bash
 dotnet add package RapidRepo
+```
+
+For convention-based DI registration, also install the extension package:
+
+```bash
+dotnet add package RapidRepo.Extensions.DependencyInjection
 ```
 
 ## Quick Start
@@ -66,8 +73,17 @@ public class AppUnitOfWork : UnitOfWork<Guid>, IAppUnitOfWork
 // 4. Register in DI (Program.cs)
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
-builder.Services.AddScoped<IProductRepository, ProductRepository>();
-builder.Services.AddScoped<IAppUnitOfWork, AppUnitOfWork>();
+
+// Option A — one-liner with convention-based scanning (requires RapidRepo.Extensions.DependencyInjection)
+builder.Services.AddRapidRepo(options =>
+{
+    options.ScanAssembliesContaining<ProductRepository>();
+    options.UseUnitOfWork<IAppUnitOfWork, AppUnitOfWork>();
+});
+
+// Option B — manual registration (no extra package required)
+// builder.Services.AddScoped<IProductRepository, ProductRepository>();
+// builder.Services.AddScoped<IAppUnitOfWork, AppUnitOfWork>();
 
 // 5. Use in a service
 public class ProductService
@@ -93,6 +109,7 @@ public class ProductService
 | [Entities](docs/entities.md) | `BaseEntity`, `BaseAuditableEntity`, soft delete |
 | [Repositories](docs/repositories.md) | Interfaces, base classes, custom methods, DI registration |
 | [Unit of Work](docs/unit-of-work.md) | Setup, committing, auditing |
+| [Dependency Injection](docs/dependency-injection.md) | `AddRapidRepo` extension, scanning options, filters, lifetime |
 | [API Reference](docs/api-reference.md) | All read and write methods with parameters |
 | [Advanced Usage](docs/advanced.md) | Filtering, projection, paging, bulk operations |
 
