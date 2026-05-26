@@ -110,7 +110,23 @@ public class ProductRepository : BaseRepository<Product, long>, IProductReposito
 
 ## DI registration
 
-Register each repository with a scoped lifetime, matching the `DbContext` scope:
+### Convention-based (recommended)
+
+Install `RapidRepo.Extensions.DependencyInjection` and use `AddRapidRepo` to auto-discover all repositories in one call:
+
+```csharp
+builder.Services.AddRapidRepo(options =>
+{
+    options.ScanAssembliesContaining<ProductRepository>();
+    options.UseUnitOfWork<IAppUnitOfWork, AppUnitOfWork>();
+});
+```
+
+See [Dependency Injection](dependency-injection.md) for the full reference.
+
+### Manual registration
+
+Register each repository individually with a scoped lifetime, matching the `DbContext` scope:
 
 ```csharp
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
