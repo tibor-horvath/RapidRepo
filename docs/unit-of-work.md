@@ -34,23 +34,6 @@ public class AppUnitOfWork : UnitOfWork<Guid>, IAppUnitOfWork
 }
 ```
 
-If the default key cannot be known at construction time (e.g. it comes from an injected service), override the `DefaultUserKey` property instead:
-
-```csharp
-public class AppUnitOfWork : UnitOfWork<Guid>, IAppUnitOfWork
-{
-    private readonly ICurrentUserService _currentUser;
-
-    public override Guid DefaultUserKey => _currentUser.Id;
-
-    public AppUnitOfWork(AppDbContext dbContext, ICurrentUserService currentUser)
-        : base(dbContext, default)
-    {
-        _currentUser = currentUser;
-    }
-}
-```
-
 ---
 
 ## Repository factory (GetRepository)

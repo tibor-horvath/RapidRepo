@@ -183,7 +183,7 @@ Pass the authenticated user's ID so audit fields (`CreatedBy`, `ModifiedBy`) are
 await _unitOfWork.CommitAsync(userId: currentUserId);
 ```
 
-If no `userId` is passed, `DefaultUserKey` (defined in your `UnitOfWork` implementation) is used instead.
+If no `userId` is passed, the default key supplied to the `UnitOfWork` constructor is used instead.
 
 ---
 
