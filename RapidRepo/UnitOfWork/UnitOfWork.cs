@@ -9,16 +9,20 @@ namespace RapidRepo.UnitOfWork;
 public abstract class UnitOfWork<TUserKey> : IUnitOfWork<TUserKey>, IDisposable
     where TUserKey : struct
 {
+    private readonly TUserKey _defaultUserKey;
+
     protected DbContext DbContext { get; set; }
 
     /// <summary>
-    /// Gets the default user ID.
+    /// Gets the default user ID used when no user ID is passed to <see cref="Commit"/> or <see cref="CommitAsync"/>.
+    /// Override this property or supply the value via the constructor.
     /// </summary>
-    public abstract TUserKey DefaultUserKey { get; }
+    public virtual TUserKey DefaultUserKey => _defaultUserKey;
 
-    protected UnitOfWork(DbContext dbContext)
+    protected UnitOfWork(DbContext dbContext, TUserKey defaultUserKey)
     {
         DbContext = dbContext;
+        _defaultUserKey = defaultUserKey;
     }
 
     public void Commit(TUserKey? userId = null)

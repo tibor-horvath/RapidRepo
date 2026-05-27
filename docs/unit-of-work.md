@@ -17,21 +17,36 @@ public interface IAppUnitOfWork : IUnitOfWork<Guid>, IDisposable
 
 ## Implement the class
 
-Inherit from `UnitOfWork<TUserKey>` and override `DefaultUserKey`. This value is used for audit fields when no `userId` is passed to `Commit`/`CommitAsync`.
+Inherit from `UnitOfWork<TUserKey>` and pass the default user key to the base constructor. This value is used for audit fields when no `userId` is passed to `Commit`/`CommitAsync`.
 
 ```csharp
 public class AppUnitOfWork : UnitOfWork<Guid>, IAppUnitOfWork
 {
     public IProductRepository Products { get; }
 
-    public override Guid DefaultUserKey => Guid.Empty;
-
     public AppUnitOfWork(
         AppDbContext dbContext,
         IProductRepository productRepository)
-        : base(dbContext)
+        : base(dbContext, Guid.Empty)
     {
         Products = productRepository ?? throw new ArgumentNullException(nameof(productRepository));
+    }
+}
+```
+
+If the default key cannot be known at construction time (e.g. it comes from an injected service), override the `DefaultUserKey` property instead:
+
+```csharp
+public class AppUnitOfWork : UnitOfWork<Guid>, IAppUnitOfWork
+{
+    private readonly ICurrentUserService _currentUser;
+
+    public override Guid DefaultUserKey => _currentUser.Id;
+
+    public AppUnitOfWork(AppDbContext dbContext, ICurrentUserService currentUser)
+        : base(dbContext, default)
+    {
+        _currentUser = currentUser;
     }
 }
 ```
@@ -51,9 +66,7 @@ The pattern works with any value type for the user ID (`Guid`, `long`, `int`, et
 // Guid user keys
 public class GuidUnitOfWork : UnitOfWork<Guid>
 {
-    public override Guid DefaultUserKey => Guid.Empty;
-
-    public GuidUnitOfWork(AppDbContext dbContext) : base(dbContext) { }
+    public GuidUnitOfWork(AppDbContext dbContext) : base(dbContext, Guid.Empty) { }
 
     public IRepository<Employee, int>  Employees => GetRepository<Employee, int>();
     public IRepository<Product, long>  Products  => GetRepository<Product, long>();
@@ -62,9 +75,7 @@ public class GuidUnitOfWork : UnitOfWork<Guid>
 // long user keys
 public class LongUnitOfWork : UnitOfWork<long>
 {
-    public override long DefaultUserKey => 0;
-
-    public LongUnitOfWork(AppDbContext dbContext) : base(dbContext) { }
+    public LongUnitOfWork(AppDbContext dbContext) : base(dbContext, 0L) { }
 
     public IRepository<Employee, int>  Employees => GetRepository<Employee, int>();
     public IRepository<Product, long>  Products  => GetRepository<Product, long>();
