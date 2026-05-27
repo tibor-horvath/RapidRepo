@@ -34,10 +34,18 @@ IEnumerable<Product> active = await _unitOfWork.Products.GetAllAsync(
 
 ### GetAllPaged
 
-Returns a `Paged<TEntity>`. Page index is 1-based.
+Returns a `Paged<TEntity>`, or `Paged<TResult>` when a selector is supplied. Page index is 1-based.
 
 ```csharp
 Paged<Product> page = await _unitOfWork.Products.GetAllPagedAsync(
+    condition: p => p.IsActive,
+    orderBy: q => q.OrderBy(p => p.Name),
+    pageIndex: 1,
+    pageSize: 20);
+
+// Projected to a DTO — returns Paged<ProductSummary>
+Paged<ProductSummary> summaries = await _unitOfWork.Products.GetAllPagedAsync(
+    selector: p => new ProductSummary(p.Id, p.Name, p.Price),
     condition: p => p.IsActive,
     orderBy: q => q.OrderBy(p => p.Name),
     pageIndex: 1,
@@ -79,6 +87,28 @@ Product? singleOrNull = await _unitOfWork.Products.GetSingleOrDefaultAsync(
     condition: p => p.Sku == "ABC-123");
 ```
 
+### ExistsById
+
+Returns `true` if an entity with the given key exists. Respects global query filters (e.g. soft-deleted entities return `false`) unless `ignoreQueryFilters` is set.
+
+```csharp
+bool exists = await _unitOfWork.Products.ExistsByIdAsync(id);
+
+// Include soft-deleted entities
+bool existsDeleted = await _unitOfWork.Products.ExistsByIdAsync(id, ignoreQueryFilters: true);
+```
+
+### GetByIds
+
+Returns all entities whose primary key is in the supplied collection. Respects global query filters by default.
+
+```csharp
+IEnumerable<Product> products = await _unitOfWork.Products.GetByIdsAsync(ids);
+
+// Projected to a DTO
+IEnumerable<string> names = await _unitOfWork.Products.GetByIdsAsync(ids, selector: p => p.Name);
+```
+
 ### Any / Count
 
 ```csharp
@@ -102,6 +132,14 @@ int count = await _unitOfWork.Products.CountAsync(p => p.IsActive);
 | `ignoreQueryFilters` | `bool` | `false` | Bypass global EF query filters |
 | `useSplitQueries` | `bool` | `false` | Use [EF split queries](https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries) for includes |
 
+#### `ExistsById` / `ExistsByIdAsync`
+
+Accepts an `id` and an optional `ignoreQueryFilters` flag. No other filter parameters are supported.
+
+#### `GetByIds` / `GetByIdsAsync`
+
+Accepts an `IEnumerable<TKey> ids` and the standard `include`, `useSplitQueries`, `track`, and `ignoreQueryFilters` parameters. The `<TResult>` selector overload drops the `track` parameter (projection always uses `AsNoTracking`). `condition` and `orderBy` are **not** supported — use `GetAll` if you need additional filtering.
+
 #### `Any` / `AnyAsync`
 
 Only accepts a required `condition` predicate (and `cancellationToken` for the async variant). `orderBy`, `include`, `track`, `ignoreQueryFilters`, and `useSplitQueries` are **not** supported.
@@ -112,14 +150,22 @@ Accepts an optional `condition` predicate and `ignoreQueryFilters`. `orderBy`, `
 
 ### Selector overloads
 
-Every `GetAll`, `GetFirst`, `GetSingle`, and `GetById` method has a `selector` overload that projects the result without loading the full entity:
+Every `GetAll`, `GetFirst`, `GetSingle`, `GetById`, `GetByIds`, and `GetAllPaged` method has a `selector` overload that projects the result without loading the full entity:
 
 ```csharp
 // Returns IEnumerable<string> instead of IEnumerable<Product>
 IEnumerable<string> names = await _unitOfWork.Products.GetAllAsync(
     selector: p => p.Name,
     condition: p => p.IsActive);
+
+// Returns Paged<ProductSummary> instead of Paged<Product>
+Paged<ProductSummary> page = await _unitOfWork.Products.GetAllPagedAsync(
+    selector: p => new ProductSummary(p.Id, p.Name),
+    pageIndex: 1,
+    pageSize: 20);
 ```
+
+> The `selector` overloads always use `AsNoTracking` internally — there is no `track` parameter on them.
 
 ---
 
