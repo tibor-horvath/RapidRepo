@@ -58,24 +58,63 @@ public class Product : BaseAuditableEntity<long, Guid>
 
 ---
 
-## Soft Delete (`IDeletableEntity`)
+## `BaseAuditableDeletableEntity<TId>` / `BaseAuditableDeletableEntity<TId, TUserKey>`
 
-Implement `IDeletableEntity` or `IDeletableEntity<TUserKey>` on any entity to enable soft delete. The `DeletedAt` (and optionally `DeletedBy`) fields are set automatically by the Unit of Work when the entity is deleted.
+A ready-made base class that combines full audit fields and soft-delete support. Prefer this over manually combining `BaseAuditableEntity` with `IDeletableEntity`.
+
+`BaseAuditableDeletableEntity<TId>` — timestamp-only audit with soft delete:
+
+| Property | Type | Set on |
+|---|---|---|
+| `CreatedAt` | `DateTime` | Insert |
+| `ModifiedAt` | `DateTime?` | Update |
+| `DeletedAt` | `DateTime?` | Soft delete |
 
 ```csharp
-// Timestamp only
-public class Product : BaseAuditableEntity<long>, IDeletableEntity
+public class Product : BaseAuditableDeletableEntity<long>
 {
     public string Name { get; set; } = string.Empty;
 }
+```
 
-// With user tracking
-// BaseAuditableEntity<TId, TUserKey> has no DeletedAt, so both interface members must be declared.
+`BaseAuditableDeletableEntity<TId, TUserKey>` — full audit with user tracking and soft delete:
+
+| Property | Type | Set on |
+|---|---|---|
+| `CreatedAt` | `DateTime` | Insert |
+| `CreatedBy` | `TUserKey` | Insert |
+| `ModifiedAt` | `DateTime?` | Update |
+| `ModifiedBy` | `TUserKey?` | Update |
+| `DeletedAt` | `DateTime?` | Soft delete |
+| `DeletedBy` | `TUserKey?` | Soft delete |
+
+```csharp
+public class Product : BaseAuditableDeletableEntity<long, Guid>
+{
+    public string Name { get; set; } = string.Empty;
+}
+```
+
+---
+
+## Soft Delete (`IDeletableEntity`)
+
+When you need soft-delete on an entity that does not already inherit from `BaseAuditableDeletableEntity`, implement `IDeletableEntity` or `IDeletableEntity<TUserKey>` directly and declare the required properties. The `DeletedAt` (and optionally `DeletedBy`) fields are set automatically by the Unit of Work when the entity is deleted.
+
+```csharp
+// Timestamp only — declare DeletedAt to satisfy IDeletableEntity
+public class Product : BaseAuditableEntity<long>, IDeletableEntity
+{
+    public string Name { get; set; } = string.Empty;
+    public DateTime? DeletedAt { get; set; }
+}
+
+// With user tracking — declare both DeletedAt and DeletedBy
 public class Product : BaseAuditableEntity<long, Guid>, IDeletableEntity<Guid>
 {
     public string Name { get; set; } = string.Empty;
-    public DateTime? DeletedAt { get; set; }  // required by IDeletableEntity
-    public Guid? DeletedBy { get; set; }       // required by IDeletableEntity<Guid>
+    public DateTime? DeletedAt { get; set; }
+    public Guid? DeletedBy { get; set; }
 }
 ```
 
@@ -90,7 +129,9 @@ public class Product : BaseAuditableEntity<long, Guid>, IDeletableEntity<Guid>
 | No audit requirements | `BaseEntity<TId>` |
 | Track created/modified timestamps | `BaseAuditableEntity<TId>` |
 | Track who created/modified the record | `BaseAuditableEntity<TId, TUserKey>` |
-| Add soft delete to any of the above | Add `IDeletableEntity` or `IDeletableEntity<TUserKey>` |
+| Track timestamps + soft delete | `BaseAuditableDeletableEntity<TId>` |
+| Track who created/modified + soft delete | `BaseAuditableDeletableEntity<TId, TUserKey>` |
+| Add soft delete to an existing hierarchy | Add `IDeletableEntity` or `IDeletableEntity<TUserKey>` |
 
 ---
 

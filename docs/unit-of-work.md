@@ -98,7 +98,7 @@ _unitOfWork.Commit();
 
 ### Passing a user ID for auditing
 
-Pass the current user's ID to override `DefaultUserKey` for `CreatedBy`/`ModifiedBy`:
+Pass the current user's ID to override the default user key for `CreatedBy`/`ModifiedBy`:
 
 ```csharp
 await _unitOfWork.CommitAsync(userId: currentUserId);
@@ -113,10 +113,10 @@ When `Commit`/`CommitAsync` is called, the Unit of Work inspects the EF change t
 | Entity state | Action |
 |---|---|
 | `Added` + `IAuditableEntity` | Sets `CreatedAt = UtcNow` |
-| `Added` + `IAuditableEntity<TUserKey>` | Sets `CreatedAt = UtcNow`, `CreatedBy = userId ?? DefaultUserKey` |
+| `Added` + `IAuditableEntity<TUserKey>` | Sets `CreatedAt = UtcNow`, `CreatedBy = userId ?? defaultUserKey` |
 | `Modified` + `IAuditableEntity` | Sets `ModifiedAt = UtcNow` |
-| `Modified` + `IAuditableEntity<TUserKey>` | Sets `ModifiedAt = UtcNow`, `ModifiedBy = userId ?? DefaultUserKey` |
+| `Modified` + `IAuditableEntity<TUserKey>` | Sets `ModifiedAt = UtcNow`, `ModifiedBy = userId ?? defaultUserKey` |
 | `IDeletableEntity` with `DeletedAt != null` | Sets `DeletedAt = UtcNow` |
-| `IDeletableEntity<TUserKey>` with `DeletedAt != null` | Sets `DeletedAt = UtcNow`, `DeletedBy = userId ?? DefaultUserKey` |
+| `IDeletableEntity<TUserKey>` with `DeletedAt != null` | Sets `DeletedAt = UtcNow`, `DeletedBy = userId ?? defaultUserKey` |
 
 No manual timestamp management is needed in your application code.

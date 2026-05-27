@@ -62,6 +62,8 @@ Paged<ProductSummary> summaries = await _unitOfWork.Products.GetAllPagedAsync(
 | `HasNext` | Whether a next page exists |
 | `HasPrevious` | Whether a previous page exists |
 
+> `T` must be a reference type (`class`). Using a value type such as `int` or `bool` as the paged item type is a compile error.
+
 ### GetFirst / GetFirstOrDefault
 
 `GetFirst` throws if no match is found. `GetFirstOrDefault` returns `null`.
@@ -179,9 +181,10 @@ Paged<ProductSummary> page = await _unitOfWork.Products.GetAllPagedAsync(
 | `AddRangeAsync(entities)` | Async version of `AddRange` |
 | `Update(entity)` | Marks a single entity as modified |
 | `UpdateRange(entities)` | Marks multiple entities as modified |
-| `Delete(entity)` | Marks a single entity for removal |
-| `DeleteById(id)` | Marks the entity with the given key for removal |
-| `DeleteRange(entities)` | Marks multiple entities for removal |
+| `Delete(entity)` | Removes the entity, or sets `DeletedAt` if it implements `IDeletableEntity` |
+| `DeleteRange(entities)` | Removes multiple entities, or sets `DeletedAt` on each if they implement `IDeletableEntity` |
+| `DeleteById(id)` | Loads the entity by key then calls `Delete` |
+| `DeleteByIdAsync(id)` | Async version of `DeleteById` |
 
 > All write methods only stage changes in the EF change tracker. Call `CommitAsync()` or `Commit()` on the Unit of Work to persist them. See [Unit of Work](unit-of-work.md).
 

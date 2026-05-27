@@ -227,9 +227,12 @@ public class ProductRepository : BaseRepository<Product, long>, IProductReposito
 
 ## Setting up soft-delete query filters
 
-Register the soft-delete filter in your `DbContext.OnModelCreating` to exclude soft-deleted records from all queries by default:
+Register the soft-delete filter in your `DbContext.OnModelCreating` to exclude soft-deleted records from all queries by default. `AddSoftDeleteQueryFilters` is defined in the `RapidRepo.Extensions` namespace.
 
 ```csharp
+using RapidRepo.Extensions;
+
+// inside DbContext:
 protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
     base.OnModelCreating(modelBuilder);
