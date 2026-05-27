@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   release-please-stable:
-    if: github.ref_name == 'master'
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'master'
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@v4
@@ -23,7 +23,7 @@ jobs:
           manifest-file: .release-please-manifest.json
 
   release-please-beta:
-    if: github.ref_name == 'beta'
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'beta'
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@v4
@@ -35,7 +35,7 @@ jobs:
           prerelease-type: beta
 
   release-please-rc:
-    if: github.ref_name == 'pre-release'
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'pre-release'
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@v4
