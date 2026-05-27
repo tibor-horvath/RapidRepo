@@ -91,3 +91,39 @@ public class Product : BaseAuditableEntity<long, Guid>, IDeletableEntity<Guid>
 | Track created/modified timestamps | `BaseAuditableEntity<TId>` |
 | Track who created/modified the record | `BaseAuditableEntity<TId, TUserKey>` |
 | Add soft delete to any of the above | Add `IDeletableEntity` or `IDeletableEntity<TUserKey>` |
+
+---
+
+## Reducing repetition with application-level base classes
+
+When all entities in your application use the same user-key type, you can define it once by
+creating thin abstract base classes that lock in `TUserKey`:
+
+```csharp
+// Guid-keyed users
+public abstract class AppAuditableEntity<TId> : BaseAuditableEntity<TId, Guid>
+    where TId : notnull { }
+
+public abstract class AppAuditableDeletableEntity<TId> : BaseAuditableDeletableEntity<TId, Guid>
+    where TId : notnull { }
+```
+
+```csharp
+// long-keyed users (e.g. database integer IDs)
+public abstract class AppAuditableEntity<TId> : BaseAuditableEntity<TId, long>
+    where TId : notnull { }
+
+public abstract class AppAuditableDeletableEntity<TId> : BaseAuditableDeletableEntity<TId, long>
+    where TId : notnull { }
+```
+
+Each entity then only needs to declare its primary-key type — the user-key type is inherited:
+
+```csharp
+public class Employee : AppAuditableEntity<int>  { }
+public class Product  : AppAuditableEntity<long> { }
+public class AuditLog : AppAuditableDeletableEntity<int> { }
+```
+
+Combined with `class AppUnitOfWork : UnitOfWork<Guid>` (or `UnitOfWork<long>`), the user-key
+type is declared in exactly two places across the whole application.

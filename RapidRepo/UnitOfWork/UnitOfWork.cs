@@ -1,5 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using RapidRepo.Entities;
 using RapidRepo.Entities.Interfaces;
+using RapidRepo.Repositories;
+using RapidRepo.Repositories.Interfaces;
 
 namespace RapidRepo.UnitOfWork;
 
@@ -29,6 +32,11 @@ public abstract class UnitOfWork<TUserKey> : IUnitOfWork<TUserKey>, IDisposable
         ExecuteAudit(userId);
         await DbContext.SaveChangesAsync(cancellationToken);
     }
+
+    protected IRepository<TEntity, TKey> GetRepository<TEntity, TKey>()
+        where TEntity : BaseEntity<TKey>
+        where TKey : notnull
+        => new Repository<TEntity, TKey>(DbContext);
 
     public void Dispose()
     {
