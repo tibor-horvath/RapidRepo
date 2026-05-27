@@ -38,6 +38,44 @@ public class AppUnitOfWork : UnitOfWork<Guid>, IAppUnitOfWork
 
 ---
 
+## Repository factory (GetRepository)
+
+Instead of injecting each repository through the constructor, you can use the built-in
+`GetRepository<TEntity, TKey>()` factory method. This is especially useful when combined with
+application-level entity base classes, because the user-key type is already encoded in the
+entity and in the UoW — no extra type parameters are needed anywhere else.
+
+The pattern works with any value type for the user ID (`Guid`, `long`, `int`, etc.):
+
+```csharp
+// Guid-keyed example
+public class AppUnitOfWork : UnitOfWork<Guid>, IAppUnitOfWork
+{
+    public override Guid DefaultUserKey => Guid.Empty;
+
+    public AppUnitOfWork(AppDbContext dbContext) : base(dbContext) { }
+
+    public IRepository<Employee, int>  Employees => GetRepository<Employee, int>();
+    public IRepository<Product, long>  Products  => GetRepository<Product, long>();
+}
+
+// long-keyed example
+public class AppUnitOfWork : UnitOfWork<long>, IAppUnitOfWork
+{
+    public override long DefaultUserKey => 0;
+
+    public AppUnitOfWork(AppDbContext dbContext) : base(dbContext) { }
+
+    public IRepository<Employee, int>  Employees => GetRepository<Employee, int>();
+    public IRepository<Product, long>  Products  => GetRepository<Product, long>();
+}
+```
+
+> The existing constructor-injection pattern continues to work — `GetRepository` is an opt-in
+> convenience.
+
+---
+
 ## DI registration
 
 Register the `DbContext`, all repositories, and the Unit of Work with a scoped lifetime:
