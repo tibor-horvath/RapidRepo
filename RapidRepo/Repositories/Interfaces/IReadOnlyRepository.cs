@@ -15,6 +15,23 @@ public interface IReadOnlyRepository<TEntity, in TKey>
     where TKey : notnull
 {
     /// <summary>
+    /// Checks if an entity with the specified identifier exists.
+    /// </summary>
+    /// <param name="id">The identifier to look up.</param>
+    /// <param name="ignoreQueryFilters">Whether to ignore query filters (e.g. include soft-deleted entities).</param>
+    /// <returns>True if an entity with the specified identifier exists, otherwise false.</returns>
+    bool ExistsById(TKey id, bool ignoreQueryFilters = false);
+
+    /// <summary>
+    /// Asynchronously checks if an entity with the specified identifier exists.
+    /// </summary>
+    /// <param name="id">The identifier to look up.</param>
+    /// <param name="ignoreQueryFilters">Whether to ignore query filters (e.g. include soft-deleted entities).</param>
+    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
+    /// <returns>True if an entity with the specified identifier exists, otherwise false.</returns>
+    Task<bool> ExistsByIdAsync(TKey id, bool ignoreQueryFilters = false, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Checks if any entity matches the specified condition.
     /// </summary>
     /// <param name="condition">The condition to filter entities.</param>
@@ -106,6 +123,126 @@ public interface IReadOnlyRepository<TEntity, in TKey>
     /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
     /// <returns>The result of the selector function for the entity with the specified identifier, or null if not found.</returns>
     Task<TResult?> GetByIdAsync<TResult>(TKey id,
+        Expression<Func<TEntity, TResult>> selector,
+        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
+        bool ignoreQueryFilters = false,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves a paged collection of projected results that match the specified condition.
+    /// </summary>
+    /// <typeparam name="TResult">The type of the result.</typeparam>
+    /// <param name="selector">A function to select the result.</param>
+    /// <param name="condition">The condition to filter entities.</param>
+    /// <param name="orderBy">A function to order the entities.</param>
+    /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
+    /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
+    /// <param name="pageIndex">The index of the page to retrieve (1-based).</param>
+    /// <param name="pageSize">The number of items per page.</param>
+    /// <returns>A paged collection of projected results.</returns>
+    Paged<TResult> GetAllPaged<TResult>(
+        Expression<Func<TEntity, TResult>> selector,
+        Expression<Func<TEntity, bool>>? condition = null,
+        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
+        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
+        bool ignoreQueryFilters = false,
+        int pageIndex = 1,
+        int pageSize = 10)
+        where TResult : class;
+
+    /// <summary>
+    /// Asynchronously retrieves a paged collection of projected results that match the specified condition.
+    /// </summary>
+    /// <typeparam name="TResult">The type of the result.</typeparam>
+    /// <param name="selector">A function to select the result.</param>
+    /// <param name="condition">The condition to filter entities.</param>
+    /// <param name="orderBy">A function to order the entities.</param>
+    /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
+    /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
+    /// <param name="pageIndex">The index of the page to retrieve (1-based).</param>
+    /// <param name="pageSize">The number of items per page.</param>
+    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result contains a paged collection of projected results.</returns>
+    Task<Paged<TResult>> GetAllPagedAsync<TResult>(
+        Expression<Func<TEntity, TResult>> selector,
+        Expression<Func<TEntity, bool>>? condition = null,
+        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
+        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
+        bool ignoreQueryFilters = false,
+        int pageIndex = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default)
+        where TResult : class;
+
+    /// <summary>
+    /// Gets all entities with the specified identifiers.
+    /// </summary>
+    /// <param name="ids">The identifiers of the entities to retrieve.</param>
+    /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
+    /// <param name="track">Whether to track the entities in the context.</param>
+    /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
+    /// <returns>The entities with the specified identifiers.</returns>
+    IEnumerable<TEntity> GetByIds(
+        IEnumerable<TKey> ids,
+        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
+        bool track = true,
+        bool ignoreQueryFilters = false);
+
+    /// <summary>
+    /// Gets all entities with the specified identifiers and applies a selector.
+    /// </summary>
+    /// <typeparam name="TResult">The type of the result.</typeparam>
+    /// <param name="ids">The identifiers of the entities to retrieve.</param>
+    /// <param name="selector">A function to select the result.</param>
+    /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
+    /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
+    /// <returns>The projected results for entities with the specified identifiers.</returns>
+    IEnumerable<TResult> GetByIds<TResult>(
+        IEnumerable<TKey> ids,
+        Expression<Func<TEntity, TResult>> selector,
+        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
+        bool ignoreQueryFilters = false);
+
+    /// <summary>
+    /// Asynchronously gets all entities with the specified identifiers.
+    /// </summary>
+    /// <param name="ids">The identifiers of the entities to retrieve.</param>
+    /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
+    /// <param name="track">Whether to track the entities in the context.</param>
+    /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
+    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
+    /// <returns>The entities with the specified identifiers.</returns>
+    Task<IEnumerable<TEntity>> GetByIdsAsync(
+        IEnumerable<TKey> ids,
+        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
+        bool track = true,
+        bool ignoreQueryFilters = false,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Asynchronously gets all entities with the specified identifiers and applies a selector.
+    /// </summary>
+    /// <typeparam name="TResult">The type of the result.</typeparam>
+    /// <param name="ids">The identifiers of the entities to retrieve.</param>
+    /// <param name="selector">A function to select the result.</param>
+    /// <param name="include">A function to include related entities.</param>
+    /// <param name="useSplitQueries">Whether to use split queries for related entities. See <see href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries"/> for more details.</param>
+    /// <param name="ignoreQueryFilters">Whether to ignore query filters.</param>
+    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
+    /// <returns>The projected results for entities with the specified identifiers.</returns>
+    Task<IEnumerable<TResult>> GetByIdsAsync<TResult>(
+        IEnumerable<TKey> ids,
         Expression<Func<TEntity, TResult>> selector,
         Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
         bool useSplitQueries = false,
