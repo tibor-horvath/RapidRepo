@@ -56,10 +56,9 @@ public class GetRepositoryTests
         Assert.True(result);
     }
 
-    private sealed class FactoryUnitOfWork(TestDbContext dbContext) : UnitOfWork<Guid>(dbContext)
+    private sealed class FactoryUnitOfWork(TestDbContext dbContext)
+        : UnitOfWork<Guid>(dbContext, Guid.Empty)
     {
-        public override Guid DefaultUserKey => Guid.Empty;
-
         public RapidRepo.Repositories.Interfaces.IRepository<Employee, int> Employees
             => GetRepository<Employee, int>();
     }

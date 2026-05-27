@@ -41,14 +41,8 @@ public class OpenRepository<TEntity, TKey>(DbContext db)
 
 public interface ITestUnitOfWork : IUnitOfWork<Guid> { }
 
-public class TestUnitOfWork(DbContext db) : UnitOfWork<Guid>(db), ITestUnitOfWork
-{
-    public override Guid DefaultUserKey => Guid.Empty;
-}
+public class TestUnitOfWork(DbContext db) : UnitOfWork<Guid>(db, Guid.Empty), ITestUnitOfWork;
 
 public interface ISecondUnitOfWork : IUnitOfWork<int> { }
 
-public class SecondUnitOfWork(DbContext db) : UnitOfWork<int>(db), ISecondUnitOfWork
-{
-    public override int DefaultUserKey => 0;
-}
+public class SecondUnitOfWork(DbContext db) : UnitOfWork<int>(db, 0), ISecondUnitOfWork;

@@ -2,6 +2,7 @@
 using Moq;
 using RapidRepo.Tests.Repositories.BaseRepository.TestData;
 using RapidRepo.Tests.Repositories.TestData;
+using RapidRepo.UnitOfWork;
 
 namespace RapidRepo.Tests.UnitOfWork;
 public class UnitOfWorkTests
@@ -265,4 +266,43 @@ public class UnitOfWorkTests
         Assert.NotNull(deletedEmployee.DeletedAt);
         Assert.True((DateTime.UtcNow - deletedEmployee.DeletedAt.Value).TotalSeconds < 1);
     }
+
+    [Fact]
+    public void Commit_WhenNoUserIdAndDefaultKeySetViaConstructor_ShouldUseConstructorDefaultKey()
+    {
+        // Arrange
+        var constructorDefaultKey = Guid.NewGuid();
+        var uow = new ConstructorKeyUnitOfWork(_dbContext, constructorDefaultKey);
+        var employee = new Employee { FirstName = "John", LastName = "Doe" };
+        _dbContext.Add(employee);
+
+        // Act
+        uow.Commit();
+
+        // Assert
+        var saved = _dbContext.Employees.FirstOrDefault();
+        Assert.NotNull(saved);
+        Assert.Equal(constructorDefaultKey, saved.CreatedBy);
+    }
+
+    [Fact]
+    public async Task CommitAsync_WhenNoUserIdAndDefaultKeySetViaConstructor_ShouldUseConstructorDefaultKey()
+    {
+        // Arrange
+        var constructorDefaultKey = Guid.NewGuid();
+        var uow = new ConstructorKeyUnitOfWork(_dbContext, constructorDefaultKey);
+        var employee = new Employee { FirstName = "John", LastName = "Doe" };
+        _dbContext.Add(employee);
+
+        // Act
+        await uow.CommitAsync();
+
+        // Assert
+        var saved = _dbContext.Employees.FirstOrDefault();
+        Assert.NotNull(saved);
+        Assert.Equal(constructorDefaultKey, saved.CreatedBy);
+    }
+
+    private sealed class ConstructorKeyUnitOfWork(TestDbContext dbContext, Guid defaultKey)
+        : UnitOfWork<Guid>(dbContext, defaultKey);
 }
