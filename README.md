@@ -70,10 +70,9 @@ public interface IAppUnitOfWork : IUnitOfWork<Guid>, IDisposable
 public class AppUnitOfWork : UnitOfWork<Guid>, IAppUnitOfWork
 {
     public IProductRepository Products { get; }
-    public override Guid DefaultUserKey => Guid.Empty;
 
     public AppUnitOfWork(AppDbContext dbContext, IProductRepository productRepository)
-        : base(dbContext)
+        : base(dbContext, Guid.Empty)
     {
         Products = productRepository ?? throw new ArgumentNullException(nameof(productRepository));
     }
@@ -123,7 +122,7 @@ public class ProductService
 
 | Topic | Description |
 |---|---|
-| [Entities](docs/entities.md) | `BaseEntity`, `BaseAuditableEntity`, soft delete |
+| [Entities](docs/entities.md) | `BaseEntity`, `BaseAuditableEntity`, `BaseAuditableDeletableEntity`, soft delete |
 | [Repositories](docs/repositories.md) | Interfaces, base classes, custom methods, DI registration |
 | [Unit of Work](docs/unit-of-work.md) | Setup, committing, auditing |
 | [Dependency Injection](docs/dependency-injection.md) | `AddRapidRepo` extension, scanning options, filters, lifetime |
