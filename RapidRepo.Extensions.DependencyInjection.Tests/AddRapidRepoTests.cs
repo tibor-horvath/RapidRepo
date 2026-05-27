@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using RapidRepo.Extensions.DependencyInjection.Tests.TestData;
 using RapidRepo.Extensions.DependencyInjection.Tests.TestData.Ambiguous;
+using RapidRepo.Repositories;
 using RapidRepo.Repositories.Interfaces;
 using RapidRepo.UnitOfWork;
 
@@ -470,5 +471,107 @@ public class AddRapidRepoTests
 
         services.Count(d => d.ServiceType == typeof(ITestUnitOfWork))
             .Should().Be(1);
+    }
+
+    // ── RegisterGenericRepositories ────────────────────────────────────────────
+
+    [Fact]
+    public void RegisterGenericRepositories_False_DoesNotRegisterOpenGenericDescriptors()
+    {
+        var services = new ServiceCollection();
+
+        services.AddRapidRepo(o => { /* RegisterGenericRepositories defaults to false */ });
+
+        services.Should().NotContain(d => d.ServiceType == typeof(IRepository<,>));
+        services.Should().NotContain(d => d.ServiceType == typeof(IReadOnlyRepository<,>));
+        services.Should().NotContain(d => d.ServiceType == typeof(IWriteRepository<,>));
+    }
+
+    [Fact]
+    public void RegisterGenericRepositories_True_RegistersIRepositoryOpenGeneric()
+    {
+        var services = new ServiceCollection();
+
+        services.AddRapidRepo(o => o.RegisterGenericRepositories = true);
+
+        services.Should().Contain(d =>
+            d.ServiceType == typeof(IRepository<,>) &&
+            d.ImplementationType == typeof(Repository<,>));
+    }
+
+    [Fact]
+    public void RegisterGenericRepositories_True_RegistersIReadOnlyRepositoryOpenGeneric()
+    {
+        var services = new ServiceCollection();
+
+        services.AddRapidRepo(o => o.RegisterGenericRepositories = true);
+
+        services.Should().Contain(d =>
+            d.ServiceType == typeof(IReadOnlyRepository<,>) &&
+            d.ImplementationType == typeof(Repository<,>));
+    }
+
+    [Fact]
+    public void RegisterGenericRepositories_True_RegistersIWriteRepositoryOpenGeneric()
+    {
+        var services = new ServiceCollection();
+
+        services.AddRapidRepo(o => o.RegisterGenericRepositories = true);
+
+        services.Should().Contain(d =>
+            d.ServiceType == typeof(IWriteRepository<,>) &&
+            d.ImplementationType == typeof(Repository<,>));
+    }
+
+    [Fact]
+    public void RegisterGenericRepositories_True_RespectsConfiguredLifetime()
+    {
+        var services = new ServiceCollection();
+
+        services.AddRapidRepo(o =>
+        {
+            o.Lifetime = ServiceLifetime.Transient;
+            o.RegisterGenericRepositories = true;
+        });
+
+        services.Should().Contain(d =>
+            d.ServiceType == typeof(IRepository<,>) &&
+            d.Lifetime == ServiceLifetime.Transient);
+    }
+
+    [Fact]
+    public void RegisterGenericRepositories_True_DoubleCall_DoesNotDuplicateOpenGenericDescriptors()
+    {
+        var services = new ServiceCollection();
+
+        services.AddRapidRepo(o => o.RegisterGenericRepositories = true);
+        services.AddRapidRepo(o => o.RegisterGenericRepositories = true);
+
+        services.Count(d => d.ServiceType == typeof(IRepository<,>)).Should().Be(1);
+        services.Count(d => d.ServiceType == typeof(IReadOnlyRepository<,>)).Should().Be(1);
+        services.Count(d => d.ServiceType == typeof(IWriteRepository<,>)).Should().Be(1);
+    }
+
+    [Fact]
+    public void RegisterGenericRepositories_True_CustomRepositoryDescriptorCoexists()
+    {
+        var services = new ServiceCollection();
+
+        services.AddRapidRepo(o =>
+        {
+            o.ScanAssembliesContaining<WidgetRepository>();
+            o.Exclude(ExcludeAmbiguous);
+            o.RegisterGenericRepositories = true;
+        });
+
+        // Specific registration from scanning is untouched
+        services.Should().Contain(d =>
+            d.ServiceType == typeof(IWidgetRepository) &&
+            d.ImplementationType == typeof(WidgetRepository));
+
+        // Open-generic fallback is also present as a separate descriptor
+        services.Should().Contain(d =>
+            d.ServiceType == typeof(IRepository<,>) &&
+            d.ImplementationType == typeof(Repository<,>));
     }
 }

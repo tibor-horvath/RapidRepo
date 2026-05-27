@@ -16,6 +16,7 @@ RapidRepo is a repository pattern implementation for .NET applications. It uses 
 - Built-in soft delete support (`DeletedAt`, `DeletedBy`)
 - Paged query results via `Paged<T>`
 - Convention-based DI registration via `AddRapidRepo(...)` (separate package)
+- Zero-boilerplate repositories via open-generic registration (`RegisterGenericRepositories`)
 
 ## Requirements
 
@@ -44,12 +45,20 @@ public class Product : BaseEntity<long>
     public decimal Price { get; set; }
 }
 
-// 2. Create a repository interface and implementation
-public interface IProductRepository : IRepository<Product, long> { }
+// 2a. Zero-boilerplate — inject the root interface directly (no custom class needed)
+//     Requires RegisterGenericRepositories = true in AddRapidRepo
+public class CatalogService(IRepository<Product, long> products) { ... }
+
+// 2b. Custom repository — only needed when adding methods beyond standard CRUD
+public interface IProductRepository : IRepository<Product, long>
+{
+    Task<IEnumerable<Product>> GetByCategoryAsync(long categoryId);
+}
 
 public class ProductRepository : BaseRepository<Product, long>, IProductRepository
 {
     public ProductRepository(DbContext context) : base(context) { }
+    public async Task<IEnumerable<Product>> GetByCategoryAsync(long categoryId) => ...;
 }
 
 // 3. Create a Unit of Work
@@ -74,14 +83,22 @@ public class AppUnitOfWork : UnitOfWork<Guid>, IAppUnitOfWork
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 
-// Option A — one-liner with convention-based scanning (requires RapidRepo.Extensions.DependencyInjection)
+// Option A — zero-boilerplate (path 2a): enable open-generic fallback
 builder.Services.AddRapidRepo(options =>
 {
-    options.ScanAssembliesContaining<ProductRepository>();
+    options.RegisterGenericRepositories = true;
     options.UseUnitOfWork<IAppUnitOfWork, AppUnitOfWork>();
 });
 
-// Option B — manual registration (no extra package required)
+// Option B — custom repositories (path 2b): scan assemblies for IProductRepository etc.
+builder.Services.AddRapidRepo(options =>
+{
+    options.ScanAssembliesContaining<ProductRepository>();
+    options.RegisterGenericRepositories = true; // also allow direct IRepository<,> injection
+    options.UseUnitOfWork<IAppUnitOfWork, AppUnitOfWork>();
+});
+
+// Option C — manual registration (no extra package required)
 // builder.Services.AddScoped<IProductRepository, ProductRepository>();
 // builder.Services.AddScoped<IAppUnitOfWork, AppUnitOfWork>();
 

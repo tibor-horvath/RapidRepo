@@ -17,24 +17,73 @@ public interface IAppUnitOfWork : IUnitOfWork<Guid>, IDisposable
 
 ## Implement the class
 
-Inherit from `UnitOfWork<TUserKey>` and override `DefaultUserKey`. This value is used for audit fields when no `userId` is passed to `Commit`/`CommitAsync`.
+Inherit from `UnitOfWork<TUserKey>` and pass the default user key to the base constructor. This value is used for audit fields when no `userId` is passed to `Commit`/`CommitAsync`.
 
 ```csharp
 public class AppUnitOfWork : UnitOfWork<Guid>, IAppUnitOfWork
 {
     public IProductRepository Products { get; }
 
-    public override Guid DefaultUserKey => Guid.Empty;
-
     public AppUnitOfWork(
         AppDbContext dbContext,
         IProductRepository productRepository)
-        : base(dbContext)
+        : base(dbContext, Guid.Empty)
     {
         Products = productRepository ?? throw new ArgumentNullException(nameof(productRepository));
     }
 }
 ```
+
+If the default key cannot be known at construction time (e.g. it comes from an injected service), override the `DefaultUserKey` property instead:
+
+```csharp
+public class AppUnitOfWork : UnitOfWork<Guid>, IAppUnitOfWork
+{
+    private readonly ICurrentUserService _currentUser;
+
+    public override Guid DefaultUserKey => _currentUser.Id;
+
+    public AppUnitOfWork(AppDbContext dbContext, ICurrentUserService currentUser)
+        : base(dbContext, default)
+    {
+        _currentUser = currentUser;
+    }
+}
+```
+
+---
+
+## Repository factory (GetRepository)
+
+Instead of injecting each repository through the constructor, you can use the built-in
+`GetRepository<TEntity, TKey>()` factory method. This is especially useful when combined with
+application-level entity base classes, because the user-key type is already encoded in the
+entity and in the UoW — no extra type parameters are needed anywhere else.
+
+The pattern works with any value type for the user ID (`Guid`, `long`, `int`, etc.):
+
+```csharp
+// Guid user keys
+public class GuidUnitOfWork : UnitOfWork<Guid>
+{
+    public GuidUnitOfWork(AppDbContext dbContext) : base(dbContext, Guid.Empty) { }
+
+    public IRepository<Employee, int>  Employees => GetRepository<Employee, int>();
+    public IRepository<Product, long>  Products  => GetRepository<Product, long>();
+}
+
+// long user keys
+public class LongUnitOfWork : UnitOfWork<long>
+{
+    public LongUnitOfWork(AppDbContext dbContext) : base(dbContext, 0L) { }
+
+    public IRepository<Employee, int>  Employees => GetRepository<Employee, int>();
+    public IRepository<Product, long>  Products  => GetRepository<Product, long>();
+}
+```
+
+> The existing constructor-injection pattern continues to work — `GetRepository` is an opt-in
+> convenience.
 
 ---
 

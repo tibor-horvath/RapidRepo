@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RapidRepo.Extensions.DependencyInjection;
 using RapidRepo.Extensions.DependencyInjection.Internal;
+using RapidRepo.Repositories;
+using RapidRepo.Repositories.Interfaces;
 using System.Diagnostics;
 
 namespace Microsoft.Extensions.DependencyInjection;
@@ -48,6 +50,14 @@ public static class RapidRepoServiceCollectionExtensions
                 services.TryAdd(descriptor);
             else
                 services.TryAddEnumerable(descriptor);
+        }
+
+        if (options.RegisterGenericRepositories)
+        {
+            var repoType = typeof(Repository<,>);
+            services.TryAdd(ServiceDescriptor.Describe(typeof(IRepository<,>),         repoType, options.Lifetime));
+            services.TryAdd(ServiceDescriptor.Describe(typeof(IReadOnlyRepository<,>), repoType, options.Lifetime));
+            services.TryAdd(ServiceDescriptor.Describe(typeof(IWriteRepository<,>),    repoType, options.Lifetime));
         }
 
         foreach (var (iface, impl) in options.UnitOfWorkRegistrations)
