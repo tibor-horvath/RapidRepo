@@ -29,6 +29,35 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
         return await DbContext.Set<TEntity>().AsNoTracking().AnyAsync(condition, cancellationToken);
     }
 
+    public virtual bool ExistsById(TId id, bool ignoreQueryFilters = false)
+    {
+        ArgumentNullException.ThrowIfNull(id);
+
+        return DbContext
+            .Set<TEntity>()
+            .AsQueryable()
+            .ApplyFilters<TEntity, TId>(
+                ignoreQueryFilters: ignoreQueryFilters,
+                track: false)
+            .Any(e => id.Equals(e.Id));
+    }
+
+    public virtual async Task<bool> ExistsByIdAsync(
+        TId id,
+        bool ignoreQueryFilters = false,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(id);
+
+        return await DbContext
+            .Set<TEntity>()
+            .AsQueryable()
+            .ApplyFilters<TEntity, TId>(
+                ignoreQueryFilters: ignoreQueryFilters,
+                track: false)
+            .AnyAsync(e => id.Equals(e.Id), cancellationToken);
+    }
+
     public virtual int Count(
         Expression<Func<TEntity, bool>>? condition = null,
         bool ignoreQueryFilters = false)
@@ -165,6 +194,195 @@ public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IR
                 ignoreQueryFilters: ignoreQueryFilters,
                 track: track)
             .FirstOrDefaultAsync(e => id.Equals(e.Id), cancellationToken);
+    }
+
+    public virtual IEnumerable<TEntity> GetByIds(
+        IEnumerable<TId> ids,
+        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
+        bool track = true,
+        bool ignoreQueryFilters = false)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+
+        var idList = ids as ICollection<TId> ?? ids.ToList();
+        if (idList.Count == 0) return [];
+
+        return DbContext
+            .Set<TEntity>()
+            .AsQueryable()
+            .ApplyFilters<TEntity, TId>(
+                include: include,
+                useSplitQueries: useSplitQueries,
+                ignoreQueryFilters: ignoreQueryFilters,
+                track: track)
+            .Where(e => idList.Contains(e.Id))
+            .ToList();
+    }
+
+    public virtual IEnumerable<TResult> GetByIds<TResult>(
+        IEnumerable<TId> ids,
+        Expression<Func<TEntity, TResult>> selector,
+        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
+        bool ignoreQueryFilters = false)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        ArgumentNullException.ThrowIfNull(selector);
+
+        var idList = ids as ICollection<TId> ?? ids.ToList();
+        if (idList.Count == 0) return [];
+
+        return DbContext
+            .Set<TEntity>()
+            .AsQueryable()
+            .ApplyFilters<TEntity, TId>(
+                include: include,
+                useSplitQueries: useSplitQueries,
+                ignoreQueryFilters: ignoreQueryFilters,
+                track: false)
+            .Where(e => idList.Contains(e.Id))
+            .Select(selector)
+            .ToList();
+    }
+
+    public virtual async Task<IEnumerable<TEntity>> GetByIdsAsync(
+        IEnumerable<TId> ids,
+        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
+        bool track = true,
+        bool ignoreQueryFilters = false,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+
+        var idList = ids as ICollection<TId> ?? ids.ToList();
+        if (idList.Count == 0) return [];
+
+        return await DbContext
+            .Set<TEntity>()
+            .AsQueryable()
+            .ApplyFilters<TEntity, TId>(
+                include: include,
+                useSplitQueries: useSplitQueries,
+                ignoreQueryFilters: ignoreQueryFilters,
+                track: track)
+            .Where(e => idList.Contains(e.Id))
+            .ToListAsync(cancellationToken);
+    }
+
+    public virtual async Task<IEnumerable<TResult>> GetByIdsAsync<TResult>(
+        IEnumerable<TId> ids,
+        Expression<Func<TEntity, TResult>> selector,
+        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
+        bool ignoreQueryFilters = false,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        ArgumentNullException.ThrowIfNull(selector);
+
+        var idList = ids as ICollection<TId> ?? ids.ToList();
+        if (idList.Count == 0) return [];
+
+        return await DbContext
+            .Set<TEntity>()
+            .AsQueryable()
+            .ApplyFilters<TEntity, TId>(
+                include: include,
+                useSplitQueries: useSplitQueries,
+                ignoreQueryFilters: ignoreQueryFilters,
+                track: false)
+            .Where(e => idList.Contains(e.Id))
+            .Select(selector)
+            .ToListAsync(cancellationToken);
+    }
+
+    public virtual Paged<TResult> GetAllPaged<TResult>(
+        Expression<Func<TEntity, TResult>> selector,
+        Expression<Func<TEntity, bool>>? condition = null,
+        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
+        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
+        bool ignoreQueryFilters = false,
+        int pageIndex = 1,
+        int pageSize = 10)
+        where TResult : class
+    {
+        ArgumentNullException.ThrowIfNull(selector);
+        ArgumentOutOfRangeException.ThrowIfLessThan(pageIndex, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
+
+        var query = DbContext
+            .Set<TEntity>()
+            .AsQueryable()
+            .ApplyFilters<TEntity, TId>(
+                condition: condition,
+                orderBy: orderBy,
+                include: include,
+                useSplitQueries: useSplitQueries,
+                ignoreQueryFilters: ignoreQueryFilters,
+                track: false);
+
+        var totalCount = query.Count();
+
+        var results = query
+            .Select(selector)
+            .Skip((pageIndex - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return new Paged<TResult>
+        {
+            Results = results,
+            TotalCount = totalCount,
+            Page = pageIndex,
+            PageSize = pageSize
+        };
+    }
+
+    public virtual async Task<Paged<TResult>> GetAllPagedAsync<TResult>(
+        Expression<Func<TEntity, TResult>> selector,
+        Expression<Func<TEntity, bool>>? condition = null,
+        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
+        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
+        bool useSplitQueries = false,
+        bool ignoreQueryFilters = false,
+        int pageIndex = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default)
+        where TResult : class
+    {
+        ArgumentNullException.ThrowIfNull(selector);
+        ArgumentOutOfRangeException.ThrowIfLessThan(pageIndex, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
+
+        var query = DbContext
+            .Set<TEntity>()
+            .AsQueryable()
+            .ApplyFilters<TEntity, TId>(
+                condition: condition,
+                orderBy: orderBy,
+                include: include,
+                useSplitQueries: useSplitQueries,
+                ignoreQueryFilters: ignoreQueryFilters,
+                track: false);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var results = await query
+            .Select(selector)
+            .Skip((pageIndex - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new Paged<TResult>
+        {
+            Results = results,
+            TotalCount = totalCount,
+            Page = pageIndex,
+            PageSize = pageSize
+        };
     }
 
     public virtual TEntity GetFirst(
