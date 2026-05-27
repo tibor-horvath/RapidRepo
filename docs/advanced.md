@@ -19,6 +19,8 @@ var products = await _unitOfWork.Products.GetAllAsync(
 
 Use a `selector` expression to project results without loading the full entity. This reduces data transfer and avoids materializing objects you don't need.
 
+`GetAll`, `GetFirst`, `GetSingle`, `GetById`, `GetByIds`, and `GetAllPaged` all have selector overloads.
+
 ```csharp
 // Project to a DTO
 record ProductSummary(long Id, string Name, decimal Price);
@@ -31,7 +33,35 @@ var summaries = await _unitOfWork.Products.GetAllAsync(
 // Project to a scalar
 var names = await _unitOfWork.Products.GetAllAsync(
     selector: p => p.Name);
+
+// Paged projection
+Paged<ProductSummary> page = await _unitOfWork.Products.GetAllPagedAsync(
+    selector: p => new ProductSummary(p.Id, p.Name, p.Price),
+    pageIndex: 1,
+    pageSize: 20);
 ```
+
+Selector overloads always use `AsNoTracking` internally — there is no `track` parameter on them.
+
+---
+
+## Bulk fetch by IDs
+
+Use `GetByIdsAsync` when you have a set of known primary keys and want to fetch all matching entities in a single query:
+
+```csharp
+IEnumerable<Product> products = await _unitOfWork.Products.GetByIdsAsync(ids);
+
+// With eager loading
+IEnumerable<Product> products = await _unitOfWork.Products.GetByIdsAsync(ids,
+    include: q => q.Include(p => p.Category));
+
+// Projected to a DTO
+IEnumerable<ProductSummary> summaries = await _unitOfWork.Products.GetByIdsAsync(ids,
+    selector: p => new ProductSummary(p.Id, p.Name, p.Price));
+```
+
+An empty `ids` collection returns an empty result immediately without a database round-trip. Soft-deleted entities are excluded by default; pass `ignoreQueryFilters: true` to include them.
 
 ---
 
@@ -55,6 +85,21 @@ Console.WriteLine($"Page {page.Page} of {page.TotalPages} ({page.TotalCount} tot
 Console.WriteLine($"Has next: {page.HasNext}, Has previous: {page.HasPrevious}");
 ```
 
+### Paging with a DTO projection
+
+Pass a `selector` to project each page item to a DTO without loading full entities:
+
+```csharp
+record ProductSummary(long Id, string Name, decimal Price);
+
+Paged<ProductSummary> page = await _unitOfWork.Products.GetAllPagedAsync(
+    selector: p => new ProductSummary(p.Id, p.Name, p.Price),
+    condition: p => p.IsActive,
+    orderBy: q => q.OrderBy(p => p.Name),
+    pageIndex: 1,
+    pageSize: 25);
+```
+
 > **Two-query pattern:** `GetAllPaged` / `GetAllPagedAsync` always issue two SQL statements — a `COUNT(*)` to get the total, then a `SELECT ... OFFSET ... FETCH` to get the page. For very large tables or high-latency connections this can be significant. If you already know the total count (e.g. from a cache), avoid the double round-trip by writing a custom repository method that skips the count query and constructs `Paged<T>` directly using `BuildQuery`.
 >
 > `pageIndex` must be ≥ 1 and `pageSize` must be ≥ 1; passing a lower value throws `ArgumentOutOfRangeException`.
@@ -69,6 +114,19 @@ Set `track: false` for queries whose results will not be modified. This avoids t
 var products = await _unitOfWork.Products.GetAllAsync(
     condition: p => p.IsActive,
     track: false);
+```
+
+---
+
+## Checking existence by ID
+
+Use `ExistsByIdAsync` instead of `AnyAsync(e => e.Id == id)` when you only need to know whether an entity with a specific key exists:
+
+```csharp
+bool exists = await _unitOfWork.Products.ExistsByIdAsync(id);
+
+// Include soft-deleted entities
+bool existsDeleted = await _unitOfWork.Products.ExistsByIdAsync(id, ignoreQueryFilters: true);
 ```
 
 ---
