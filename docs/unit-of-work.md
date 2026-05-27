@@ -48,23 +48,23 @@ entity and in the UoW — no extra type parameters are needed anywhere else.
 The pattern works with any value type for the user ID (`Guid`, `long`, `int`, etc.):
 
 ```csharp
-// Guid-keyed example
-public class AppUnitOfWork : UnitOfWork<Guid>, IAppUnitOfWork
+// Guid user keys
+public class GuidUnitOfWork : UnitOfWork<Guid>
 {
     public override Guid DefaultUserKey => Guid.Empty;
 
-    public AppUnitOfWork(AppDbContext dbContext) : base(dbContext) { }
+    public GuidUnitOfWork(AppDbContext dbContext) : base(dbContext) { }
 
     public IRepository<Employee, int>  Employees => GetRepository<Employee, int>();
     public IRepository<Product, long>  Products  => GetRepository<Product, long>();
 }
 
-// long-keyed example
-public class AppUnitOfWork : UnitOfWork<long>, IAppUnitOfWork
+// long user keys
+public class LongUnitOfWork : UnitOfWork<long>
 {
     public override long DefaultUserKey => 0;
 
-    public AppUnitOfWork(AppDbContext dbContext) : base(dbContext) { }
+    public LongUnitOfWork(AppDbContext dbContext) : base(dbContext) { }
 
     public IRepository<Employee, int>  Employees => GetRepository<Employee, int>();
     public IRepository<Product, long>  Products  => GetRepository<Product, long>();

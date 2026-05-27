@@ -26,6 +26,7 @@ public class GetRepositoryTests
     public async Task GetRepository_WhenEntityAdded_ShouldPersistWithAuditFields()
     {
         // Arrange
+        var utcBefore = DateTime.UtcNow;
         var userId = Guid.NewGuid();
         var employee = new Employee { FirstName = "Alice", LastName = "Smith" };
 
@@ -37,7 +38,7 @@ public class GetRepositoryTests
         var saved = _dbContext.Employees.FirstOrDefault();
         Assert.NotNull(saved);
         Assert.Equal(userId, saved.CreatedBy);
-        Assert.True((DateTime.UtcNow - saved.CreatedAt).TotalSeconds < 5);
+        Assert.True(saved.CreatedAt >= utcBefore && saved.CreatedAt <= DateTime.UtcNow);
     }
 
     [Fact]
