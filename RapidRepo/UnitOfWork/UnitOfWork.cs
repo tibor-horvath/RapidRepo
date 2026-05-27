@@ -13,12 +13,6 @@ public abstract class UnitOfWork<TUserKey> : IUnitOfWork<TUserKey>, IDisposable
 
     protected DbContext DbContext { get; set; }
 
-    /// <summary>
-    /// Gets the default user ID used when no user ID is passed to <see cref="Commit"/> or <see cref="CommitAsync"/>.
-    /// Override this property or supply the value via the constructor.
-    /// </summary>
-    public virtual TUserKey DefaultUserKey => _defaultUserKey;
-
     protected UnitOfWork(DbContext dbContext, TUserKey defaultUserKey)
     {
         DbContext = dbContext;
@@ -54,7 +48,7 @@ public abstract class UnitOfWork<TUserKey> : IUnitOfWork<TUserKey>, IDisposable
     private void ExecuteAudit(TUserKey? userId = null)
     {
         var utcNow = DateTime.UtcNow;
-        var defaultUserKey = DefaultUserKey;
+        var defaultUserKey = _defaultUserKey;
 
         foreach (var entry in DbContext.ChangeTracker.Entries()
             .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified))
