@@ -1,5 +1,16 @@
 # Changelog
 
+## [6.0.0](https://github.com/tibor-horvath/RapidRepo/compare/5.0.0...6.0.0) (2026-05-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* **uow:** remove public DefaultUserKey property ([#69](https://github.com/tibor-horvath/RapidRepo/issues/69))
+
+### Features
+
+* **uow:** remove public DefaultUserKey property ([#69](https://github.com/tibor-horvath/RapidRepo/issues/69)) ([217fe77](https://github.com/tibor-horvath/RapidRepo/commit/217fe77b1ab4ead1f543eb0658a6d996268b5180))
+
 ## [5.0.0](https://github.com/tibor-horvath/RapidRepo/compare/4.2.0...5.0.0) (2026-05-27)
 
 
