@@ -182,6 +182,11 @@ public sealed class RapidRepoOptions
     /// Include only types whose namespace starts with <paramref name="ns"/>.
     /// Equivalent to <c>Include(t =&gt; t.Namespace?.StartsWith(ns, StringComparison.Ordinal) == true)</c>.
     /// </summary>
+    /// <remarks>
+    /// The match is a plain prefix check: <c>"MyApp.Data"</c> matches <c>"MyApp.DataV2"</c>.
+    /// Add a trailing dot — <c>"MyApp.Data."</c> — to enforce namespace-segment boundaries.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="ns"/> is <c>null</c>.</exception>
     public RapidRepoOptions IncludeNamespace(string ns)
     {
         ArgumentNullException.ThrowIfNull(ns);
@@ -192,6 +197,11 @@ public sealed class RapidRepoOptions
     /// Exclude types whose namespace starts with <paramref name="ns"/>.
     /// Equivalent to <c>Exclude(t =&gt; t.Namespace?.StartsWith(ns, StringComparison.Ordinal) == true)</c>.
     /// </summary>
+    /// <remarks>
+    /// The match is a plain prefix check: <c>"MyApp.Data"</c> matches <c>"MyApp.DataV2"</c>.
+    /// Add a trailing dot — <c>"MyApp.Data."</c> — to enforce namespace-segment boundaries.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="ns"/> is <c>null</c>.</exception>
     public RapidRepoOptions ExcludeNamespace(string ns)
     {
         ArgumentNullException.ThrowIfNull(ns);

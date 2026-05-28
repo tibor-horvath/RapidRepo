@@ -137,7 +137,13 @@ options.ExcludeNamespace("MyApp.Legacy");
 options.ExcludeType<LegacyOrderRepository>();
 ```
 
-`IncludeNamespace` / `ExcludeNamespace` use `StartsWith` with `Ordinal` comparison, so `"MyApp.Data"` does not accidentally match `"MyApp.DataV2"`. Passing `null` throws `ArgumentNullException` immediately at the call site.
+`IncludeNamespace` / `ExcludeNamespace` use `StartsWith` with `Ordinal` comparison. Because `"MyApp.DataV2"` starts with `"MyApp.Data"`, the prefix `"MyApp.Data"` **does** match `"MyApp.DataV2"`. Add a trailing dot to enforce namespace-segment boundaries:
+
+```csharp
+options.ExcludeNamespace("MyApp.Data.");  // excludes MyApp.Data.Orders — does NOT match MyApp.DataV2
+```
+
+Passing `null` throws `ArgumentNullException` immediately at the call site.
 
 ---
 
