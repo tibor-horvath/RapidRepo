@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using RapidRepo.UnitOfWork;
 using System.Diagnostics;
 using System.Reflection;
 
@@ -106,6 +107,58 @@ public sealed class RapidRepoOptions
     }
 
     /// <summary>
+    /// Register a unit of work by automatically detecting the single user-defined
+    /// <see cref="IUnitOfWork{TUserKey}"/>-derived interface implemented by <typeparamref name="TImpl"/>.
+    /// Use the two-type overload <see cref="UseUnitOfWork{TInterface,TImpl}"/> when
+    /// <typeparamref name="TImpl"/> has zero or more than one such interface.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// <typeparamref name="TImpl"/> implements no user-defined <see cref="IUnitOfWork{TUserKey}"/> interface,
+    /// implements more than one, or the detected interface has already been registered.
+    /// </exception>
+    public RapidRepoOptions UseUnitOfWork<TImpl>()
+        where TImpl : class
+    {
+        var implType = typeof(TImpl);
+
+        if (implType.IsAbstract)
+            throw new ArgumentException(
+                $"'{implType.Name}' is abstract and cannot be used as a unit-of-work implementation. " +
+                "Provide a concrete class.",
+                nameof(TImpl));
+
+        // Collect user-defined interfaces that extend IUnitOfWork<TKey> but are not the root itself.
+        var candidateInterfaces = implType.GetInterfaces()
+            .Where(i => i.IsInterface
+                        && !(i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IUnitOfWork<>))
+                        && i.GetInterfaces().Any(p => p.IsGenericType
+                                                      && p.GetGenericTypeDefinition() == typeof(IUnitOfWork<>)))
+            .ToList();
+
+        if (candidateInterfaces.Count == 0)
+            throw new InvalidOperationException(
+                $"'{implType.Name}' does not implement any user-defined IUnitOfWork<> interface. " +
+                $"Use UseUnitOfWork<TInterface, TImpl>() to register it explicitly, " +
+                $"or directly against IUnitOfWork<TKey>.");
+
+        if (candidateInterfaces.Count > 1)
+            throw new InvalidOperationException(
+                $"'{implType.Name}' implements multiple user-defined IUnitOfWork<> interfaces: " +
+                $"[{string.Join(", ", candidateInterfaces.Select(i => i.Name))}]. " +
+                $"Use UseUnitOfWork<TInterface, TImpl>() to specify the interface explicitly.");
+
+        var interfaceType = candidateInterfaces[0];
+
+        if (_unitOfWorkRegistrations.Any(r => r.InterfaceType == interfaceType))
+            throw new InvalidOperationException(
+                $"A unit of work has already been registered for interface '{interfaceType.Name}'. " +
+                "Call UseUnitOfWork once per interface type.");
+
+        _unitOfWorkRegistrations.Add((interfaceType, implType));
+        return this;
+    }
+
+    /// <summary>
     /// Additive include predicate. A type is registered only if at least one include predicate returns <c>true</c>
     /// (when any includes are configured). Evaluated after excludes; exclude always wins.
     /// </summary>
@@ -124,4 +177,46 @@ public sealed class RapidRepoOptions
         _excludes.Add(predicate);
         return this;
     }
+
+    /// <summary>
+    /// Include only types whose namespace starts with <paramref name="ns"/>.
+    /// Equivalent to <c>Include(t =&gt; t.Namespace?.StartsWith(ns, StringComparison.Ordinal) == true)</c>.
+    /// </summary>
+    /// <remarks>
+    /// The match is a plain prefix check: <c>"MyApp.Data"</c> matches <c>"MyApp.DataV2"</c>.
+    /// Add a trailing dot — <c>"MyApp.Data."</c> — to enforce namespace-segment boundaries.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="ns"/> is <c>null</c>.</exception>
+    public RapidRepoOptions IncludeNamespace(string ns)
+    {
+        ArgumentNullException.ThrowIfNull(ns);
+        return Include(t => t.Namespace?.StartsWith(ns, StringComparison.Ordinal) == true);
+    }
+
+    /// <summary>
+    /// Exclude types whose namespace starts with <paramref name="ns"/>.
+    /// Equivalent to <c>Exclude(t =&gt; t.Namespace?.StartsWith(ns, StringComparison.Ordinal) == true)</c>.
+    /// </summary>
+    /// <remarks>
+    /// The match is a plain prefix check: <c>"MyApp.Data"</c> matches <c>"MyApp.DataV2"</c>.
+    /// Add a trailing dot — <c>"MyApp.Data."</c> — to enforce namespace-segment boundaries.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="ns"/> is <c>null</c>.</exception>
+    public RapidRepoOptions ExcludeNamespace(string ns)
+    {
+        ArgumentNullException.ThrowIfNull(ns);
+        return Exclude(t => t.Namespace?.StartsWith(ns, StringComparison.Ordinal) == true);
+    }
+
+    /// <summary>
+    /// Include only the exact concrete type <typeparamref name="T"/>.
+    /// Equivalent to <c>Include(t =&gt; t == typeof(T))</c>.
+    /// </summary>
+    public RapidRepoOptions IncludeType<T>() => Include(t => t == typeof(T));
+
+    /// <summary>
+    /// Exclude the exact concrete type <typeparamref name="T"/>.
+    /// Equivalent to <c>Exclude(t =&gt; t == typeof(T))</c>.
+    /// </summary>
+    public RapidRepoOptions ExcludeType<T>() => Exclude(t => t == typeof(T));
 }
