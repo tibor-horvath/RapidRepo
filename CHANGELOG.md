@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.1.0](https://github.com/tibor-horvath/RapidRepo/compare/6.0.0...6.1.0) (2026-05-28)
+
+
+### Features
+
+* add convenience methods to RapidRepoOptions to reduce configurtion boilerplate ([#76](https://github.com/tibor-horvath/RapidRepo/issues/76)) ([ee7165b](https://github.com/tibor-horvath/RapidRepo/commit/ee7165be0f1f284615ae6f982784acbd1fe214d6))
+
 ## [6.0.0](https://github.com/tibor-horvath/RapidRepo/compare/5.0.0...6.0.0) (2026-05-27)
 
 
