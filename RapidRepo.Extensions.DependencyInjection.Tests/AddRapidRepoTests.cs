@@ -473,6 +473,205 @@ public class AddRapidRepoTests
             .Should().Be(1);
     }
 
+    [Fact]
+    public void UseUnitOfWork_SingleType_AutoDetectsInterface()
+    {
+        var services = new ServiceCollection();
+
+        services.AddRapidRepo(o => o.UseUnitOfWork<TestUnitOfWork>());
+
+        services.Should().Contain(d =>
+            d.ServiceType == typeof(ITestUnitOfWork) &&
+            d.ImplementationType == typeof(TestUnitOfWork));
+    }
+
+    [Fact]
+    public void UseUnitOfWork_SingleType_Throws_WhenNoUserDefinedInterface()
+    {
+        var services = new ServiceCollection();
+
+        var act = () => services.AddRapidRepo(o => o.UseUnitOfWork<DirectUnitOfWork>());
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*does not implement any user-defined IUnitOfWork*");
+    }
+
+    [Fact]
+    public void UseUnitOfWork_SingleType_Throws_WhenMultipleUserDefinedInterfaces()
+    {
+        var services = new ServiceCollection();
+
+        var act = () => services.AddRapidRepo(o => o.UseUnitOfWork<MultiInterfaceUnitOfWork>());
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*multiple user-defined IUnitOfWork*");
+    }
+
+    [Fact]
+    public void UseUnitOfWork_SingleType_SameImplTwice_Throws()
+    {
+        var services = new ServiceCollection();
+
+        var act = () => services.AddRapidRepo(o =>
+        {
+            o.UseUnitOfWork<TestUnitOfWork>();
+            o.UseUnitOfWork<TestUnitOfWork>();
+        });
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void UseUnitOfWork_SingleType_MultipleInOneCall_AllRegistered()
+    {
+        // Verifies the common multi-DbContext scenario:
+        // two distinct UoW implementations, each with its own interface,
+        // registered in a single AddRapidRepo call.
+        var services = new ServiceCollection();
+
+        services.AddRapidRepo(o =>
+        {
+            o.UseUnitOfWork<TestUnitOfWork>();   // auto-detects ITestUnitOfWork  (Guid key)
+            o.UseUnitOfWork<SecondUnitOfWork>(); // auto-detects ISecondUnitOfWork (int key)
+        });
+
+        services.Should().Contain(d =>
+            d.ServiceType == typeof(ITestUnitOfWork) &&
+            d.ImplementationType == typeof(TestUnitOfWork));
+
+        services.Should().Contain(d =>
+            d.ServiceType == typeof(ISecondUnitOfWork) &&
+            d.ImplementationType == typeof(SecondUnitOfWork));
+    }
+
+    [Fact]
+    public void UseUnitOfWork_SingleType_Throws_ForAbstractClass()
+    {
+        var services = new ServiceCollection();
+
+        var act = () => services.AddRapidRepo(o => o.UseUnitOfWork<AbstractUoW>());
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*abstract*");
+    }
+
+    [Fact]
+    public void UseUnitOfWork_SingleType_CrossOverload_DuplicateInterface_Throws()
+    {
+        // Two-type overload registers ITestUnitOfWork first;
+        // single-type overload detects the same interface and must throw.
+        var services = new ServiceCollection();
+
+        var act = () => services.AddRapidRepo(o =>
+        {
+            o.UseUnitOfWork<ITestUnitOfWork, TestUnitOfWork>();
+            o.UseUnitOfWork<TestUnitOfWork>();
+        });
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*already been registered*");
+    }
+
+    [Fact]
+    public void UseUnitOfWork_SingleType_RespectsConfiguredLifetime()
+    {
+        var services = new ServiceCollection();
+
+        services.AddRapidRepo(o =>
+        {
+            o.Lifetime = ServiceLifetime.Transient;
+            o.UseUnitOfWork<TestUnitOfWork>();
+        });
+
+        services.Should().Contain(d =>
+            d.ServiceType == typeof(ITestUnitOfWork) &&
+            d.Lifetime == ServiceLifetime.Transient);
+    }
+
+    [Fact]
+    public void UseUnitOfWork_SingleType_SameTUserKey_BothInterfacesRegistered_ForwardingAliasFirstOneWins()
+    {
+        // TestUnitOfWork (Guid) and ThirdUnitOfWork (Guid) share the same TUserKey.
+        // Both user-defined interfaces must be registered.
+        // The IUnitOfWork<Guid> forwarding alias must appear exactly once (TryAdd — first wins).
+        var services = new ServiceCollection();
+
+        services.AddRapidRepo(o =>
+        {
+            o.UseUnitOfWork<TestUnitOfWork>();   // ITestUnitOfWork + IUnitOfWork<Guid>
+            o.UseUnitOfWork<ThirdUnitOfWork>();  // IThirdUoW      + IUnitOfWork<Guid> (skipped by TryAdd)
+        });
+
+        services.Should().Contain(d =>
+            d.ServiceType == typeof(ITestUnitOfWork) &&
+            d.ImplementationType == typeof(TestUnitOfWork));
+
+        services.Should().Contain(d =>
+            d.ServiceType == typeof(IThirdUoW) &&
+            d.ImplementationType == typeof(ThirdUnitOfWork));
+
+        services.Count(d => d.ServiceType == typeof(IUnitOfWork<Guid>))
+            .Should().Be(1);
+    }
+
+    // ── IncludeNamespace / ExcludeNamespace null guard ─────────────────────────
+
+    [Fact]
+    public void IncludeNamespace_Null_Throws_ArgumentNullException()
+    {
+        var act = () => new RapidRepoOptions().IncludeNamespace(null!);
+
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void ExcludeNamespace_Null_Throws_ArgumentNullException()
+    {
+        var act = () => new RapidRepoOptions().ExcludeNamespace(null!);
+
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    // ── Filter precedence (exclude wins) ───────────────────────────────────────
+
+    [Fact]
+    public void ExcludeNamespace_BeatsIncludeNamespace_WhenNamespaceOverlaps()
+    {
+        var services = new ServiceCollection();
+
+        services.AddRapidRepo(o =>
+        {
+            o.ScanAssembliesContaining<WidgetRepository>();
+            // Include the broad TestData namespace, then exclude the Ambiguous sub-namespace.
+            o.IncludeNamespace("RapidRepo.Extensions.DependencyInjection.Tests.TestData");
+            o.ExcludeNamespace("RapidRepo.Extensions.DependencyInjection.Tests.TestData.Ambiguous");
+        });
+
+        // Types in TestData (not Ambiguous) are registered.
+        services.Should().Contain(d => d.ImplementationType == typeof(WidgetRepository));
+        services.Should().Contain(d => d.ImplementationType == typeof(GadgetRepository));
+
+        // Types in TestData.Ambiguous are excluded despite the broad include.
+        services.Should().NotContain(d => d.ImplementationType == typeof(GizmoRepositoryA));
+        services.Should().NotContain(d => d.ImplementationType == typeof(GizmoRepositoryB));
+    }
+
+    [Fact]
+    public void ExcludeType_BeatsIncludeType_ForSameType()
+    {
+        var services = new ServiceCollection();
+
+        services.AddRapidRepo(o =>
+        {
+            o.ScanAssembliesContaining<WidgetRepository>();
+            o.Exclude(ExcludeAmbiguous);
+            o.IncludeType<WidgetRepository>();
+            o.ExcludeType<WidgetRepository>(); // exclude must win
+        });
+
+        services.Should().NotContain(d => d.ImplementationType == typeof(WidgetRepository));
+    }
+
     // ── RegisterGenericRepositories ────────────────────────────────────────────
 
     [Fact]
@@ -573,5 +772,89 @@ public class AddRapidRepoTests
         services.Should().Contain(d =>
             d.ServiceType == typeof(IRepository<,>) &&
             d.ImplementationType == typeof(Repository<,>));
+    }
+
+    // ── ExcludeNamespace / IncludeNamespace ────────────────────────────────────
+
+    [Fact]
+    public void ExcludeNamespace_RemovesTypesInMatchingNamespace()
+    {
+        var services = new ServiceCollection();
+
+        services.AddRapidRepo(o =>
+        {
+            o.ScanAssembliesContaining<WidgetRepository>();
+            o.ExcludeNamespace("RapidRepo.Extensions.DependencyInjection.Tests.TestData.Ambiguous");
+        });
+
+        services.Should().NotContain(d => d.ImplementationType == typeof(GizmoRepositoryA));
+        services.Should().NotContain(d => d.ImplementationType == typeof(GizmoRepositoryB));
+    }
+
+    [Fact]
+    public void ExcludeNamespace_DoesNotAffectTypesOutsideNamespace()
+    {
+        var services = new ServiceCollection();
+
+        services.AddRapidRepo(o =>
+        {
+            o.ScanAssembliesContaining<WidgetRepository>();
+            o.ExcludeNamespace("RapidRepo.Extensions.DependencyInjection.Tests.TestData.Ambiguous");
+        });
+
+        services.Should().Contain(d => d.ImplementationType == typeof(WidgetRepository));
+        services.Should().Contain(d => d.ImplementationType == typeof(GadgetRepository));
+    }
+
+    [Fact]
+    public void IncludeNamespace_OnlyRegistersTypesInMatchingNamespace()
+    {
+        var services = new ServiceCollection();
+
+        services.AddRapidRepo(o =>
+        {
+            o.ScanAssembliesContaining<WidgetRepository>();
+            o.IncludeNamespace("RapidRepo.Extensions.DependencyInjection.Tests.TestData.Ambiguous");
+            o.ThrowOnAmbiguousRegistration = false; // Ambiguous ns intentionally has two IGizmoRepository impls
+        });
+
+        // At least one Ambiguous-namespace type was discovered
+        services.Should().Contain(d => d.ImplementationType == typeof(GizmoRepositoryA));
+        // Types outside the included namespace were not registered
+        services.Should().NotContain(d => d.ImplementationType == typeof(WidgetRepository));
+        services.Should().NotContain(d => d.ImplementationType == typeof(GadgetRepository));
+    }
+
+    // ── ExcludeType / IncludeType ──────────────────────────────────────────────
+
+    [Fact]
+    public void ExcludeType_RemovesSpecificConcreteType()
+    {
+        var services = new ServiceCollection();
+
+        services.AddRapidRepo(o =>
+        {
+            o.ScanAssembliesContaining<WidgetRepository>();
+            o.Exclude(ExcludeAmbiguous);
+            o.ExcludeType<WidgetRepository>();
+        });
+
+        services.Should().NotContain(d => d.ImplementationType == typeof(WidgetRepository));
+        services.Should().Contain(d => d.ImplementationType == typeof(GadgetRepository));
+    }
+
+    [Fact]
+    public void IncludeType_OnlyRegistersSpecificConcreteType()
+    {
+        var services = new ServiceCollection();
+
+        services.AddRapidRepo(o =>
+        {
+            o.ScanAssembliesContaining<WidgetRepository>();
+            o.IncludeType<GadgetRepository>();
+        });
+
+        services.Should().Contain(d => d.ImplementationType == typeof(GadgetRepository));
+        services.Should().NotContain(d => d.ImplementationType == typeof(WidgetRepository));
     }
 }

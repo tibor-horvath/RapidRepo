@@ -86,7 +86,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddRapidRepo(options =>
 {
     options.RegisterGenericRepositories = true;
-    options.UseUnitOfWork<IAppUnitOfWork, AppUnitOfWork>();
+    options.UseUnitOfWork<AppUnitOfWork>(); // interface auto-detected
 });
 
 // Option B — custom repositories (path 2b): scan assemblies for IProductRepository etc.
@@ -94,7 +94,7 @@ builder.Services.AddRapidRepo(options =>
 {
     options.ScanAssembliesContaining<ProductRepository>();
     options.RegisterGenericRepositories = true; // also allow direct IRepository<,> injection
-    options.UseUnitOfWork<IAppUnitOfWork, AppUnitOfWork>();
+    options.UseUnitOfWork<AppUnitOfWork>(); // interface auto-detected
 });
 
 // Option C — manual registration (no extra package required)

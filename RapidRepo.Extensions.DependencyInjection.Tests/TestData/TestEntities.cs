@@ -46,3 +46,19 @@ public class TestUnitOfWork(DbContext db) : UnitOfWork<Guid>(db, Guid.Empty), IT
 public interface ISecondUnitOfWork : IUnitOfWork<int> { }
 
 public class SecondUnitOfWork(DbContext db) : UnitOfWork<int>(db, 0), ISecondUnitOfWork;
+
+// UnitOfWork with no user-defined interface — used to verify UseUnitOfWork<TImpl>() error path.
+public class DirectUnitOfWork(DbContext db) : UnitOfWork<Guid>(db, Guid.Empty);
+
+// UnitOfWork implementing two user-defined interfaces — used to verify ambiguity error path.
+public interface IFirstUoW : IUnitOfWork<Guid> { }
+public interface ISecondUoW : IUnitOfWork<Guid> { }
+public class MultiInterfaceUnitOfWork(DbContext db) : UnitOfWork<Guid>(db, Guid.Empty), IFirstUoW, ISecondUoW;
+
+// Abstract UoW — used to verify UseUnitOfWork<TImpl>() abstract guard.
+public interface IAbstractUoW : IUnitOfWork<Guid> { }
+public abstract class AbstractUoW(DbContext db) : UnitOfWork<Guid>(db, Guid.Empty), IAbstractUoW;
+
+// Third UoW sharing the same TUserKey (Guid) as TestUnitOfWork — used to verify forwarding alias first-one-wins.
+public interface IThirdUoW : IUnitOfWork<Guid> { }
+public class ThirdUnitOfWork(DbContext db) : UnitOfWork<Guid>(db, Guid.Empty), IThirdUoW;

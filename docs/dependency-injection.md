@@ -41,9 +41,14 @@ This single call replaces one `AddScoped<>` line per repository. Any concrete, n
 | `ScanAssemblies(params Assembly[])` | method | — | Add one or more assemblies to scan. |
 | `ScanAssembliesContaining<TMarker>()` | method | — | Add the assembly that contains `TMarker`. |
 | `ScanCallingAssembly()` | method | — | Add the calling assembly (see note below). |
-| `UseUnitOfWork<TInterface, TImpl>()` | method | — | Register a unit of work implementation. |
+| `UseUnitOfWork<TInterface, TImpl>()` | method | — | Register a unit of work against an explicit interface. |
+| `UseUnitOfWork<TImpl>()` | method | — | Register a unit of work by auto-detecting the single user-defined `IUnitOfWork<>` interface. Throws `ArgumentException` if `TImpl` is abstract or an interface. Throws `InvalidOperationException` when zero or more than one candidate interface is found. |
 | `Include(Func<Type, bool>)` | method | — | Additive include predicate. |
 | `Exclude(Func<Type, bool>)` | method | — | Additive exclude predicate. |
+| `IncludeNamespace(string)` | method | — | Shorthand for `Include` matching types whose namespace starts with the given prefix. `null` throws `ArgumentNullException`. |
+| `ExcludeNamespace(string)` | method | — | Shorthand for `Exclude` matching types whose namespace starts with the given prefix. `null` throws `ArgumentNullException`. |
+| `IncludeType<T>()` | method | — | Shorthand for `Include(t => t == typeof(T))`. |
+| `ExcludeType<T>()` | method | — | Shorthand for `Exclude(t => t == typeof(T))`. |
 
 ---
 
@@ -117,9 +122,28 @@ options.Exclude(t => t.Name.StartsWith("Legacy"));
 options.Exclude(t => t.Namespace?.Contains(".Experimental") == true);
 ```
 
+### Namespace and type shortcuts
+
+The `IncludeNamespace`, `ExcludeNamespace`, `IncludeType<T>`, and `ExcludeType<T>` helpers reduce common filter lambdas to a single readable call:
+
+```csharp
+// Equivalent to: options.Include(t => t.Namespace?.StartsWith("MyApp.Sales", ...) == true)
+options.IncludeNamespace("MyApp.Sales");
+
+// Equivalent to: options.Exclude(t => t.Namespace?.StartsWith("MyApp.Legacy", ...) == true)
+options.ExcludeNamespace("MyApp.Legacy");
+
+// Equivalent to: options.Exclude(t => t == typeof(LegacyOrderRepository))
+options.ExcludeType<LegacyOrderRepository>();
+```
+
+`IncludeNamespace` / `ExcludeNamespace` use `StartsWith` with `Ordinal` comparison, so `"MyApp.Data"` does not accidentally match `"MyApp.DataV2"`. Passing `null` throws `ArgumentNullException` immediately at the call site.
+
 ---
 
 ## Unit of Work
+
+### Two-type overload (explicit)
 
 ```csharp
 options.UseUnitOfWork<IAppUnitOfWork, AppUnitOfWork>();
@@ -129,7 +153,24 @@ This registers:
 - `IAppUnitOfWork → AppUnitOfWork`
 - `IUnitOfWork<TKey> → AppUnitOfWork` for every closed `IUnitOfWork<TKey>` that `AppUnitOfWork` implements
 
-Call `UseUnitOfWork` once per unit of work interface type. Registering the same interface twice throws `InvalidOperationException`.
+### Single-type overload (auto-detect)
+
+When your implementation has exactly one user-defined `IUnitOfWork<TKey>`-derived interface, the interface can be omitted:
+
+```csharp
+options.UseUnitOfWork<AppUnitOfWork>();
+```
+
+This is equivalent to the two-type form above. Startup throws in the following cases:
+
+| Situation | Exception |
+|---|---|
+| `TImpl` is abstract or an interface | `ArgumentException` |
+| `TImpl` has no user-defined `IUnitOfWork<>` interface | `InvalidOperationException` |
+| `TImpl` has more than one user-defined `IUnitOfWork<>` interface | `InvalidOperationException` |
+| The detected interface was already registered | `InvalidOperationException` |
+
+Call `UseUnitOfWork` once per unit of work interface type. Registering the same interface twice — whether via the same overload or by mixing both overloads — throws `InvalidOperationException`.
 
 ---
 
