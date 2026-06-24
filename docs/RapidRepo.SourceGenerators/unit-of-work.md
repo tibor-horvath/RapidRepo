@@ -8,7 +8,10 @@ For the manual approach to writing a Unit of Work, see [RapidRepo — Unit of Wo
 
 ## Installation
 
+`[GenerateUnitOfWork]`, `UnitOfWork<T>`, and the types the generator emits live in the core package. Add both:
+
 ```bash
+dotnet add package RapidRepo
 dotnet add package RapidRepo.SourceGenerators
 ```
 

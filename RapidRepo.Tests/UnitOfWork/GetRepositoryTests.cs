@@ -82,6 +82,13 @@ public class GetRepositoryTests
     }
 
     [Fact]
+    public void Constructor_WithNullServiceProvider_ThrowsArgumentNullException()
+    {
+        var ex = Assert.Throws<ArgumentNullException>(() => new DiUnitOfWork(_dbContext, null!));
+        Assert.Equal("serviceProvider", ex.ParamName);
+    }
+
+    [Fact]
     public void ResolveRepository_WithoutServiceProvider_ThrowsInvalidOperationException()
     {
         // Arrange

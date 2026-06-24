@@ -76,12 +76,30 @@ public sealed class UnitOfWorkGenerator : IIncrementalGenerator
             : classSymbol.ContainingNamespace.ToDisplayString();
 
         ctx.AddSource(
-            $"{interfaceName}.g.cs",
+            BuildHintName(ns, interfaceName),
             SourceEmitter.EmitInterface(ns, interfaceName, properties));
 
         ctx.AddSource(
-            $"{classSymbol.Name}.Repositories.g.cs",
+            BuildHintName(ns, $"{classSymbol.Name}.Repositories"),
             SourceEmitter.EmitPartialClass(ns, classSymbol.Name, properties));
+    }
+
+    private static string BuildHintName(string? namespaceName, string baseName)
+    {
+        var stem = namespaceName is null ? baseName : $"{namespaceName}.{baseName}";
+        return $"{SanitizeMetadataName(stem)}.g.cs";
+    }
+
+    private static string SanitizeMetadataName(string name)
+    {
+        var chars = name.ToCharArray();
+        for (var i = 0; i < chars.Length; i++)
+        {
+            if (chars[i] is ':' or '\\' or '/' or '*' or '?' or '"' or '<' or '>' or '|')
+                chars[i] = '_';
+        }
+
+        return new string(chars);
     }
 
     private static List<INamedTypeSymbol>? ParseDbContextTypes(

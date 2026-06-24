@@ -99,6 +99,47 @@ public class UnitOfWorkGeneratorTests
     }
 
     [Fact]
+    public void DbSet_Nested_Entity_Type_Uses_Full_Type_Display()
+    {
+        var source = """
+            using RapidRepo.Attributes;
+            using RapidRepo.UnitOfWork;
+            using RapidRepo.Entities;
+            using Microsoft.EntityFrameworkCore;
+
+            namespace MyApp.Data;
+
+            public class Catalog
+            {
+                public class Product : BaseEntity<int> { }
+            }
+
+            public class AppDbContext : DbContext
+            {
+                public DbSet<Catalog.Product> Products { get; set; } = null!;
+            }
+
+            public interface IAppUoW : RapidRepo.UnitOfWork.IUnitOfWork<System.Guid> { }
+
+            [GenerateUnitOfWork(typeof(AppDbContext))]
+            public partial class AppUnitOfWork : UnitOfWork<System.Guid>, IAppUoW
+            {
+                public AppUnitOfWork(AppDbContext db, System.IServiceProvider sp) : base(db, System.Guid.Empty, sp) { }
+            }
+            """;
+
+        var (diagnostics, sources) = RunGenerator(source);
+
+        diagnostics.Should().BeEmpty();
+
+        var iface = FindSource(sources, "IAppUnitOfWorkRepositories");
+        iface.Should().Contain("IRepository<Catalog.Product, int> Products { get; }");
+
+        var cls = FindSource(sources, "AppUnitOfWork.Repositories");
+        cls.Should().Contain("GetRepository<Catalog.Product, int>()");
+    }
+
+    [Fact]
     public void Custom_Repo_Overrides_DbSet_Entry_For_Same_Entity()
     {
         var source = """
@@ -319,6 +360,51 @@ public class UnitOfWorkGeneratorTests
     }
 
     [Fact]
+    public void ExcludeNamespaces_Does_Not_Match_Sibling_Namespace_Prefixes()
+    {
+        var source = """
+            using RapidRepo.Attributes;
+            using RapidRepo.UnitOfWork;
+            using RapidRepo.Entities;
+            using RapidRepo.Repositories.Interfaces;
+            using Microsoft.EntityFrameworkCore;
+
+            namespace MyApp.Data.ExcludedExtra
+            {
+                public class Bonus : BaseEntity<int> { }
+                public interface IBonusRepository : IRepository<Bonus, int> { }
+            }
+
+            namespace MyApp.Data.Excluded
+            {
+                public class Gadget : BaseEntity<System.Guid> { }
+                public interface IGadgetRepository : IRepository<Gadget, System.Guid> { }
+            }
+
+            namespace MyApp.Data
+            {
+                public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext { }
+
+                public interface IAppUoW : RapidRepo.UnitOfWork.IUnitOfWork<System.Guid> { }
+
+                [GenerateUnitOfWork(typeof(AppDbContext), ExcludeNamespaces = new[] { "MyApp.Data.Excluded" })]
+                public partial class AppUnitOfWork : UnitOfWork<System.Guid>, IAppUoW
+                {
+                    public AppUnitOfWork(System.IServiceProvider sp) : base(null!, System.Guid.Empty, sp) { }
+                }
+            }
+            """;
+
+        var (diagnostics, sources) = RunGenerator(source);
+
+        diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+
+        var iface = FindSource(sources, "IAppUnitOfWorkRepositories");
+        iface.Should().Contain("IBonusRepository");
+        iface.Should().NotContain("IGadgetRepository");
+    }
+
+    [Fact]
     public void Generated_Interface_Name_Can_Be_Overridden()
     {
         var source = """
@@ -349,6 +435,48 @@ public class UnitOfWorkGeneratorTests
 
         diagnostics.Should().BeEmpty();
         sources.Should().Contain(s => s.HintName.Contains("ICustomName"));
+    }
+
+    [Fact]
+    public void Duplicate_DbSet_Property_Name_Across_DbContexts_Emits_RRUOW002_Error()
+    {
+        var source = """
+            using RapidRepo.Attributes;
+            using RapidRepo.UnitOfWork;
+            using RapidRepo.Entities;
+            using Microsoft.EntityFrameworkCore;
+
+            namespace MyApp.Data;
+
+            public class User : BaseEntity<System.Guid> { }
+            public class LegacyUser : BaseEntity<System.Guid> { }
+
+            public class AppDbContext : DbContext
+            {
+                public DbSet<User> Users { get; set; } = null!;
+            }
+
+            public class LegacyDbContext : DbContext
+            {
+                public DbSet<LegacyUser> Users { get; set; } = null!;
+            }
+
+            public interface IAppUoW : RapidRepo.UnitOfWork.IUnitOfWork<System.Guid> { }
+
+            [GenerateUnitOfWork(typeof(AppDbContext), typeof(LegacyDbContext))]
+            public partial class AppUnitOfWork : UnitOfWork<System.Guid>, IAppUoW
+            {
+                public AppUnitOfWork(AppDbContext db, System.IServiceProvider sp) : base(db, System.Guid.Empty, sp) { }
+            }
+            """;
+
+        var (diagnostics, sources) = RunGenerator(source);
+
+        diagnostics.Should().ContainSingle(d => d.Id == "RRUOW002" && d.Severity == DiagnosticSeverity.Error);
+
+        var iface = FindSource(sources, "IAppUnitOfWorkRepositories");
+        iface.Should().Contain("Users { get; }");
+        iface.Split("Users { get; }", StringSplitOptions.None).Should().HaveCount(2);
     }
 
     [Fact]
@@ -387,5 +515,61 @@ public class UnitOfWorkGeneratorTests
 
         var cls = FindSource(sources, "AppUnitOfWork.Repositories");
         cls.Should().Contain("namespace Company.Project.Data;");
+    }
+
+    [Fact]
+    public void Hint_Names_Are_Namespace_Qualified_When_Class_Names_Collide()
+    {
+        var source = """
+            using RapidRepo.Attributes;
+            using RapidRepo.UnitOfWork;
+            using RapidRepo.Entities;
+            using Microsoft.EntityFrameworkCore;
+
+            namespace Company.A.Data
+            {
+                public class ItemA : BaseEntity<int> { }
+
+                public class AppDbContextA : DbContext
+                {
+                    public DbSet<ItemA> Items { get; set; } = null!;
+                }
+
+                public interface IAppUoWA : RapidRepo.UnitOfWork.IUnitOfWork<System.Guid> { }
+
+                [GenerateUnitOfWork(typeof(AppDbContextA))]
+                public partial class AppUnitOfWork : UnitOfWork<System.Guid>, IAppUoWA
+                {
+                    public AppUnitOfWork(AppDbContextA db, System.IServiceProvider sp) : base(db, System.Guid.Empty, sp) { }
+                }
+            }
+
+            namespace Company.B.Data
+            {
+                public class ItemB : BaseEntity<int> { }
+
+                public class AppDbContextB : DbContext
+                {
+                    public DbSet<ItemB> Items { get; set; } = null!;
+                }
+
+                public interface IAppUoWB : RapidRepo.UnitOfWork.IUnitOfWork<System.Guid> { }
+
+                [GenerateUnitOfWork(typeof(AppDbContextB))]
+                public partial class AppUnitOfWork : UnitOfWork<System.Guid>, IAppUoWB
+                {
+                    public AppUnitOfWork(AppDbContextB db, System.IServiceProvider sp) : base(db, System.Guid.Empty, sp) { }
+                }
+            }
+            """;
+
+        var (diagnostics, sources) = RunGenerator(source);
+
+        diagnostics.Should().BeEmpty();
+        sources.Should().HaveCount(4);
+        sources.Should().Contain(s => s.HintName == "Company.A.Data.IAppUnitOfWorkRepositories.g.cs");
+        sources.Should().Contain(s => s.HintName == "Company.A.Data.AppUnitOfWork.Repositories.g.cs");
+        sources.Should().Contain(s => s.HintName == "Company.B.Data.IAppUnitOfWorkRepositories.g.cs");
+        sources.Should().Contain(s => s.HintName == "Company.B.Data.AppUnitOfWork.Repositories.g.cs");
     }
 }

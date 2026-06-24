@@ -16,6 +16,12 @@ internal static class PropertyDiscoverer
     private const string DbContextFqn         = "Microsoft.EntityFrameworkCore.DbContext";
     private const string UoWPropertyAttrFqn   = "RapidRepo.Attributes.UnitOfWorkPropertyAttribute";
 
+    private static readonly SymbolDisplayFormat RepositoryTypeArgumentFormat = new(
+        globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
+        typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypes,
+        genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
+
     internal static IReadOnlyList<PropertyModel> Discover(
         Compilation compilation,
         SourceProductionContext ctx,
@@ -67,17 +73,30 @@ internal static class PropertyDiscoverer
                     if (keyNs is not null && !keyNs.StartsWith("System", StringComparison.Ordinal))
                         namespaces.Add(keyNs);
 
-                    var keyName     = GetCSharpTypeName(keyType);
-                    var typeDisplay = $"IRepository<{entityType.Name}, {keyName}>";
-                    var impl        = $"GetRepository<{entityType.Name}, {keyName}>()";
+                    var entityTypeDisplay = entityType.ToDisplayString(RepositoryTypeArgumentFormat);
+                    var keyTypeDisplay    = keyType.ToDisplayString(RepositoryTypeArgumentFormat);
+                    var typeDisplay       = $"IRepository<{entityTypeDisplay}, {keyTypeDisplay}>";
+                    var impl              = $"GetRepository<{entityTypeDisplay}, {keyTypeDisplay}>()";
 
                     var model = new PropertyModel(prop.Name, typeDisplay, impl, namespaces);
 
-                    if (!byEntity.ContainsKey(entityType))
+                    if (byEntity.ContainsKey(entityType))
+                        continue;
+
+                    if (nameToEntity.TryGetValue(prop.Name, out var existingEntity)
+                        && !SymbolEqualityComparer.Default.Equals(existingEntity, entityType))
                     {
-                        byEntity[entityType]     = model;
-                        nameToEntity[prop.Name]  = entityType;
+                        ctx.ReportDiagnostic(Diagnostic.Create(
+                            Diagnostics.DuplicatePropertyName,
+                            classSymbol.Locations.FirstOrDefault(),
+                            prop.Name,
+                            byEntity[existingEntity].TypeDisplay,
+                            typeDisplay));
+                        continue;
                     }
+
+                    byEntity[entityType]     = model;
+                    nameToEntity[prop.Name]  = entityType;
                 }
             }
         }
@@ -164,21 +183,6 @@ internal static class PropertyDiscoverer
         return byEntity.Values.OrderBy(p => p.Name).ToList();
     }
 
-    private static string GetCSharpTypeName(ITypeSymbol type) => type.SpecialType switch
-    {
-        SpecialType.System_Boolean => "bool",
-        SpecialType.System_Byte    => "byte",
-        SpecialType.System_Char    => "char",
-        SpecialType.System_Decimal => "decimal",
-        SpecialType.System_Double  => "double",
-        SpecialType.System_Single  => "float",
-        SpecialType.System_Int16   => "short",
-        SpecialType.System_Int32   => "int",
-        SpecialType.System_Int64   => "long",
-        SpecialType.System_String  => "string",
-        _                          => type.Name,
-    };
-
     private static ITypeSymbol? FindBaseEntityKeyType(INamedTypeSymbol entity, INamedTypeSymbol baseEntityDef)
     {
         var current = entity.BaseType;
@@ -211,15 +215,19 @@ internal static class PropertyDiscoverer
         ImmutableArray<string> excludes)
     {
         foreach (var ex in excludes)
-            if (ns.StartsWith(ex, StringComparison.Ordinal)) return false;
+            if (MatchesNamespacePrefix(ns, ex)) return false;
 
         if (includes.IsEmpty) return true;
 
         foreach (var inc in includes)
-            if (ns.StartsWith(inc, StringComparison.Ordinal)) return true;
+            if (MatchesNamespacePrefix(ns, inc)) return true;
 
         return false;
     }
+
+    private static bool MatchesNamespacePrefix(string ns, string prefix) =>
+        string.Equals(ns, prefix, StringComparison.Ordinal)
+        || ns.StartsWith(prefix + ".", StringComparison.Ordinal);
 }
 
 internal static class NamespaceExtensions

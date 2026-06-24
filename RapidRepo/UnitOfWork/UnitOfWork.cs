@@ -23,6 +23,7 @@ public abstract class UnitOfWork<TUserKey> : IUnitOfWork<TUserKey>, IDisposable
     protected UnitOfWork(DbContext dbContext, TUserKey defaultUserKey, IServiceProvider serviceProvider)
         : this(dbContext, defaultUserKey)
     {
+        ArgumentNullException.ThrowIfNull(serviceProvider);
         _serviceProvider = serviceProvider;
     }
 
