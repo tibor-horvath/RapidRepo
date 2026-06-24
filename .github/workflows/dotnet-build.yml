@@ -44,10 +44,22 @@ jobs:
           name: coverage
           path: coverage
 
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Merge coverage reports
+        uses: danielpalme/ReportGenerator-GitHub-Action@cf6fe1b38ed5becc89ffe056c1f240825993be5b # v5.5.4
+        with:
+          reports: "coverage/**/coverage.cobertura.xml"
+          targetdir: "coverage/merged"
+          reporttypes: "Cobertura"
+
       - name: Code Coverage Summary Report
         uses: irongut/CodeCoverageSummary@51cc3a756ddcd398d447c044c02cb6aa83fdae95 # v1.3.0
         with:
-          filename: coverage/**/coverage.cobertura.xml
+          filename: coverage/merged/Cobertura.xml
           badge: true
           fail_below_min: false
           format: markdown
