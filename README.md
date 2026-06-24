@@ -15,8 +15,7 @@ RapidRepo is a repository pattern implementation for .NET applications. It uses 
 - Built-in auditing (`CreatedAt`, `CreatedBy`, `ModifiedAt`, `ModifiedBy`)
 - Built-in soft delete support (`DeletedAt`, `DeletedBy`)
 - Paged query results via `Paged<T>`
-- Convention-based DI registration via `AddRapidRepo(...)` (separate package)
-- Zero-boilerplate repositories via open-generic registration (`RegisterGenericRepositories`)
+- Optional companion packages for DI registration and Unit of Work source generation
 
 ## Requirements
 
@@ -29,11 +28,39 @@ RapidRepo is a repository pattern implementation for .NET applications. It uses 
 dotnet add package RapidRepo
 ```
 
-For convention-based DI registration, also install the extension package:
+## Companion packages
+
+RapidRepo is intentionally split into a small core library and two optional packages:
+
+| Package | What it adds |
+|---|---|
+| [`RapidRepo.Extensions.DependencyInjection`](docs/RapidRepo.Extensions.DependencyInjection/dependency-injection.md) | `AddRapidRepo(...)` — scans assemblies and registers repositories, open-generic fallbacks, and the unit of work |
+| [`RapidRepo.SourceGenerators`](docs/RapidRepo.SourceGenerators/unit-of-work.md) | `[GenerateUnitOfWork]` — emits repository properties and a companion interface on your `partial` Unit of Work class |
 
 ```bash
 dotnet add package RapidRepo.Extensions.DependencyInjection
+dotnet add package RapidRepo.SourceGenerators
 ```
+
+`RapidRepo.Extensions.DependencyInjection` declares a dependency on `RapidRepo` — installing it is enough; you do not need to add `RapidRepo` separately.
+
+`RapidRepo.SourceGenerators` does not pull in `RapidRepo` automatically, but it requires it at compile time (`[GenerateUnitOfWork]`, `UnitOfWork<T>`, and the types the generator emits all live in the core package). Add both when using the generator:
+
+```bash
+dotnet add package RapidRepo
+dotnet add package RapidRepo.SourceGenerators
+```
+
+The source generator must be referenced as an analyzer (not a regular assembly):
+
+```xml
+<PackageReference Include="RapidRepo.SourceGenerators" Version="..."
+    PrivateAssets="all"
+    OutputItemType="Analyzer"
+    ReferenceOutputAssembly="false" />
+```
+
+The companion packages are optional — you can use `RapidRepo` alone with manual `AddScoped<>` registration and hand-written Unit of Work properties. When you do adopt them, both require the core library; only the DI package installs it for you via NuGet.
 
 ## Quick Start
 
@@ -120,14 +147,15 @@ public class ProductService
 
 ## Documentation
 
-| Topic | Description |
-|---|---|
-| [Entities](docs/entities.md) | `BaseEntity`, `BaseAuditableEntity`, `BaseAuditableDeletableEntity`, soft delete |
-| [Repositories](docs/repositories.md) | Interfaces, base classes, custom methods, DI registration |
-| [Unit of Work](docs/unit-of-work.md) | Setup, committing, auditing |
-| [Dependency Injection](docs/dependency-injection.md) | `AddRapidRepo` extension, scanning options, filters, lifetime |
-| [API Reference](docs/api-reference.md) | All read and write methods with parameters |
-| [Advanced Usage](docs/advanced.md) | Filtering, projection, paging, bulk operations |
+| Package | Topic | Description |
+|---|---|---|
+| RapidRepo | [Entities](docs/RapidRepo/entities.md) | `BaseEntity`, `BaseAuditableEntity`, `BaseAuditableDeletableEntity`, soft delete |
+| RapidRepo | [Repositories](docs/RapidRepo/repositories.md) | Interfaces, base classes, custom methods |
+| RapidRepo | [Unit of Work](docs/RapidRepo/unit-of-work.md) | Setup, committing, auditing |
+| RapidRepo | [API Reference](docs/RapidRepo/api-reference.md) | All read and write methods with parameters |
+| RapidRepo | [Advanced Usage](docs/RapidRepo/advanced.md) | Filtering, projection, paging, bulk operations |
+| RapidRepo.Extensions.DependencyInjection | [Dependency Injection](docs/RapidRepo.Extensions.DependencyInjection/dependency-injection.md) | `AddRapidRepo` extension, scanning options, filters, lifetime |
+| RapidRepo.SourceGenerators | [Unit of Work](docs/RapidRepo.SourceGenerators/unit-of-work.md) | `[GenerateUnitOfWork]` source generator |
 
 ## License
 

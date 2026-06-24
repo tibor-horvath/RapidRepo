@@ -70,9 +70,19 @@ public class LongUnitOfWork : UnitOfWork<long>
 
 ---
 
+## Source generator (zero-boilerplate)
+
+`RapidRepo.SourceGenerators` eliminates all repository property boilerplate. Add
+`[GenerateUnitOfWork(typeof(AppDbContext))]` to a `partial` class and the generator emits the
+properties and their interface automatically.
+
+See [RapidRepo.SourceGenerators — Unit of Work](../RapidRepo.SourceGenerators/unit-of-work.md).
+
+---
+
 ## DI registration
 
-Register the `DbContext`, all repositories, and the Unit of Work with a scoped lifetime:
+Register the `DbContext`, repositories, and Unit of Work with a scoped lifetime (matching `DbContext`):
 
 ```csharp
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -81,6 +91,10 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IAppUnitOfWork, AppUnitOfWork>();
 ```
+
+For automatic repository discovery via `AddRapidRepo`, see [Dependency Injection](../RapidRepo.Extensions.DependencyInjection/dependency-injection.md).
+
+When using the [source generator](../RapidRepo.SourceGenerators/unit-of-work.md), pass `IServiceProvider` to the base constructor so `ResolveRepository<>()` can resolve custom repos.
 
 ---
 

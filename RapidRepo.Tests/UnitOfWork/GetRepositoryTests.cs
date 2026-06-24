@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using RapidRepo.Repositories.Interfaces;
 using RapidRepo.Tests.Repositories.TestData;
 using RapidRepo.UnitOfWork;
 
@@ -56,10 +58,52 @@ public class GetRepositoryTests
         Assert.True(result);
     }
 
+    // ── ResolveRepository tests ───────────────────────────────────────────────
+
+    [Fact]
+    public void ResolveRepository_WithServiceProvider_ReturnsRegisteredInstance()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddDbContext<TestDbContext>(o => o.UseInMemoryDatabase("resolve-test"));
+        services.AddScoped<IRepository<Employee, int>>(sp =>
+            new RapidRepo.Repositories.Repository<Employee, int>(sp.GetRequiredService<TestDbContext>()));
+        var sp = services.BuildServiceProvider();
+
+        using var scope = sp.CreateScope();
+        var db  = scope.ServiceProvider.GetRequiredService<TestDbContext>();
+        var uow = new DiUnitOfWork(db, scope.ServiceProvider);
+
+        // Act
+        var repo = uow.GetEmployees();
+
+        // Assert
+        Assert.NotNull(repo);
+    }
+
+    [Fact]
+    public void ResolveRepository_WithoutServiceProvider_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var uow = new FactoryUnitOfWork(_dbContext);
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() => uow.TryResolve());
+        Assert.Contains("IRepository", ex.Message);
+    }
+
     private sealed class FactoryUnitOfWork(TestDbContext dbContext)
         : UnitOfWork<Guid>(dbContext, Guid.Empty)
     {
-        public RapidRepo.Repositories.Interfaces.IRepository<Employee, int> Employees
-            => GetRepository<Employee, int>();
+        public IRepository<Employee, int> Employees => GetRepository<Employee, int>();
+
+        // Exposes ResolveRepository for the "without SP" test
+        public IRepository<Employee, int> TryResolve() => ResolveRepository<IRepository<Employee, int>>();
+    }
+
+    private sealed class DiUnitOfWork(TestDbContext dbContext, IServiceProvider sp)
+        : UnitOfWork<Guid>(dbContext, Guid.Empty, sp)
+    {
+        public IRepository<Employee, int> GetEmployees() => ResolveRepository<IRepository<Employee, int>>();
     }
 }

@@ -148,7 +148,7 @@ builder.Services.AddRapidRepo(options =>
 });
 ```
 
-See [Dependency Injection](dependency-injection.md) for the full reference.
+See [Dependency Injection](../RapidRepo.Extensions.DependencyInjection/dependency-injection.md) for the full reference.
 
 ### Manual registration
 
