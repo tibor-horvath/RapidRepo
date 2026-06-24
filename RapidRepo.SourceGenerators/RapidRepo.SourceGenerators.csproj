@@ -12,6 +12,9 @@
     <!-- RS2008: release-tracking metadata is not required for non-published analyzers -->
     <NoWarn>$(NoWarn);RS2008;RS1032</NoWarn>
     <IsPackable>true</IsPackable>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,6 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     <None Include="..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
