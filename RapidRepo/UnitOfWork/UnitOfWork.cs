@@ -10,6 +10,7 @@ public abstract class UnitOfWork<TUserKey> : IUnitOfWork<TUserKey>, IDisposable
     where TUserKey : struct
 {
     private readonly TUserKey _defaultUserKey;
+    private readonly IServiceProvider? _serviceProvider;
 
     protected DbContext DbContext { get; set; }
 
@@ -17,6 +18,27 @@ public abstract class UnitOfWork<TUserKey> : IUnitOfWork<TUserKey>, IDisposable
     {
         DbContext = dbContext;
         _defaultUserKey = defaultUserKey;
+    }
+
+    protected UnitOfWork(DbContext dbContext, TUserKey defaultUserKey, IServiceProvider serviceProvider)
+        : this(dbContext, defaultUserKey)
+    {
+        ArgumentNullException.ThrowIfNull(serviceProvider);
+        _serviceProvider = serviceProvider;
+    }
+
+    protected TRepo ResolveRepository<TRepo>() where TRepo : class
+    {
+        if (_serviceProvider is null)
+        {
+            throw new InvalidOperationException(
+                $"ResolveRepository<{typeof(TRepo).Name}>() requires an IServiceProvider. " +
+                "Pass IServiceProvider to the UnitOfWork constructor.");
+        }
+
+        return (TRepo?)_serviceProvider.GetService(typeof(TRepo))
+            ?? throw new InvalidOperationException(
+                $"No service of type '{typeof(TRepo).Name}' is registered.");
     }
 
     public void Commit(TUserKey? userId = null)

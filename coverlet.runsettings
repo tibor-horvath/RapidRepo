@@ -11,7 +11,7 @@
       <DataCollector friendlyName="XPlat code coverage">
         <Configuration>
           <Format>cobertura</Format>
-          <Include>[RapidRepo]*,[RapidRepo.Extensions.DependencyInjection]*</Include>
+          <Include>[RapidRepo]*,[RapidRepo.Extensions.DependencyInjection]*,[RapidRepo.SourceGenerators]*</Include>
         </Configuration>
       </DataCollector>
     </DataCollectors>

@@ -10,6 +10,25 @@ dotnet add package RapidRepo.Extensions.DependencyInjection
 
 No extra `using` directive is needed — the extension method lives in the `Microsoft.Extensions.DependencyInjection` namespace.
 
+### Companion package — source generator (optional)
+
+To eliminate repository property boilerplate from your Unit of Work class, also add the source generator:
+
+```bash
+dotnet add package RapidRepo.SourceGenerators
+```
+
+The package reference must use analyzer metadata so the generator DLL is not treated as a regular assembly:
+
+```xml
+<PackageReference Include="RapidRepo.SourceGenerators" Version="..."
+    PrivateAssets="all"
+    OutputItemType="Analyzer"
+    ReferenceOutputAssembly="false" />
+```
+
+See [RapidRepo.SourceGenerators — Unit of Work](../RapidRepo.SourceGenerators/unit-of-work.md) for usage details.
+
 ---
 
 ## Quick start
@@ -148,6 +167,8 @@ Passing `null` throws `ArgumentNullException` immediately at the call site.
 ---
 
 ## Unit of Work
+
+For how to define and implement a Unit of Work, see [RapidRepo — Unit of Work](../RapidRepo/unit-of-work.md).
 
 ### Two-type overload (explicit)
 
