@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.2.1](https://github.com/tibor-horvath/RapidRepo/compare/6.2.0...6.2.1) (2026-06-24)
+
+
+### Bug Fixes
+
+* correct RapidRepo.SourceGenerators NuGet analyzer packaging ([#84](https://github.com/tibor-horvath/RapidRepo/issues/84)) ([8164faa](https://github.com/tibor-horvath/RapidRepo/commit/8164faa5074f41a4d9b66f959b3b9d97ab0e2d60))
+
 ## [6.2.0](https://github.com/tibor-horvath/RapidRepo/compare/6.1.0...6.2.0) (2026-06-24)
 
 
