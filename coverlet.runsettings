@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Coverage scoping for RapidRepo. Replaces the per-project inline
+  DataCollectionRunSettings filters that lived in the old dotnet-build.yml,
+  so `dotnet test --settings coverlet.runsettings` (run by the shared
+  ci-toolkit workflow) measures only the product assemblies.
+-->
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <Include>[RapidRepo]*,[RapidRepo.Extensions.DependencyInjection]*</Include>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>
