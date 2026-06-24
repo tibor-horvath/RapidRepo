@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.2.0](https://github.com/tibor-horvath/RapidRepo/compare/6.1.0...6.2.0) (2026-06-24)
+
+
+### Features
+
+* Add source generator for UoW repo properties & docs ([#82](https://github.com/tibor-horvath/RapidRepo/issues/82)) ([1be308d](https://github.com/tibor-horvath/RapidRepo/commit/1be308d4fa534b9f46cc918269c7b632d913425b))
+
 ## [6.1.0](https://github.com/tibor-horvath/RapidRepo/compare/6.0.0...6.1.0) (2026-05-28)
 
 
