@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RapidRepo.UnitOfWork;
 using System.Diagnostics;
@@ -28,6 +29,17 @@ public sealed class RapidRepoOptions
     public bool ThrowOnSingletonMisuse { get; set; }
 
     /// <summary>
+    /// Throw instead of warn when registered types depend on the base <see cref="DbContext"/> but no context
+    /// is available to satisfy it — neither <see cref="UseDbContext{TContext}"/> nor an existing
+    /// <see cref="DbContext"/> registration. Default: <c>false</c>.
+    /// </summary>
+    /// <remarks>
+    /// Off by default because the check runs during <c>AddRapidRepo</c>: an application that registers its
+    /// <see cref="DbContext"/> afterwards is correct but cannot be seen as such at that point.
+    /// </remarks>
+    public bool ThrowOnMissingDbContext { get; set; }
+
+    /// <summary>
     /// Register <see cref="RapidRepo.Repositories.Repository{TEntity,TId}"/> as the open-generic fallback
     /// for <see cref="RapidRepo.Repositories.Interfaces.IRepository{TEntity,TKey}"/>,
     /// <see cref="RapidRepo.Repositories.Interfaces.IReadOnlyRepository{TEntity,TKey}"/>, and
@@ -37,6 +49,8 @@ public sealed class RapidRepoOptions
     /// Default: <c>false</c>.
     /// </summary>
     public bool RegisterGenericRepositories { get; set; }
+
+    internal Type? DbContextType { get; private set; }
 
     internal IReadOnlyList<Assembly> Assemblies => _assemblies;
     internal IReadOnlyList<Func<Type, bool>> Includes => _includes;
@@ -77,6 +91,37 @@ public sealed class RapidRepoOptions
 
         if (!_assemblies.Contains(assembly))
             _assemblies.Add(assembly);
+        return this;
+    }
+
+    /// <summary>
+    /// Bind this <c>AddRapidRepo</c> call to <typeparamref name="TContext"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>AddDbContext&lt;TContext&gt;()</c> registers <typeparamref name="TContext"/> but not the base
+    /// <see cref="DbContext"/> type, so repositories and units of work that take a <see cref="DbContext"/>
+    /// constructor parameter cannot be activated by the container on their own. Naming the context here
+    /// registers the missing <see cref="DbContext"/> → <typeparamref name="TContext"/> forwarder, and only
+    /// when something registered by this call actually needs it.
+    /// </para>
+    /// <para>
+    /// It also changes what <see cref="RegisterGenericRepositories"/> emits: instead of one open-generic
+    /// fallback, a closed registration per <see cref="DbSet{TEntity}"/> on <typeparamref name="TContext"/>,
+    /// each bound to <typeparamref name="TContext"/>. That is what lets several contexts coexist — see the
+    /// multi-context section of the documentation.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">A context has already been configured for this call.</exception>
+    public RapidRepoOptions UseDbContext<TContext>()
+        where TContext : DbContext
+    {
+        if (DbContextType is not null)
+            throw new InvalidOperationException(
+                $"A DbContext has already been configured for this AddRapidRepo call ('{DbContextType.Name}'). " +
+                "Call UseDbContext once per AddRapidRepo call, and use a separate AddRapidRepo call per context.");
+
+        DbContextType = typeof(TContext);
         return this;
     }
 

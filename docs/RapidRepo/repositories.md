@@ -47,12 +47,16 @@ Pick the implementation base class that matches your interface:
 
 ## Implementation examples
 
+Repositories may take either the base `DbContext` or your derived context — the base classes accept both. The examples below use `AppDbContext` because it resolves with no further setup: `AddDbContext<AppDbContext>()` registers `AppDbContext` and not the base `DbContext` type.
+
+Taking `DbContext` keeps a repository reusable across contexts, and works whenever a forwarder is registered — [`UseDbContext<TContext>()`](../RapidRepo.Extensions.DependencyInjection/dependency-injection.md#usedbcontext) does this for you. In an application with more than one context, name the derived context: only one of them can occupy the base `DbContext` slot.
+
 ### Full CRUD repository
 
 ```csharp
 public class ProductRepository : BaseRepository<Product, long>, IProductRepository
 {
-    public ProductRepository(DbContext context) : base(context)
+    public ProductRepository(AppDbContext context) : base(context)
     {
     }
 }
@@ -63,7 +67,7 @@ public class ProductRepository : BaseRepository<Product, long>, IProductReposito
 ```csharp
 public class ProductReadRepository : ReadOnlyRepository<Product, long>, IProductReadRepository
 {
-    public ProductReadRepository(DbContext context) : base(context)
+    public ProductReadRepository(AppDbContext context) : base(context)
     {
     }
 }
@@ -74,7 +78,7 @@ public class ProductReadRepository : ReadOnlyRepository<Product, long>, IProduct
 ```csharp
 public class ProductWriteRepository : WriteRepository<Product, long>, IProductWriteRepository
 {
-    public ProductWriteRepository(DbContext context) : base(context)
+    public ProductWriteRepository(AppDbContext context) : base(context)
     {
     }
 }
@@ -120,7 +124,7 @@ public interface IProductRepository : IRepository<Product, long>
 
 public class ProductRepository : BaseRepository<Product, long>, IProductRepository
 {
-    public ProductRepository(DbContext context) : base(context) { }
+    public ProductRepository(AppDbContext context) : base(context) { }
 
     public async Task<IEnumerable<Product>> GetByCategoryAsync(long categoryId)
         => await GetAllAsync(
@@ -143,6 +147,7 @@ Install `RapidRepo.Extensions.DependencyInjection` and use `AddRapidRepo` to aut
 ```csharp
 builder.Services.AddRapidRepo(options =>
 {
+    options.UseDbContext<AppDbContext>();
     options.ScanAssembliesContaining<ProductRepository>();
     options.UseUnitOfWork<IAppUnitOfWork, AppUnitOfWork>();
 });

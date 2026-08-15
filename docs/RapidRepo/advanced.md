@@ -201,7 +201,7 @@ public interface IProductRepository : IRepository<Product, long>
 
 public class ProductRepository : BaseRepository<Product, long>, IProductRepository
 {
-    public ProductRepository(DbContext context) : base(context) { }
+    public ProductRepository(AppDbContext context) : base(context) { }
 
     public async Task<IEnumerable<Product>> GetActiveByCategoryAsync(long categoryId)
         => await GetAllAsync(

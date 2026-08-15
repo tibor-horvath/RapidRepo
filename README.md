@@ -84,7 +84,9 @@ public interface IProductRepository : IRepository<Product, long>
 
 public class ProductRepository : BaseRepository<Product, long>, IProductRepository
 {
-    public ProductRepository(DbContext context) : base(context) { }
+    // Either AppDbContext or the base DbContext works. AppDbContext resolves with no
+    // further setup; DbContext needs a forwarder, which UseDbContext registers for you.
+    public ProductRepository(AppDbContext context) : base(context) { }
     public async Task<IEnumerable<Product>> GetByCategoryAsync(long categoryId) => ...;
 }
 
@@ -109,9 +111,10 @@ public class AppUnitOfWork : UnitOfWork<Guid>, IAppUnitOfWork
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 
-// Option A — zero-boilerplate (path 2a): enable open-generic fallback
+// Option A — zero-boilerplate (path 2a): generic repositories bound to AppDbContext
 builder.Services.AddRapidRepo(options =>
 {
+    options.UseDbContext<AppDbContext>();
     options.RegisterGenericRepositories = true;
     options.UseUnitOfWork<AppUnitOfWork>(); // interface auto-detected
 });
@@ -119,6 +122,7 @@ builder.Services.AddRapidRepo(options =>
 // Option B — custom repositories (path 2b): scan assemblies for IProductRepository etc.
 builder.Services.AddRapidRepo(options =>
 {
+    options.UseDbContext<AppDbContext>();
     options.ScanAssembliesContaining<ProductRepository>();
     options.RegisterGenericRepositories = true; // also allow direct IRepository<,> injection
     options.UseUnitOfWork<AppUnitOfWork>(); // interface auto-detected
@@ -127,6 +131,11 @@ builder.Services.AddRapidRepo(options =>
 // Option C — manual registration (no extra package required)
 // builder.Services.AddScoped<IProductRepository, ProductRepository>();
 // builder.Services.AddScoped<IAppUnitOfWork, AppUnitOfWork>();
+//
+// If a repository takes the base DbContext instead of AppDbContext, forward it —
+// AddDbContext<AppDbContext>() registers only AppDbContext. UseDbContext<AppDbContext>()
+// does this for you in options A and B.
+// builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
 // 5. Use in a service
 public class ProductService

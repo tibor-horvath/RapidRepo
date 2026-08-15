@@ -12,6 +12,27 @@ public class Widget : BaseEntity<int> { }
 
 public class Gadget : BaseEntity<Guid> { }
 
+// ── DbContext ─────────────────────────────────────────────────────────────────
+
+// A derived context, registered the way applications register one: AddDbContext<TestDbContext>().
+public class TestDbContext(DbContextOptions<TestDbContext> options) : DbContext(options)
+{
+    public DbSet<Widget> Widgets => Set<Widget>();
+
+    public DbSet<Gadget> Gadgets => Set<Gadget>();
+}
+
+// Two contexts owning disjoint entities — the multi-context scenario from the docs.
+public class SalesDbContext(DbContextOptions<SalesDbContext> options) : DbContext(options)
+{
+    public DbSet<Widget> Widgets => Set<Widget>();
+}
+
+public class BillingDbContext(DbContextOptions<BillingDbContext> options) : DbContext(options)
+{
+    public DbSet<Gadget> Gadgets => Set<Gadget>();
+}
+
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
 public interface IWidgetRepository : IRepository<Widget, int> { }
@@ -26,6 +47,16 @@ public class GadgetRepository(DbContext db) : ReadOnlyRepository<Gadget, Guid>(d
 
 // Self-only (no user-defined interface) — must not be registered against any interface
 public class NoInterfaceRepository(DbContext db) : BaseRepository<Widget, int>(db) { }
+
+// Repositories naming their own derived context — resolvable without a DbContext forwarder,
+// and the only way to disambiguate when several contexts are in play.
+public interface ISalesWidgetRepository : IRepository<Widget, int> { }
+
+public class SalesWidgetRepository(SalesDbContext db) : BaseRepository<Widget, int>(db), ISalesWidgetRepository { }
+
+public interface IBillingGadgetRepository : IRepository<Gadget, Guid> { }
+
+public class BillingGadgetRepository(BillingDbContext db) : BaseRepository<Gadget, Guid>(db), IBillingGadgetRepository { }
 
 // Abstract — must be skipped
 public abstract class AbstractRepository(DbContext db) : BaseRepository<Widget, int>(db), IWidgetRepository { }
