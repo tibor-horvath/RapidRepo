@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RapidRepo.Extensions.DependencyInjection;
 using RapidRepo.Extensions.DependencyInjection.Internal;
@@ -54,16 +55,84 @@ public static class RapidRepoServiceCollectionExtensions
 
         if (options.RegisterGenericRepositories)
         {
-            var repoType = typeof(Repository<,>);
-            services.TryAdd(ServiceDescriptor.Describe(typeof(IRepository<,>),         repoType, options.Lifetime));
-            services.TryAdd(ServiceDescriptor.Describe(typeof(IReadOnlyRepository<,>), repoType, options.Lifetime));
-            services.TryAdd(ServiceDescriptor.Describe(typeof(IWriteRepository<,>),    repoType, options.Lifetime));
+            if (options.DbContextType is { } genericRepoContext)
+            {
+                // Closed per entity and bound to the context, so several contexts can coexist.
+                DbContextRegistrar.RegisterClosedGenericRepositories(
+                    services, genericRepoContext, options.Lifetime, options.RegisterAsSelf);
+            }
+            else
+            {
+                var repoType = typeof(Repository<,>);
+                services.TryAdd(ServiceDescriptor.Describe(typeof(IRepository<,>),         repoType, options.Lifetime));
+                services.TryAdd(ServiceDescriptor.Describe(typeof(IReadOnlyRepository<,>), repoType, options.Lifetime));
+                services.TryAdd(ServiceDescriptor.Describe(typeof(IWriteRepository<,>),    repoType, options.Lifetime));
+            }
         }
 
         foreach (var (iface, impl) in options.UnitOfWorkRegistrations)
             UnitOfWorkRegistrar.Register(services, iface, impl, options.Lifetime);
 
+        HandleDbContext(services, options, candidates);
+
         return services;
+    }
+
+    /// <summary>
+    /// Types this call registers whose constructors the container has to satisfy. The open-generic
+    /// <see cref="Repository{TEntity,TId}"/> fallback counts too — it takes a base <see cref="DbContext"/>.
+    /// </summary>
+    private static List<Type> GetDependentTypes(
+        RapidRepoOptions options,
+        List<(Type ConcreteType, IReadOnlyList<Type> RegistrationInterfaces)> candidates)
+    {
+        var types = candidates.Select(c => c.ConcreteType).ToList();
+
+        types.AddRange(options.UnitOfWorkRegistrations.Select(r => r.ImplementationType));
+
+        if (options.RegisterGenericRepositories && options.DbContextType is null)
+            types.Add(typeof(Repository<,>));
+
+        return types;
+    }
+
+    private static void HandleDbContext(
+        IServiceCollection services,
+        RapidRepoOptions options,
+        List<(Type ConcreteType, IReadOnlyList<Type> RegistrationInterfaces)> candidates)
+    {
+        var dependentTypes = GetDependentTypes(options, candidates);
+
+        if (options.DbContextType is { } contextType)
+        {
+            DbContextRegistrar.RegisterForwarder(services, contextType, dependentTypes);
+            return;
+        }
+
+        WarnOnMissingDbContext(services, options, dependentTypes);
+    }
+
+    private static void WarnOnMissingDbContext(
+        IServiceCollection services,
+        RapidRepoOptions options,
+        List<Type> dependentTypes)
+    {
+        var needsDbContext = dependentTypes.Any(t => t.GetConstructors()
+            .Any(c => c.GetParameters().Any(p => p.ParameterType == typeof(DbContext))));
+
+        if (!needsDbContext || services.Any(d => d.ServiceType == typeof(DbContext)))
+            return;
+
+        const string message =
+            "Repositories or units of work take a 'DbContext' constructor parameter, but no DbContext service " +
+            "is registered. AddDbContext<TContext>() registers TContext, not the base DbContext type, so these " +
+            "types cannot be activated and will fail on first resolve. Call UseDbContext<TContext>() inside " +
+            "AddRapidRepo to register the forwarder.";
+
+        if (options.ThrowOnMissingDbContext)
+            throw new InvalidOperationException(message);
+
+        Trace.TraceWarning($"[RapidRepo] {message}");
     }
 
     private static bool PassesFilters(Type type, RapidRepoOptions options)

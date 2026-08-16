@@ -12,6 +12,62 @@ public class Widget : BaseEntity<int> { }
 
 public class Gadget : BaseEntity<Guid> { }
 
+// ── DbContext ─────────────────────────────────────────────────────────────────
+
+// A derived context, registered the way applications register one: AddDbContext<TestDbContext>().
+public class TestDbContext(DbContextOptions<TestDbContext> options) : DbContext(options)
+{
+    public DbSet<Widget> Widgets => Set<Widget>();
+
+    public DbSet<Gadget> Gadgets => Set<Gadget>();
+}
+
+// Two contexts owning disjoint entities — the multi-context scenario from the docs.
+public class SalesDbContext(DbContextOptions<SalesDbContext> options) : DbContext(options)
+{
+    public DbSet<Widget> Widgets => Set<Widget>();
+}
+
+public class BillingDbContext(DbContextOptions<BillingDbContext> options) : DbContext(options)
+{
+    public DbSet<Gadget> Gadgets => Set<Gadget>();
+}
+
+// An entity mapped by two contexts — a shared lookup table, say.
+public class SharedLookup : BaseEntity<int> { }
+
+public class SharedLeftDbContext(DbContextOptions<SharedLeftDbContext> options) : DbContext(options)
+{
+    public DbSet<SharedLookup> Lookups => Set<SharedLookup>();
+}
+
+public class SharedRightDbContext(DbContextOptions<SharedRightDbContext> options) : DbContext(options)
+{
+    public DbSet<SharedLookup> Lookups => Set<SharedLookup>();
+}
+
+// Entity shapes that entity discovery has to sort through.
+public class PremiumWidget : Widget { }
+
+// Not a BaseEntity<> — EF maps it, but it cannot have a RapidRepo repository.
+public class LegacyRecord
+{
+    public int Id { get; set; }
+}
+
+public class DiscoveryDbContext(DbContextOptions<DiscoveryDbContext> options) : DbContext(options)
+{
+    public DbSet<Widget> Widgets => Set<Widget>();
+
+    // EF discovers DbSet properties regardless of accessibility, so discovery must too.
+    internal DbSet<Gadget> Gadgets => Set<Gadget>();
+
+    // Key type comes from a base class rather than the entity itself.
+    public DbSet<PremiumWidget> PremiumWidgets => Set<PremiumWidget>();
+
+    public DbSet<LegacyRecord> LegacyRecords => Set<LegacyRecord>();
+}
+
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
 public interface IWidgetRepository : IRepository<Widget, int> { }
@@ -26,6 +82,16 @@ public class GadgetRepository(DbContext db) : ReadOnlyRepository<Gadget, Guid>(d
 
 // Self-only (no user-defined interface) — must not be registered against any interface
 public class NoInterfaceRepository(DbContext db) : BaseRepository<Widget, int>(db) { }
+
+// Repositories naming their own derived context — resolvable without a DbContext forwarder,
+// and the only way to disambiguate when several contexts are in play.
+public interface ISalesWidgetRepository : IRepository<Widget, int> { }
+
+public class SalesWidgetRepository(SalesDbContext db) : BaseRepository<Widget, int>(db), ISalesWidgetRepository { }
+
+public interface IBillingGadgetRepository : IRepository<Gadget, Guid> { }
+
+public class BillingGadgetRepository(BillingDbContext db) : BaseRepository<Gadget, Guid>(db), IBillingGadgetRepository { }
 
 // Abstract — must be skipped
 public abstract class AbstractRepository(DbContext db) : BaseRepository<Widget, int>(db), IWidgetRepository { }
