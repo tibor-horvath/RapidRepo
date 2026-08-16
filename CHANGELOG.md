@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.3.0](https://github.com/tibor-horvath/RapidRepo/compare/6.2.1...6.3.0) (2026-08-16)
+
+
+### Features
+
+* add UseDbContext for DbContext binding and multi-context support ([#88](https://github.com/tibor-horvath/RapidRepo/issues/88)) ([008f800](https://github.com/tibor-horvath/RapidRepo/commit/008f800258dadf2a6f4f8271ec739ecdb876c6b5))
+
 ## [6.2.1](https://github.com/tibor-horvath/RapidRepo/compare/6.2.0...6.2.1) (2026-06-24)
 
 
