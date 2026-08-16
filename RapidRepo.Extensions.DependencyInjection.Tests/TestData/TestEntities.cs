@@ -33,6 +33,28 @@ public class BillingDbContext(DbContextOptions<BillingDbContext> options) : DbCo
     public DbSet<Gadget> Gadgets => Set<Gadget>();
 }
 
+// Entity shapes that entity discovery has to sort through.
+public class PremiumWidget : Widget { }
+
+// Not a BaseEntity<> — EF maps it, but it cannot have a RapidRepo repository.
+public class LegacyRecord
+{
+    public int Id { get; set; }
+}
+
+public class DiscoveryDbContext(DbContextOptions<DiscoveryDbContext> options) : DbContext(options)
+{
+    public DbSet<Widget> Widgets => Set<Widget>();
+
+    // EF discovers DbSet properties regardless of accessibility, so discovery must too.
+    internal DbSet<Gadget> Gadgets => Set<Gadget>();
+
+    // Key type comes from a base class rather than the entity itself.
+    public DbSet<PremiumWidget> PremiumWidgets => Set<PremiumWidget>();
+
+    public DbSet<LegacyRecord> LegacyRecords => Set<LegacyRecord>();
+}
+
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
 public interface IWidgetRepository : IRepository<Widget, int> { }

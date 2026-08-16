@@ -157,6 +157,28 @@ public class ServiceResolutionTests
         services.Should().Contain(d => d.ServiceType == typeof(DbContext));
     }
 
+    /// <summary>
+    /// With a context named, generic repositories are registered closed per entity instead of as one
+    /// open-generic fallback — that substitution is what makes several contexts possible.
+    /// </summary>
+    [Fact]
+    public void UseDbContext_RegisterGenericRepositories_ReplacesTheOpenGenericFallback()
+    {
+        var services = ServicesWithDbContext();
+
+        services.AddRapidRepo(o =>
+        {
+            o.UseDbContext<TestDbContext>();
+            o.RegisterGenericRepositories = true;
+            o.Exclude(ExcludeAmbiguous);
+        });
+
+        services.Should().NotContain(d => d.ServiceType == typeof(IRepository<,>));
+        services.Should().Contain(d =>
+            d.ServiceType == typeof(IRepository<Widget, int>) &&
+            d.ImplementationType == typeof(Repository<Widget, int, TestDbContext>));
+    }
+
     [Fact]
     public void UseDbContext_CalledTwiceInOneCall_Throws()
     {

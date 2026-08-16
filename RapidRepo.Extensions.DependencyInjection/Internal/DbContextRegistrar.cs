@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using RapidRepo.Entities;
 using RapidRepo.Repositories;
 using RapidRepo.Repositories.Interfaces;
+using System.Reflection;
 
 namespace RapidRepo.Extensions.DependencyInjection.Internal;
 
@@ -99,13 +100,24 @@ internal static class DbContextRegistrar
     /// from <see cref="BaseEntity{TId}"/>, paired with their key type.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Read by reflection rather than from the EF model, which would require building the context. Entities EF
     /// discovers only by navigation — with no <see cref="DbSet{TEntity}"/> of their own — are therefore not seen.
+    /// </para>
+    /// <para>
+    /// Mirrors how EF itself finds sets: over runtime properties, so non-public <see cref="DbSet{TEntity}"/>
+    /// declarations count. Looking at public properties alone would skip entities EF does map.
+    /// </para>
     /// </remarks>
     internal static IEnumerable<(Type EntityType, Type KeyType)> DiscoverEntities(Type contextType)
     {
-        foreach (var property in contextType.GetProperties())
+        var seen = new HashSet<Type>();
+
+        foreach (var property in contextType.GetRuntimeProperties())
         {
+            if (property.GetMethod is null or { IsStatic: true } || property.GetIndexParameters().Length > 0)
+                continue;
+
             var propertyType = property.PropertyType;
 
             if (!propertyType.IsGenericType || propertyType.GetGenericTypeDefinition() != typeof(DbSet<>))
@@ -114,7 +126,8 @@ internal static class DbContextRegistrar
             var entityType = propertyType.GenericTypeArguments[0];
             var keyType = GetEntityKeyType(entityType);
 
-            if (keyType is not null)
+            // A property hidden by 'new' in a derived context surfaces twice.
+            if (keyType is not null && seen.Add(entityType))
                 yield return (entityType, keyType);
         }
     }
