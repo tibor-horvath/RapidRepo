@@ -78,10 +78,14 @@ internal static class DbContextRegistrar
     /// that context via <see cref="Repository{TEntity, TId, TContext}"/>. Closed registrations win over any
     /// open-generic fallback, which is what keeps each context serving its own entities.
     /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// Another context already registered a generic repository for one of these entities.
+    /// </exception>
     internal static void RegisterClosedGenericRepositories(
         IServiceCollection services,
         Type contextType,
-        ServiceLifetime lifetime)
+        ServiceLifetime lifetime,
+        bool registerAsSelf)
     {
         foreach (var (entityType, keyType) in DiscoverEntities(contextType))
         {
@@ -90,9 +94,59 @@ internal static class DbContextRegistrar
             foreach (var rootInterface in RootInterfaces)
             {
                 var serviceType = rootInterface.MakeGenericType(entityType, keyType);
+
+                GuardAgainstCrossContextConflict(services, serviceType, entityType, contextType);
+
                 services.TryAdd(ServiceDescriptor.Describe(serviceType, implementationType, lifetime));
             }
+
+            // Context-qualified and therefore never ambiguous, whatever else maps this entity.
+            if (registerAsSelf)
+                services.TryAdd(ServiceDescriptor.Describe(implementationType, implementationType, lifetime));
         }
+    }
+
+    /// <summary>
+    /// An entity mapped by two contexts would leave <c>TryAdd</c> silently keeping whichever registration came
+    /// first, pointing a later module's reads and writes at the wrong database. The service type carries no
+    /// context, so there is no correct choice to make here — only a clear failure.
+    /// </summary>
+    private static void GuardAgainstCrossContextConflict(
+        IServiceCollection services,
+        Type serviceType,
+        Type entityType,
+        Type contextType)
+    {
+        var existing = services.FirstOrDefault(d => d.ServiceType == serviceType)?.ImplementationType;
+
+        // Anything not registered by this code path — an application's own registration — is left alone.
+        if (existing is null
+            || !existing.IsGenericType
+            || existing.GetGenericTypeDefinition() != typeof(Repository<,,>))
+            return;
+
+        var existingContext = existing.GenericTypeArguments[2];
+
+        if (existingContext == contextType)
+            return;
+
+        throw new InvalidOperationException(
+            $"Cannot register a generic repository for '{entityType.Name}' against '{contextType.Name}': " +
+            $"'{FriendlyName(serviceType)}' is already registered against '{existingContext.Name}'. " +
+            $"'{entityType.Name}' is mapped by both contexts, and that service type cannot express which one " +
+            "is meant. Give each context its own repository interface and register it by assembly scanning, " +
+            "or set RegisterAsSelf = true and inject " +
+            $"'{FriendlyName(typeof(Repository<,,>).MakeGenericType(entityType, existing.GenericTypeArguments[1], contextType))}'.");
+    }
+
+    private static string FriendlyName(Type type)
+    {
+        if (!type.IsGenericType)
+            return type.Name;
+
+        var name = type.Name[..type.Name.IndexOf('`')];
+
+        return $"{name}<{string.Join(", ", type.GenericTypeArguments.Select(FriendlyName))}>";
     }
 
     /// <summary>

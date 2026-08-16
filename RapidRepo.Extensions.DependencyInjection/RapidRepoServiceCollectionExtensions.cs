@@ -58,7 +58,8 @@ public static class RapidRepoServiceCollectionExtensions
             if (options.DbContextType is { } genericRepoContext)
             {
                 // Closed per entity and bound to the context, so several contexts can coexist.
-                DbContextRegistrar.RegisterClosedGenericRepositories(services, genericRepoContext, options.Lifetime);
+                DbContextRegistrar.RegisterClosedGenericRepositories(
+                    services, genericRepoContext, options.Lifetime, options.RegisterAsSelf);
             }
             else
             {

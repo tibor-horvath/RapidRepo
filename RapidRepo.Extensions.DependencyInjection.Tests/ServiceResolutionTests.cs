@@ -179,6 +179,80 @@ public class ServiceResolutionTests
             d.ImplementationType == typeof(Repository<Widget, int, TestDbContext>));
     }
 
+    /// <summary>
+    /// When two contexts both map an entity, an unqualified <c>IRepository&lt;SharedLookup, int&gt;</c> cannot
+    /// express which one is meant. Left to <c>TryAdd</c> the first registration would win silently and the
+    /// second module would read and write the wrong database, so this has to fail loudly.
+    /// </summary>
+    [Fact]
+    public void MultiContext_SameEntityMappedByBothContexts_Throws()
+    {
+        var services = new ServiceCollection();
+        services.AddDbContext<SharedLeftDbContext>(o => o.UseInMemoryDatabase(Guid.NewGuid().ToString()));
+        services.AddDbContext<SharedRightDbContext>(o => o.UseInMemoryDatabase(Guid.NewGuid().ToString()));
+
+        services.AddRapidRepo(o =>
+        {
+            o.UseDbContext<SharedLeftDbContext>();
+            o.RegisterGenericRepositories = true;
+        });
+
+        var act = () => services.AddRapidRepo(o =>
+        {
+            o.UseDbContext<SharedRightDbContext>();
+            o.RegisterGenericRepositories = true;
+        });
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*SharedLookup*")
+            .WithMessage("*SharedLeftDbContext*")
+            .WithMessage("*SharedRightDbContext*");
+    }
+
+    [Fact]
+    public void MultiContext_SameContextRegisteredTwice_DoesNotThrowOnSharedEntities()
+    {
+        var services = new ServiceCollection();
+        services.AddDbContext<SharedLeftDbContext>(o => o.UseInMemoryDatabase(Guid.NewGuid().ToString()));
+
+        void Register() => services.AddRapidRepo(o =>
+        {
+            o.UseDbContext<SharedLeftDbContext>();
+            o.RegisterGenericRepositories = true;
+        });
+
+        Register();
+
+        var act = Register;
+
+        act.Should().NotThrow();
+    }
+
+    /// <summary>
+    /// The way out of the conflict above: <c>RegisterAsSelf</c> exposes the context-qualified concrete type,
+    /// so each module can inject the repository for the context it means.
+    /// </summary>
+    [Fact]
+    public void UseDbContext_RegisterAsSelf_ExposesTheContextQualifiedRepository()
+    {
+        var services = new ServiceCollection();
+        services.AddDbContext<SharedLeftDbContext>(o => o.UseInMemoryDatabase(Guid.NewGuid().ToString()));
+
+        services.AddRapidRepo(o =>
+        {
+            o.UseDbContext<SharedLeftDbContext>();
+            o.RegisterGenericRepositories = true;
+            o.RegisterAsSelf = true;
+        });
+
+        using var provider = services.BuildServiceProvider(validateScopes: true);
+        using var scope = provider.CreateScope();
+
+        scope.ServiceProvider
+            .GetRequiredService<Repository<SharedLookup, int, SharedLeftDbContext>>()
+            .Should().NotBeNull();
+    }
+
     [Fact]
     public void UseDbContext_CalledTwiceInOneCall_Throws()
     {

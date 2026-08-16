@@ -54,7 +54,7 @@ This single call replaces one `AddScoped<>` line per repository. Any concrete, n
 | Member | Type | Default | Description |
 |---|---|---|---|
 | `Lifetime` | `ServiceLifetime` | `Scoped` | Lifetime applied to all discovered repositories. |
-| `RegisterAsSelf` | `bool` | `false` | Also registers each concrete type against itself. |
+| `RegisterAsSelf` | `bool` | `false` | Also registers each concrete type against itself, including `Repository<TEntity, TId, TContext>` when `UseDbContext` is set. |
 | `ThrowOnAmbiguousRegistration` | `bool` | `true` | Throw when two concretes implement the same user-defined interface. |
 | `ThrowOnSingletonMisuse` | `bool` | `false` | Throw (instead of warn) when `Lifetime` is `Singleton`. |
 | `ThrowOnMissingDbContext` | `bool` | `false` | Throw (instead of warn) when registered types need a base `DbContext` that nothing provides. |
@@ -242,9 +242,14 @@ builder.Services.AddRapidRepo(options =>
 It does two things:
 
 1. **Registers a `DbContext` → `TContext` forwarder**, but only when something registered by this call actually takes a base `DbContext` parameter. The forwarder hands out the same instance `AddDbContext` created, so repositories and the unit of work share one change tracker.
-2. **Binds generic repositories to `TContext`.** With `RegisterGenericRepositories = true`, instead of one open-generic fallback you get a closed registration per `DbSet<TEntity>` on `TContext`, backed by `Repository<TEntity, TId, TContext>`.
+2. **Binds generic repositories to `TContext`.** With `RegisterGenericRepositories = true`, instead of one open-generic fallback you get a closed registration per eligible `DbSet<TEntity>` on `TContext`, backed by `Repository<TEntity, TId, TContext>`.
 
-Because entities are discovered by reflecting over `DbSet<>` properties, an entity EF only reaches through a navigation — with no `DbSet<>` of its own — gets no generic repository. Add a `DbSet<>` for it, or register a repository for it explicitly.
+An entity is eligible when both hold:
+
+- **It derives from `BaseEntity<TId>`.** RapidRepo repositories are defined in terms of that base, so a `DbSet<T>` for a plain EF entity is skipped — no repository is registered and no error is raised.
+- **It has a `DbSet<>` of its own.** Discovery reflects over `DbSet<>` properties (public or not, matching how EF finds them) rather than building the model, so an entity EF reaches only through a navigation is not seen.
+
+For anything that falls outside those rules, register a repository for it explicitly.
 
 If you omit `UseDbContext` and nothing else registers a `DbContext`, `AddRapidRepo` writes a `Trace` warning. It does not throw by default, because an application is free to register its `DbContext` *after* calling `AddRapidRepo`, and that ordering cannot be distinguished at registration time. Set `ThrowOnMissingDbContext = true` to make it fail fast.
 
@@ -280,6 +285,29 @@ builder.Services.AddRapidRepo(options =>
 ```
 
 Generic repositories bind per context, so `IRepository<Invoice, int>` resolves against whichever context declares `DbSet<Invoice>`.
+
+### Entities mapped by more than one context
+
+If two contexts both map an entity, `IRepository<Invoice, int>` cannot say which one is meant — the service type carries no context. Rather than let the first registration win and point a later module at the wrong database, the second `AddRapidRepo` call throws:
+
+```
+Cannot register a generic repository for 'Invoice' against 'BillingDbContext':
+'IRepository<Invoice, Int32>' is already registered against 'SalesDbContext'. ...
+```
+
+Two ways forward:
+
+```csharp
+// Give each context its own interface, and let scanning register it
+public interface ISalesInvoiceRepository : IRepository<Invoice, int>;
+public class SalesInvoiceRepository(SalesDbContext db)
+    : BaseRepository<Invoice, int>(db), ISalesInvoiceRepository;
+
+// Or expose the context-qualified concrete type and inject that
+options.RegisterAsSelf = true;   // registers Repository<Invoice, int, SalesDbContext>
+```
+
+`RegisterAsSelf` is unambiguous by construction here, since the context is part of the type.
 
 ### Repositories must name their own context
 

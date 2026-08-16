@@ -33,6 +33,19 @@ public class BillingDbContext(DbContextOptions<BillingDbContext> options) : DbCo
     public DbSet<Gadget> Gadgets => Set<Gadget>();
 }
 
+// An entity mapped by two contexts — a shared lookup table, say.
+public class SharedLookup : BaseEntity<int> { }
+
+public class SharedLeftDbContext(DbContextOptions<SharedLeftDbContext> options) : DbContext(options)
+{
+    public DbSet<SharedLookup> Lookups => Set<SharedLookup>();
+}
+
+public class SharedRightDbContext(DbContextOptions<SharedRightDbContext> options) : DbContext(options)
+{
+    public DbSet<SharedLookup> Lookups => Set<SharedLookup>();
+}
+
 // Entity shapes that entity discovery has to sort through.
 public class PremiumWidget : Widget { }
 
