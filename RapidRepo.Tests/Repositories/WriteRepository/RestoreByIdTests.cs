@@ -102,6 +102,28 @@ public class RestoreByIdTests : BaseWriteRepositoryTest
         _dbContext.Employees.FirstOrDefault(e => e.Id == employee.Id).Should().BeNull();
     }
 
+    [Fact]
+    public void RestoreById_ShouldNotRestoreEntity_WhenSoftDeletedEntityIsStillTrackedAndFiltersAreRespected()
+    {
+        // Arrange
+        var employee = CreateEmployee();
+        _dbContext.Employees.Add(employee);
+        _dbContext.SaveChanges();
+
+        _sut.Delete(employee);
+        _dbContext.SaveChanges();
+
+        // Deliberately left tracked: the query filters, not the change tracker, decide what is reachable.
+
+        // Act
+        _sut.RestoreById(employee.Id, ignoreQueryFilters: false);
+        _dbContext.SaveChanges();
+        DetachAllEntities();
+
+        // Assert
+        _dbContext.Employees.FirstOrDefault(e => e.Id == employee.Id).Should().BeNull();
+    }
+
     private static Employee CreateEmployee() => new()
     {
         FirstName = "John",

@@ -280,36 +280,42 @@ public abstract class WriteRepository<TEntity, TId>(DbContext dbContext) : IWrit
     }
 
     /// <summary>
-    /// Finds an entity by its identifier, looking in the change tracker before querying the store.
+    /// Finds an entity by its identifier, including one staged for insertion but not yet committed.
     /// </summary>
     /// <remarks>
-    /// This mirrors <see cref="DbSet{TEntity}.Find(object[])"/>, which <see cref="DeleteById(TId)"/> uses, so
-    /// that entities staged but not yet committed are reachable by every by-identifier method. Unlike
-    /// <c>Find</c> it can bypass global query filters, which is what makes soft-deleted entities reachable.
+    /// A pending addition exists only in the change tracker, so it is looked up there; anything already in the
+    /// store is resolved by the query, which is what applies <paramref name="ignoreQueryFilters"/>. EF returns
+    /// the tracked instance for a row it already tracks, so a tracked entity is still found — but only when the
+    /// filters admit it. Consulting the tracker for those as well would let a soft-deleted entity be reached
+    /// through <see cref="HardDeleteById(TId, bool)"/> merely because something had loaded it earlier.
     /// </remarks>
     /// <param name="id">The identifier of the entity.</param>
     /// <param name="ignoreQueryFilters">Whether to bypass the global query filters when querying the store.</param>
     /// <returns>The entity, or <see langword="null"/> when no entity has that identifier.</returns>
     private TEntity? FindById(TId id, bool ignoreQueryFilters) =>
-        FindTracked(id) ?? QueryById(id, ignoreQueryFilters).FirstOrDefault();
+        FindPendingAddition(id) ?? QueryById(id, ignoreQueryFilters).FirstOrDefault();
 
     /// <summary>
-    /// Asynchronously finds an entity by its identifier, looking in the change tracker before querying the store.
+    /// Asynchronously finds an entity by its identifier, including one staged for insertion but not yet committed.
     /// </summary>
     /// <param name="id">The identifier of the entity.</param>
     /// <param name="ignoreQueryFilters">Whether to bypass the global query filters when querying the store.</param>
     /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
     /// <returns>The entity, or <see langword="null"/> when no entity has that identifier.</returns>
     private async Task<TEntity?> FindByIdAsync(TId id, bool ignoreQueryFilters, CancellationToken cancellationToken) =>
-        FindTracked(id) ?? await QueryById(id, ignoreQueryFilters).FirstOrDefaultAsync(cancellationToken);
+        FindPendingAddition(id) ?? await QueryById(id, ignoreQueryFilters).FirstOrDefaultAsync(cancellationToken);
 
     /// <summary>
-    /// Finds an already tracked entity by its identifier, without hitting the store.
+    /// Finds an entity staged for insertion but not yet committed, which no store query can reach.
     /// </summary>
     /// <param name="id">The identifier of the entity.</param>
-    /// <returns>The entity, or <see langword="null"/> when no tracked entity has that identifier.</returns>
-    private TEntity? FindTracked(TId id) =>
-        DbContext.Set<TEntity>().Local.FirstOrDefault(e => id.Equals(e.Id));
+    /// <returns>The entity, or <see langword="null"/> when no pending addition has that identifier.</returns>
+    private TEntity? FindPendingAddition(TId id) =>
+        DbContext.ChangeTracker
+            .Entries<TEntity>()
+            .Where(e => e.State == EntityState.Added)
+            .Select(e => e.Entity)
+            .FirstOrDefault(e => id.Equals(e.Id));
 
     /// <summary>
     /// Builds a store query for a single entity.

@@ -252,10 +252,14 @@ To include soft-deleted records in a specific query, pass `ignoreQueryFilters: t
 ```csharp
 // The entity is hidden by the query filter, so load it with ignoreQueryFilters ...
 var product = await _unitOfWork.Products.GetByIdAsync(id, ignoreQueryFilters: true);
-_unitOfWork.Products.Restore(product!);
-await _unitOfWork.CommitAsync(currentUserId);
+if (product is not null)
+{
+    _unitOfWork.Products.Restore(product);
+    await _unitOfWork.CommitAsync(currentUserId);
+}
 
-// ... or let RestoreById do the lookup — it bypasses query filters by default.
+// ... or let RestoreById do the lookup — it bypasses query filters by default,
+// and quietly does nothing when no entity has that identifier.
 _unitOfWork.Products.RestoreById(id);
 await _unitOfWork.CommitAsync(currentUserId);
 ```

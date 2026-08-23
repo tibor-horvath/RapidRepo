@@ -92,7 +92,7 @@ For an entity implementing `IDeletableEntity`, `Delete` sets `DeletedAt` instead
 
 | Method | What it does |
 |---|---|
-| `Restore(entity)` / `RestoreById(id)` | Clears `DeletedAt` and `DeletedBy`, making the record visible again |
+| `Restore(entity)` / `RestoreById(id)` | Clears `DeletedAt` — and `DeletedBy` when the entity implements `IDeletableEntity<TUserKey>` — making the record visible again |
 | `HardDelete(entity)` / `HardDeleteById(id)` | Physically removes the row, bypassing soft delete |
 
 ```csharp
@@ -108,9 +108,13 @@ await _unitOfWork.CommitAsync(currentUserId);
 ```
 
 ```csharp
-// Purge it for good. Pass ignoreQueryFilters: true to reach an
-// already soft-deleted row — see the warning below.
+// Purge it for good.
 _products.HardDelete(product);
+await _unitOfWork.CommitAsync();
+
+// By identifier, ignoreQueryFilters: true is what reaches a row that
+// is already soft-deleted — see the warning below.
+_products.HardDeleteById(productId, ignoreQueryFilters: true);
 await _unitOfWork.CommitAsync();
 ```
 

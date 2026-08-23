@@ -121,6 +121,48 @@ public class HardDeleteByIdTests : BaseWriteRepositoryTest
         _dbContext.Entry(employee).State.Should().NotBe(EntityState.Added);
     }
 
+    [Fact]
+    public void HardDeleteById_ShouldNotRemoveEntity_WhenSoftDeletedEntityIsStillTrackedAndFiltersAreRespected()
+    {
+        // Arrange
+        var employee = CreateEmployee();
+        _dbContext.Employees.Add(employee);
+        _dbContext.SaveChanges();
+
+        _sut.Delete(employee);
+        _dbContext.SaveChanges();
+
+        // Deliberately left tracked: the query filters, not the change tracker, decide what is reachable.
+
+        // Act
+        _sut.HardDeleteById(employee.Id);
+        _dbContext.SaveChanges();
+        DetachAllEntities();
+
+        // Assert
+        _dbContext.Employees.IgnoreQueryFilters().Should().ContainSingle();
+    }
+
+    [Fact]
+    public void HardDeleteById_ShouldRemoveEntity_WhenSoftDeletedEntityIsStillTrackedAndFiltersAreIgnored()
+    {
+        // Arrange
+        var employee = CreateEmployee();
+        _dbContext.Employees.Add(employee);
+        _dbContext.SaveChanges();
+
+        _sut.Delete(employee);
+        _dbContext.SaveChanges();
+
+        // Act
+        _sut.HardDeleteById(employee.Id, ignoreQueryFilters: true);
+        _dbContext.SaveChanges();
+        DetachAllEntities();
+
+        // Assert
+        _dbContext.Employees.IgnoreQueryFilters().Should().BeEmpty();
+    }
+
     private static Employee CreateEmployee() => new()
     {
         FirstName = "John",
