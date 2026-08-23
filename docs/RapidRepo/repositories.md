@@ -86,6 +86,46 @@ public class ProductWriteRepository : WriteRepository<Product, long>, IProductWr
 
 ---
 
+## Soft delete, restore, and permanent removal
+
+For an entity implementing `IDeletableEntity`, `Delete` sets `DeletedAt` instead of removing the row. Two methods complete the picture:
+
+| Method | What it does |
+|---|---|
+| `Restore(entity)` / `RestoreById(id)` | Clears `DeletedAt` — and `DeletedBy` when the entity implements `IDeletableEntity<TUserKey>` — making the record visible again |
+| `HardDelete(entity)` / `HardDeleteById(id)` | Physically removes the row, bypassing soft delete |
+
+```csharp
+// Soft delete — sets DeletedAt, the row stays in the table.
+_products.Delete(product);
+await _unitOfWork.CommitAsync(currentUserId);
+```
+
+```csharp
+// Undo it, even though the query filter now hides the row.
+_products.RestoreById(productId);
+await _unitOfWork.CommitAsync(currentUserId);
+```
+
+```csharp
+// Purge it for good.
+_products.HardDelete(product);
+await _unitOfWork.CommitAsync();
+
+// By identifier, ignoreQueryFilters: true is what reaches a row that
+// is already soft-deleted — see the warning below.
+_products.HardDeleteById(productId, ignoreQueryFilters: true);
+await _unitOfWork.CommitAsync();
+```
+
+Both come in range forms (`RestoreRange`, `HardDeleteRange`). Like `Delete` and `Update`, they only stage a change in the change tracker, so they have no async counterparts — only the `*ById` variants, which query the store, are offered as `RestoreByIdAsync` / `HardDeleteByIdAsync`. They are declared on `IWriteRepository<TEntity, TKey>`, so every repository deriving from `WriteRepository<TEntity, TId>` or `BaseRepository<TEntity, TId>` gets them without any changes.
+
+`Restore` requires soft-delete support and throws `InvalidOperationException` without it. `HardDelete` works on any entity — for one without soft delete it is identical to `Delete`.
+
+> ⚠️ `ignoreQueryFilters: true` drops **every** global query filter on the entity, not just the soft-delete one. With a multi-tenancy filter in place, `HardDeleteById(id, ignoreQueryFilters: true)` can permanently erase another tenant's row. See [Advanced usage](advanced.md) before enabling it.
+
+---
+
 ## When no custom methods are needed
 
 If a repository adds no methods beyond standard CRUD, you do not need to create a custom interface or class. Enable `RegisterGenericRepositories` in `AddRapidRepo` and inject the root interface directly:

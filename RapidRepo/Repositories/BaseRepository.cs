@@ -31,6 +31,32 @@ public abstract class BaseRepository<TEntity, TId> : ReadOnlyRepository<TEntity,
 
     public virtual void DeleteRange(IEnumerable<TEntity> entities) => _writeRepository.DeleteRange(entities);
 
+    public virtual void Restore(TEntity entity) => _writeRepository.Restore(entity);
+
+    public virtual void RestoreRange(IEnumerable<TEntity> entities) => _writeRepository.RestoreRange(entities);
+
+    public virtual void RestoreById(TId id, bool ignoreQueryFilters = true) =>
+        _writeRepository.RestoreById(id, ignoreQueryFilters);
+
+    public virtual Task RestoreByIdAsync(
+        TId id,
+        bool ignoreQueryFilters = true,
+        CancellationToken cancellationToken = default) =>
+        _writeRepository.RestoreByIdAsync(id, ignoreQueryFilters, cancellationToken);
+
+    public virtual void HardDelete(TEntity entity) => _writeRepository.HardDelete(entity);
+
+    public virtual void HardDeleteRange(IEnumerable<TEntity> entities) => _writeRepository.HardDeleteRange(entities);
+
+    public virtual void HardDeleteById(TId id, bool ignoreQueryFilters = false) =>
+        _writeRepository.HardDeleteById(id, ignoreQueryFilters);
+
+    public virtual Task HardDeleteByIdAsync(
+        TId id,
+        bool ignoreQueryFilters = false,
+        CancellationToken cancellationToken = default) =>
+        _writeRepository.HardDeleteByIdAsync(id, ignoreQueryFilters, cancellationToken);
+
     public virtual void Update(TEntity entity) => _writeRepository.Update(entity);
 
     public virtual void DeleteById(TId id) => _writeRepository.DeleteById(id);

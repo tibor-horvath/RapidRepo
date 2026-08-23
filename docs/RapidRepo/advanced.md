@@ -244,3 +244,73 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
 ```
 
 To include soft-deleted records in a specific query, pass `ignoreQueryFilters: true` (see the section above).
+
+### Restoring soft-deleted records
+
+`Delete` is not the end of the line for an entity that implements `IDeletableEntity`. `Restore` clears `DeletedAt` (and `DeletedBy`, when the entity tracks it), making the record visible to the query filters again.
+
+```csharp
+// The entity is hidden by the query filter, so load it with ignoreQueryFilters ...
+var product = await _unitOfWork.Products.GetByIdAsync(id, ignoreQueryFilters: true);
+if (product is not null)
+{
+    _unitOfWork.Products.Restore(product);
+    await _unitOfWork.CommitAsync(currentUserId);
+}
+
+// ... or let RestoreById do the lookup — it bypasses query filters by default,
+// and quietly does nothing when no entity has that identifier.
+_unitOfWork.Products.RestoreById(id);
+await _unitOfWork.CommitAsync(currentUserId);
+```
+
+A restore is an ordinary modification, so `ModifiedAt` / `ModifiedBy` are stamped on commit like any other update. An entity already staged for removal by `HardDelete` is revived, so the restore is not silently discarded.
+
+Calling `Restore` on an entity that does not implement `IDeletableEntity` throws `InvalidOperationException` — a hard-deleted row is gone, and there is nothing to undo.
+
+### Permanently removing records
+
+Once an entity implements `IDeletableEntity`, `Delete` will never physically remove it. `HardDelete` is the explicit opt-out, for erasure requests, retention jobs, and test cleanup:
+
+```csharp
+// Physically removes the row, whether or not it was already soft-deleted.
+_unitOfWork.Products.HardDelete(product);
+await _unitOfWork.CommitAsync();
+
+// By default HardDeleteById only reaches rows the query filters let you see.
+_unitOfWork.Products.HardDeleteById(id);
+await _unitOfWork.CommitAsync();
+
+// Opt in to reach a row that has already been soft-deleted.
+_unitOfWork.Products.HardDeleteById(id, ignoreQueryFilters: true);
+await _unitOfWork.CommitAsync();
+```
+
+`HardDelete` works on every entity. For one without soft-delete support it does exactly what `Delete` does.
+
+### `ignoreQueryFilters` is all-or-nothing
+
+`RestoreById` and `HardDeleteById` take an `ignoreQueryFilters` flag, and EF Core's `IgnoreQueryFilters()` drops **every** global filter on the entity — there is no way to disable just the soft-delete clause. Given a filter like:
+
+```csharp
+modelBuilder.Entity<Product>()
+    .HasQueryFilter(p => p.TenantId == _tenantId && p.DeletedAt == null);
+```
+
+`HardDeleteById(id, ignoreQueryFilters: true)` will find and permanently destroy another tenant's row if the identifier belongs to one. This is why the two defaults differ:
+
+| Method | Default | Why |
+|---|---|---|
+| `RestoreById` | `true` | A soft-deleted row is hidden by its own filter, so the lookup would never find anything to restore. A wrong restore is reversible. |
+| `HardDeleteById` | `false` | The operation is irreversible, so reaching beyond what the caller can normally see must be a deliberate choice. |
+
+When any filter other than soft delete is in play, do not rely on the flag. Load the entity through a query you control and pass it to `Restore(entity)` or `HardDelete(entity)`:
+
+```csharp
+var product = await _unitOfWork.Products.GetByIdAsync(id, ignoreQueryFilters: true);
+if (product?.TenantId == currentTenantId)
+{
+    _unitOfWork.Products.HardDelete(product);
+    await _unitOfWork.CommitAsync();
+}
+```
