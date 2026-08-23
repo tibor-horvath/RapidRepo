@@ -17,9 +17,31 @@
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
   </PropertyGroup>
 
+  <!--
+    DO NOT bump Microsoft.CodeAnalysis.CSharp to track "latest".
+
+    This is not an ordinary dependency: the version referenced here is the MINIMUM compiler
+    version a consumer needs in order to load this generator. The package ships only the
+    analyzer DLL, and Roslyn unifies its references against the compiler's own assemblies.
+    A compiler older than the referenced version cannot satisfy them, so it skips the
+    generator and reports CS9057, a WARNING. The consumer's build then fails with
+    confusing CS0246 errors about the types we would have emitted.
+
+    Compatibility is one-directional: built against 4.13.0 this still loads on every later
+    Roslyn. Roslyn NuGet packages also ship ahead of the SDKs that bundle a matching
+    compiler, so "update to latest" here silently raises our minimum supported SDK past
+    what is actually released, and the damage lands only in downstream builds.
+
+    Bump only deliberately, treating it as a breaking change for consumers on older SDKs.
+    Three things keep this honest: RoslynCompatibilityTests asserts the referenced version,
+    RapidRepo.SourceGenerators.Tests pins the same version so a one-sided bump breaks our
+    own build, and .github/dependabot.yml ignores both packages.
+
+      4.13.0 => .NET 8 / 9 / 10 SDKs
+  -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.9.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.13.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
