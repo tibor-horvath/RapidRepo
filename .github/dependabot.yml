@@ -14,6 +14,12 @@ updates:
       prefix: "chore(deps)"
       include: "scope"
     ignore:
+      # The Roslyn version RapidRepo.SourceGenerators references is our minimum supported
+      # consumer SDK, not a dependency to keep current. Bumping it makes the generator
+      # unloadable on older compilers (CS9057), which surfaces in consumers as unrelated
+      # CS0246 errors. See the comment in RapidRepo.SourceGenerators.csproj.
+      - dependency-name: "Microsoft.CodeAnalysis.CSharp"
+      - dependency-name: "Microsoft.CodeAnalysis.Analyzers"
       - dependency-name: "Microsoft.Extensions.DependencyInjection.Abstractions"
         update-types: ["version-update:semver-major"]
       - dependency-name: "Microsoft.EntityFrameworkCore"
