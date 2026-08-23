@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.0.1](https://github.com/tibor-horvath/RapidRepo/compare/7.0.0...7.0.1) (2026-08-23)
+
+
+### Bug Fixes
+
+* pin Roslyn to 4.13.0 so the source generator loads on shipped SDKs ([#95](https://github.com/tibor-horvath/RapidRepo/issues/95)) ([e2acf11](https://github.com/tibor-horvath/RapidRepo/commit/e2acf11ee188762c9a693f666c4a55088e23633d))
+
 ## [7.0.0](https://github.com/tibor-horvath/RapidRepo/compare/6.3.0...7.0.0) (2026-08-23)
 
 

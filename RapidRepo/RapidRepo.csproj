@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <Authors>Tibor Horváth</Authors>
-    <Version>7.0.0</Version><!-- x-release-please-version -->
+    <Version>7.0.1</Version><!-- x-release-please-version -->
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
