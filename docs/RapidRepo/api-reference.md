@@ -185,6 +185,29 @@ Paged<ProductSummary> page = await _unitOfWork.Products.GetAllPagedAsync(
 | `DeleteRange(entities)` | Removes multiple entities, or sets `DeletedAt` on each if they implement `IDeletableEntity` |
 | `DeleteById(id)` | Loads the entity by key then calls `Delete` |
 | `DeleteByIdAsync(id)` | Async version of `DeleteById` |
+| `Restore(entity)` | Clears `DeletedAt` — and `DeletedBy` when the entity implements `IDeletableEntity<TUserKey>` — undoing a soft delete |
+| `RestoreRange(entities)` | Clears the deletion marks on multiple entities |
+| `RestoreById(id, ignoreQueryFilters = true)` | Loads the entity by key then calls `Restore` |
+| `RestoreByIdAsync(id, ignoreQueryFilters = true)` | Async version of `RestoreById` |
+| `HardDelete(entity)` | Permanently removes the entity, bypassing soft delete |
+| `HardDeleteRange(entities)` | Permanently removes multiple entities, bypassing soft delete |
+| `HardDeleteById(id, ignoreQueryFilters = false)` | Loads the entity by key then removes it permanently |
+| `HardDeleteByIdAsync(id, ignoreQueryFilters = false)` | Async version of `HardDeleteById` |
+
+> The `Restore` methods throw `InvalidOperationException` when `TEntity` does not implement `IDeletableEntity` — there is no soft delete to undo. `HardDelete` is always available; for entities without soft delete it behaves exactly like `Delete`.
+
+> **`ignoreQueryFilters: true` bypasses _every_ global query filter on the entity, not only the soft-delete one.** If your entity also carries a multi-tenancy filter (or anything else that scopes what the caller may see), `HardDeleteById(id, ignoreQueryFilters: true)` can permanently erase a row that belongs to another tenant. That is why `RestoreById` defaults it to `true` — a soft-deleted row is invisible otherwise, and the operation is reversible — while the destructive `HardDeleteById` defaults it to `false`. When a filter other than soft delete is in play, load the entity yourself and use `Restore(entity)` / `HardDelete(entity)`.
+
+> `Restore`, `RestoreRange`, `HardDelete`, and `HardDeleteRange` have no async counterparts, for the same reason `Delete` and `Update` do not: they only stage a change in the EF change tracker. Only the `*ById` variants query the store, so only they are offered as `Task`-returning methods.
+
+> `RestoreById` and `HardDeleteById` also reach an entity that has been staged for insertion but not yet committed, matching `DeleteById`. Everything already in the store is resolved by a query, so `ignoreQueryFilters` governs what those two can reach — an entity that merely happens to be tracked is *not* reachable when the filters exclude it. This differs from `DeleteById`, which uses EF's `Find` and therefore short-circuits on any tracked entity; that is harmless there, because for a soft-deletable entity `DeleteById` only sets `DeletedAt`.
+
+> **Breaking change.** These members are declared on `IWriteRepository<TEntity, TKey>` itself, so any code that
+> implements that interface by hand must add them. Repositories deriving from `WriteRepository<TEntity, TId>` or
+> `BaseRepository<TEntity, TId>` inherit the implementations and need no changes, and generated mocks
+> (Moq, NSubstitute, FakeItEasy) pick them up automatically. They were deliberately *not* given throwing default
+> interface implementations: an interface member that compiles but fails at run time hides the problem instead of
+> surfacing it, so the addition is shipped as a major version bump.
 
 > All write methods only stage changes in the EF change tracker. Call `CommitAsync()` or `Commit()` on the Unit of Work to persist them. See [Unit of Work](unit-of-work.md).
 
