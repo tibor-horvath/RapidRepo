@@ -13,7 +13,7 @@ RapidRepo is a repository pattern implementation for .NET applications. It uses 
 - Separation of business logic and persistence logic
 - Supports non-null entity key types (e.g. `int`, `Guid`, `string`)
 - Built-in auditing (`CreatedAt`, `CreatedBy`, `ModifiedAt`, `ModifiedBy`)
-- Built-in soft delete support (`DeletedAt`, `DeletedBy`)
+- Built-in soft delete support (`DeletedAt`, `DeletedBy`) with restore and permanent-delete escape hatches
 - Paged query results via `Paged<T>`
 - Optional companion packages for DI registration and Unit of Work source generation
 
