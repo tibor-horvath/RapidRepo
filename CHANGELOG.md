@@ -1,5 +1,16 @@
 # Changelog
 
+## [7.0.0](https://github.com/tibor-horvath/RapidRepo/compare/6.3.0...7.0.0) (2026-08-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* IWriteRepository<TEntity, TKey> gains eight members. Types deriving from WriteRepository or BaseRepository are unaffected and generated mocks pick them up automatically, but hand-written implementations of the interface must add them.
+
+### Features
+
+* add restore and hard delete escape hatch for soft-deletable entities ([#90](https://github.com/tibor-horvath/RapidRepo/issues/90)) ([5a28c7d](https://github.com/tibor-horvath/RapidRepo/commit/5a28c7d177e13c7f00781a5f915b720e5da9db73))
+
 ## [6.3.0](https://github.com/tibor-horvath/RapidRepo/compare/6.2.1...6.3.0) (2026-08-16)
 
 
