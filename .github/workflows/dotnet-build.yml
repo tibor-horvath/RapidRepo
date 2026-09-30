@@ -29,6 +29,12 @@ jobs:
       checks: write
       contents: read
 
+  secrets:
+    name: Secret scan
+    uses: tibor-horvath/ci-toolkit/.github/workflows/secret-scan.yml@v1
+    permissions:
+      contents: read
+
   coverage-comment:
     name: Coverage PR Comment
     needs: ci
