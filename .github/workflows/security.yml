@@ -30,16 +30,6 @@ jobs:
     permissions:
       contents: read
 
-  codeql:
-    name: CodeQL
-    uses: tibor-horvath/ci-toolkit/.github/workflows/codeql.yml@336709f20934ec0a9a0535331c201a8ce91f2cbc # v1.14.0
-    with:
-      languages: '["csharp"]'
-    permissions:
-      contents: read
-      security-events: write
-      actions: read
-
   dependency-review:
     name: Dependency review
     if: github.event_name == 'pull_request'
