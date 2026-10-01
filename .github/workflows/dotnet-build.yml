@@ -20,7 +20,7 @@ permissions:
 jobs:
   ci:
     name: Build & Test
-    uses: tibor-horvath/ci-toolkit/.github/workflows/dotnet-build-test.yml@v1
+    uses: tibor-horvath/ci-toolkit/.github/workflows/dotnet-build-test.yml@336709f20934ec0a9a0535331c201a8ce91f2cbc # v1.14.0
     with:
       dotnet-version: "10.0.x"
       runsettings: "coverlet.runsettings"
@@ -31,7 +31,7 @@ jobs:
 
   secrets:
     name: Secret scan
-    uses: tibor-horvath/ci-toolkit/.github/workflows/secret-scan.yml@v1
+    uses: tibor-horvath/ci-toolkit/.github/workflows/secret-scan.yml@336709f20934ec0a9a0535331c201a8ce91f2cbc # v1.14.0
     permissions:
       contents: read
 

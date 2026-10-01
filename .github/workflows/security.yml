@@ -1,0 +1,39 @@
+name: Security
+
+on:
+  push:
+    branches:
+      - master
+      - beta
+      - pre-release
+  pull_request:
+    branches:
+      - master
+      - beta
+      - pre-release
+  schedule:
+    # New advisories and query-pack updates appear without any code change.
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  vulnerable-packages:
+    name: Vulnerable packages
+    uses: tibor-horvath/ci-toolkit/.github/workflows/dotnet-vulnerable-packages.yml@336709f20934ec0a9a0535331c201a8ce91f2cbc # v1.14.0
+    with:
+      dotnet-version: "10.0.x"
+      project: "RapidRepo.sln"
+      include-transitive: true
+      fail-on-findings: true
+    permissions:
+      contents: read
+
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    uses: tibor-horvath/ci-toolkit/.github/workflows/dependency-review.yml@336709f20934ec0a9a0535331c201a8ce91f2cbc # v1.14.0
+    permissions:
+      contents: read
+      pull-requests: write
