@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   publish:
-    uses: tibor-horvath/ci-toolkit/.github/workflows/nuget-publish.yml@v1
+    uses: tibor-horvath/ci-toolkit/.github/workflows/nuget-publish.yml@336709f20934ec0a9a0535331c201a8ce91f2cbc # v1.14.0
     with:
       dotnet-version: "10.0.x"
       # version defaults to the release tag (leading 'v' stripped);

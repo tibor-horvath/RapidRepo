@@ -1,0 +1,27 @@
+name: PR Lint
+
+on:
+  # Reads only the PR title from the event payload; no PR code is checked out.
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+  pull_request:
+    paths:
+      - ".github/**"
+
+permissions:
+  contents: read
+
+jobs:
+  title:
+    name: PR title
+    if: github.event_name == 'pull_request_target'
+    uses: tibor-horvath/ci-toolkit/.github/workflows/pr-title-lint.yml@336709f20934ec0a9a0535331c201a8ce91f2cbc # v1.14.0
+    permissions:
+      pull-requests: read
+
+  workflows:
+    name: Workflow lint
+    if: github.event_name == 'pull_request'
+    uses: tibor-horvath/ci-toolkit/.github/workflows/workflow-lint.yml@336709f20934ec0a9a0535331c201a8ce91f2cbc # v1.14.0
+    permissions:
+      contents: read

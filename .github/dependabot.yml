@@ -26,3 +26,17 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "Microsoft.EntityFrameworkCore.Relational"
         update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      time: "06:00"
+      timezone: "Europe/Budapest"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
