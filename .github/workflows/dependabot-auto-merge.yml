@@ -27,7 +27,7 @@ jobs:
       # workflows hold secrets and are not exercised by PR checks.
       - name: Enable auto-merge for patch and minor updates
         if: >
-          steps.metadata.outputs.package-ecosystem != 'github-actions' &&
+          steps.metadata.outputs.package-ecosystem != 'github_actions' &&
           (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
           steps.metadata.outputs.update-type == 'version-update:semver-minor')
         run: gh pr merge --auto --squash "$PR_URL"
