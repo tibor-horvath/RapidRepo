@@ -31,7 +31,7 @@ jobs:
 
   secrets:
     name: Secret scan
-    uses: tibor-horvath/ci-toolkit/.github/workflows/secret-scan.yml@336709f20934ec0a9a0535331c201a8ce91f2cbc # v1.14.0
+    uses: tibor-horvath/ci-toolkit/.github/workflows/secret-scan.yml@d9c2eac3bfc76a720ed60c343d7432430a3a8c0b # v1.15.0
     permissions:
       contents: read
 
