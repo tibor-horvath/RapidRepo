@@ -1,0 +1,15 @@
+<Project>
+
+  <!-- Settings shared by every project in the repository. Projects may still override any of these. -->
+  <PropertyGroup>
+    <Authors>Tibor Horváth</Authors>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- Target frameworks for the runtime libraries (not the source generator, which must stay on netstandard2.0). -->
+    <RapidRepoLibraryTargetFrameworks>net10.0;net11.0</RapidRepoLibraryTargetFrameworks>
+    <!-- Target framework for the test projects. -->
+    <RapidRepoTestTargetFramework>net11.0</RapidRepoTestTargetFramework>
+  </PropertyGroup>
+
+</Project>
