@@ -28,7 +28,7 @@ jobs:
       # Version defaults to the release tag (leading 'v' stripped);
       # test projects are IsPackable=false, so only the libraries publish.
       - name: Pack + push to NuGet
-        uses: tibor-horvath/ci-toolkit/.github/actions/nuget-publish@54ff4a24736e4396941207135f82d0200c8c8746 # main (#66), pre-v2.1.0
+        uses: tibor-horvath/ci-toolkit/.github/actions/nuget-publish@11a36a951031ecef7f20f3e1206014dd2c5ddac8 # v2.1.0
         with:
           dotnet-version: "11.0.x"
           nuget-user: ${{ vars.NUGET_USER }}
