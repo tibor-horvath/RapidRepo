@@ -1,5 +1,16 @@
 # Changelog
 
+## [8.0.0](https://github.com/tibor-horvath/RapidRepo/compare/7.0.1...8.0.0) (2026-11-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* Dropped support for .NET 8 and 9
+
+### Features
+
+* upgrade to .NET 11 ([7462f62](https://github.com/tibor-horvath/RapidRepo/commit/7462f6235a50cb1877405e0305b4d2f4b99f0230))
+
 ## [7.0.1](https://github.com/tibor-horvath/RapidRepo/compare/7.0.0...7.0.1) (2026-08-23)
 
 
