@@ -10,10 +10,10 @@ permissions:
 jobs:
   publish:
     # Trusted Publishing: the nuget.org policy must name this file (publish-nuget.yml).
-    # This job is defined inline rather than via ci-toolkit's reusable nuget-publish.yml:
-    # nuget.org requires the OIDC `job_workflow_ref` claim to start with
-    # tibor-horvath/RapidRepo/.github/workflows/, and for a job inside a cross-repo
-    # reusable workflow that claim names the called workflow, so the token exchange fails.
+    # ci-toolkit's nuget-publish composite action, not its reusable workflow: nuget.org
+    # requires the OIDC `job_workflow_ref` claim to start with
+    # tibor-horvath/RapidRepo/.github/workflows/, which only holds when the login runs
+    # as a step in this repo's own job.
     name: NuGet Publish
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -25,39 +25,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+      # Version defaults to the release tag (leading 'v' stripped);
+      # test projects are IsPackable=false, so only the libraries publish.
+      - name: Pack + push to NuGet
+        uses: tibor-horvath/ci-toolkit/.github/actions/nuget-publish@11a36a951031ecef7f20f3e1206014dd2c5ddac8 # v2.1.0
         with:
           dotnet-version: "11.0.x"
-
-      - name: Cache NuGet packages
-        uses: tibor-horvath/ci-toolkit/.github/actions/cache@d9c2eac3bfc76a720ed60c343d7432430a3a8c0b # v1.15.0
-
-      # Version = release tag with any leading 'v' stripped; test projects are
-      # IsPackable=false, so only the libraries are packed.
-      - name: Pack
-        shell: bash
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          echo "Packing version: $version"
-          dotnet pack -c Release -o artifacts \
-            -p:PackageVersion="$version" \
-            -p:ContinuousIntegrationBuild=true
-          ls -1 artifacts
-
-      # Requested right before the push: the temporary key is valid for 1 hour.
-      - name: NuGet login (OIDC → temporary API key)
-        id: login
-        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
-        with:
-          user: ${{ vars.NUGET_USER }}
-
-      - name: Push
-        shell: bash
-        env:
-          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
-        run: |
-          dotnet nuget push "artifacts/*.nupkg" \
-            --source "https://api.nuget.org/v3/index.json" \
-            --api-key "$NUGET_API_KEY" \
-            --skip-duplicate
+          nuget-user: ${{ vars.NUGET_USER }}
