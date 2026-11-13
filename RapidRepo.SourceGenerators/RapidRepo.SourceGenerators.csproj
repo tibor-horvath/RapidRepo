@@ -3,7 +3,8 @@
   <PropertyGroup>
     <Authors>Tibor Horváth</Authors>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReadmeFile>RapidRepo.SourceGenerators.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -46,7 +47,8 @@
 
   <ItemGroup>
     <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-    <None Include="..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\docs\nuget\RapidRepo.SourceGenerators.md" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="..\assets\icon.png" Pack="true" PackagePath="\" Visible="false" />
   </ItemGroup>
 
 </Project>

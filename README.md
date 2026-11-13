@@ -1,4 +1,9 @@
-# RapidRepo
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/social-preview-dark.png">
+    <img alt="RapidRepo — Repository & Unit of Work for EF Core" src="assets/social-preview-light.png" width="100%">
+  </picture>
+</h1>
 
 [![Build](https://github.com/tibor-horvath/RapidRepo/actions/workflows/dotnet-build.yml/badge.svg)](https://github.com/tibor-horvath/RapidRepo/actions/workflows/dotnet-build.yml)
 [![Release](https://github.com/tibor-horvath/RapidRepo/actions/workflows/dotnet-release.yml/badge.svg)](https://github.com/tibor-horvath/RapidRepo/actions/workflows/dotnet-release.yml)

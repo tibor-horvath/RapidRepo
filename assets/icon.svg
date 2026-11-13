@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <title>RapidRepo</title>
+  <rect width="128" height="128" rx="28" fill="#5B3DF5"/>
+  <path d="M34 38 A30 10 0 0 1 94 38 V90 A30 10 0 0 1 34 90 Z" fill="#FFFFFF"/>
+  <path d="M38 38 A26 8.5 0 0 0 90 38" fill="none" stroke="#5B3DF5" stroke-width="5"/>
+  <polygon points="68,46 80,46 72,64 82,64 58,94 63,72 53,72" fill="#5B3DF5" stroke="#5B3DF5" stroke-width="1.5" stroke-linejoin="round"/>
+</svg>

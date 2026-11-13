@@ -3,34 +3,14 @@ name: Dependabot Auto-Merge
 on: pull_request
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
-  dependabot:
-    runs-on: ubuntu-latest
-    if: github.actor == 'dependabot[bot]'
-    steps:
-      - name: Fetch Dependabot metadata
-        id: metadata
-        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
-        with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
-
-      - name: Auto-approve
-        run: gh pr review --approve "$PR_URL"
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # GitHub Actions bumps are approved but merged by hand: release and publish
-      # workflows hold secrets and are not exercised by PR checks.
-      - name: Enable auto-merge for patch and minor updates
-        if: >
-          steps.metadata.outputs.package-ecosystem != 'github_actions' &&
-          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-minor')
-        run: gh pr merge --auto --squash "$PR_URL"
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  automerge:
+    name: Auto-merge
+    # Approves and auto-merges patch and minor bumps (all ecosystems, grouped PRs only
+    # when every member qualifies). Majors are left for review; CODEOWNERS requests it.
+    uses: tibor-horvath/ci-toolkit/.github/workflows/dependabot-automerge.yml@1f0f04e17c088357078474aa58c4dfb3851b0d8c # v1
+    permissions:
+      contents: write
+      pull-requests: write

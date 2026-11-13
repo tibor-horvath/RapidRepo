@@ -1,0 +1,20 @@
+name: PR Labels
+
+on:
+  # Reads only the changed-file list and .github/labeler.yml from the base branch;
+  # no PR code is checked out.
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  path-labels:
+    name: Path labels
+    uses: tibor-horvath/ci-toolkit/.github/workflows/pr-path-labels.yml@1f0f04e17c088357078474aa58c4dfb3851b0d8c # v1
+    with:
+      sync-labels: true
+    permissions:
+      contents: read
+      pull-requests: write
