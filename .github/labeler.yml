@@ -1,0 +1,27 @@
+# Path-based PR labels, applied by .github/workflows/pr-labels.yml.
+# Read from the base branch, so changes here take effect after they are merged.
+
+"area: core":
+  - changed-files:
+      - any-glob-to-any-file: ["RapidRepo/**", "RapidRepo.Tests/**"]
+
+"area: ef-core":
+  - changed-files:
+      - any-glob-to-any-file: ["RapidRepo.EntityFrameworkCore/**", "RapidRepo.EntityFrameworkCore.Tests/**"]
+
+"area: dependency-injection":
+  - changed-files:
+      - any-glob-to-any-file:
+          ["RapidRepo.Extensions.DependencyInjection/**", "RapidRepo.Extensions.DependencyInjection.Tests/**"]
+
+"area: source-generators":
+  - changed-files:
+      - any-glob-to-any-file: ["RapidRepo.SourceGenerators/**", "RapidRepo.SourceGenerators.Tests/**"]
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file: ["docs/**", "**/*.md"]
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file: [".github/**", "Directory.Build.*", "Directory.Packages.props", "global.json"]

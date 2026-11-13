@@ -1,7 +1,7 @@
 <h1>
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.png">
-    <img alt="RapidRepo" src="assets/logo-light.png" width="320">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/social-preview-dark.png">
+    <img alt="RapidRepo — Repository & Unit of Work for EF Core" src="assets/social-preview-light.png" width="100%">
   </picture>
 </h1>
 
