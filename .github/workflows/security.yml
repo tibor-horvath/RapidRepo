@@ -23,7 +23,7 @@ jobs:
     name: Vulnerable packages
     uses: tibor-horvath/ci-toolkit/.github/workflows/dotnet-vulnerable-packages.yml@d9c2eac3bfc76a720ed60c343d7432430a3a8c0b # v1.15.0
     with:
-      dotnet-version: "10.0.x"
+      dotnet-version: "11.0.x"
       project: "RapidRepo.sln"
       include-transitive: true
       fail-on-findings: true
