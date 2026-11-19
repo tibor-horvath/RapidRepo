@@ -1,4 +1,3 @@
-using RapidRepo.EntityFrameworkCore;
 using RapidRepo.Repositories.Interfaces;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -7,22 +6,34 @@ namespace RapidRepo.Extensions.DependencyInjection.Internal;
 
 internal static class RepositoryScanner
 {
-    private static readonly HashSet<Type> RootInterfaces =
+    private static readonly Type[] CoreRootInterfaces =
     [
         typeof(IReadOnlyRepository<,>),
         typeof(IWriteRepository<,>),
-        typeof(IRepository<,>),
-
-        // Provider interfaces are roots too: every EfRepository implements them, so treating them as
-        // user-defined would make every scanned repository ambiguous.
-        // TODO(#111, Phase 5): supplied by the provider through IRapidRepoProvider.AdditionalRootInterfaces.
-        typeof(IEfReadOnlyRepository<,>),
-        typeof(IEfRepository<,>)
+        typeof(IRepository<,>)
     ];
 
+    /// <summary>
+    /// Finds the concrete repositories in <paramref name="assemblies"/> and the user-defined interfaces each should
+    /// be registered against.
+    /// </summary>
+    /// <param name="assemblies">The assemblies to scan.</param>
+    /// <param name="additionalRootInterfaces">
+    /// A provider's own open generic repository interfaces, treated like the core ones: never registered against,
+    /// only the interfaces derived from them are.
+    /// </param>
     internal static IEnumerable<(Type ConcreteType, IReadOnlyList<Type> RegistrationInterfaces)> GetCandidates(
-        IEnumerable<Assembly> assemblies)
+        IEnumerable<Assembly> assemblies,
+        IEnumerable<Type> additionalRootInterfaces)
     {
+        var rootInterfaces = new HashSet<Type>(CoreRootInterfaces.Concat(additionalRootInterfaces));
+
+        bool IsRootInterface(Type iface)
+            => iface.IsGenericType && rootInterfaces.Contains(iface.GetGenericTypeDefinition());
+
+        bool DerivesFromAnyRootInterface(Type iface)
+            => IsRootInterface(iface) || iface.GetInterfaces().Any(IsRootInterface);
+
         foreach (var assembly in assemblies)
         {
             IEnumerable<Type> types;
@@ -47,7 +58,7 @@ internal static class RepositoryScanner
                 // and building the registration interface list.
                 var allInterfaces = type.GetInterfaces();
 
-                if (!allInterfaces.Any(IsClosedRootInterface))
+                if (!allInterfaces.Any(IsRootInterface))
                     continue;
 
                 var registrationInterfaces = allInterfaces
@@ -58,19 +69,5 @@ internal static class RepositoryScanner
                 yield return (type, registrationInterfaces);
             }
         }
-    }
-
-    private static bool IsClosedRootInterface(Type iface)
-        => iface.IsGenericType && RootInterfaces.Contains(iface.GetGenericTypeDefinition());
-
-    private static bool IsRootInterface(Type iface)
-        => iface.IsGenericType && RootInterfaces.Contains(iface.GetGenericTypeDefinition());
-
-    private static bool DerivesFromAnyRootInterface(Type iface)
-    {
-        if (IsClosedRootInterface(iface))
-            return true;
-
-        return iface.GetInterfaces().Any(IsClosedRootInterface);
     }
 }

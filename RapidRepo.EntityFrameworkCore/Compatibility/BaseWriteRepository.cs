@@ -5,7 +5,7 @@ using RapidRepo.EntityFrameworkCore.Compatibility;
 
 namespace RapidRepo.Repositories;
 
-/// <summary>The 7.x concrete write repository that <c>BaseRepository</c> composed.</summary>
+/// <summary>The 8.x concrete write repository that <c>BaseRepository</c> composed.</summary>
 [Obsolete(Obsoletions.BaseWriteRepository, DiagnosticId = Obsoletions.DiagnosticId)]
 public sealed class BaseWriteRepository<TEntity, TId>(DbContext dbContext)
     : EfWriteRepository<TEntity, TId>(dbContext)

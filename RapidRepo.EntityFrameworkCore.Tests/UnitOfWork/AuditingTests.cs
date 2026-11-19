@@ -77,7 +77,7 @@ public class AuditingTests : IDisposable
     [Fact]
     public void Commit_EditingAnAlreadyDeletedEntity_KeepsTheOriginalDeletionStamp()
     {
-        // Regression: 7.x re-stamped DeletedAt/DeletedBy on every save of a modified, already deleted entity.
+        // Regression: 8.x re-stamped DeletedAt/DeletedBy on every save of a modified, already deleted entity.
         var deleter = Guid.NewGuid();
         var editor = Guid.NewGuid();
         var employee = AddCommitted(deleter);

@@ -5,7 +5,7 @@ using RapidRepo.EntityFrameworkCore.Compatibility;
 
 namespace RapidRepo.Repositories;
 
-/// <summary>The 7.x name of <see cref="EfReadOnlyRepository{TEntity, TId}"/>.</summary>
+/// <summary>The 8.x name of <see cref="EfReadOnlyRepository{TEntity, TId}"/>.</summary>
 [Obsolete(Obsoletions.ReadOnlyRepository, DiagnosticId = Obsoletions.DiagnosticId)]
 public abstract class ReadOnlyRepository<TEntity, TId>(DbContext dbContext)
     : EfReadOnlyRepository<TEntity, TId>(dbContext)

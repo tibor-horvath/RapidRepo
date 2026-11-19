@@ -6,15 +6,20 @@ using RapidRepo.EntityFrameworkCore;
 using RapidRepo.Repositories.Interfaces;
 using System.Reflection;
 
-namespace RapidRepo.Extensions.DependencyInjection.Internal;
+namespace RapidRepo.EntityFrameworkCore.Internal;
 
 internal static class DbContextRegistrar
 {
-    private static readonly Type[] RootInterfaces =
+    /// <summary>
+    /// The service types a generic repository is registered against: the core contracts and EF's own.
+    /// </summary>
+    internal static readonly Type[] RootInterfaces =
     [
         typeof(IRepository<,>),
         typeof(IReadOnlyRepository<,>),
-        typeof(IWriteRepository<,>)
+        typeof(IWriteRepository<,>),
+        typeof(IEfRepository<,>),
+        typeof(IEfReadOnlyRepository<,>)
     ];
 
     /// <summary>

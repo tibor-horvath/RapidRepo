@@ -1,11 +1,11 @@
-using FluentAssertions;
-using RapidRepo.Extensions.DependencyInjection.Internal;
-using RapidRepo.Extensions.DependencyInjection.Tests.TestData;
+﻿using FluentAssertions;
+using RapidRepo.EntityFrameworkCore.Internal;
+using RapidRepo.EntityFrameworkCore.Tests.DependencyInjection.TestData;
 
-namespace RapidRepo.Extensions.DependencyInjection.Tests;
+namespace RapidRepo.EntityFrameworkCore.Tests.DependencyInjection;
 
 /// <summary>
-/// Entity discovery drives which generic repositories <c>UseDbContext</c> registers, so it is worth
+/// Entity discovery drives which generic repositories <c>UseEntityFrameworkCore&lt;TContext&gt;()</c> registers, so it is worth
 /// pinning directly rather than only through what happens to resolve.
 /// </summary>
 public class DbContextRegistrarTests

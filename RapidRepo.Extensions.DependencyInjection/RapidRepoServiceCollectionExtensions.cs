@@ -1,9 +1,6 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RapidRepo.Extensions.DependencyInjection;
 using RapidRepo.Extensions.DependencyInjection.Internal;
-using RapidRepo.EntityFrameworkCore;
-using RapidRepo.Repositories.Interfaces;
 using System.Diagnostics;
 
 namespace Microsoft.Extensions.DependencyInjection;
@@ -17,9 +14,18 @@ public static class RapidRepoServiceCollectionExtensions
     /// Scans the configured assemblies and registers all discovered repository implementations
     /// and the unit of work, using convention-based rules defined in <paramref name="configure"/>.
     /// </summary>
+    /// <remarks>
+    /// Registrations that depend on the persistence technology, such as the generic repository implementation and
+    /// its data source, come from the provider configured with <see cref="RapidRepoOptions.UseProvider"/>, for
+    /// example <c>UseEntityFrameworkCore&lt;TContext&gt;()</c>.
+    /// </remarks>
     /// <param name="services">The service collection to register into.</param>
     /// <param name="configure">A delegate that configures the scanning options.</param>
     /// <returns>The same <see cref="IServiceCollection"/> for chaining.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// <see cref="RapidRepoOptions.RegisterGenericRepositories"/> is set without a provider, or the configuration is
+    /// otherwise invalid.
+    /// </exception>
     public static IServiceCollection AddRapidRepo(
         this IServiceCollection services,
         Action<RapidRepoOptions> configure)
@@ -30,10 +36,18 @@ public static class RapidRepoServiceCollectionExtensions
         var options = new RapidRepoOptions();
         configure(options);
 
+        var provider = options.Provider;
+
+        if (options.RegisterGenericRepositories && provider is null)
+            throw new InvalidOperationException(
+                "RegisterGenericRepositories requires a provider to supply the generic repository implementation. " +
+                "Configure one in AddRapidRepo, for example UseEntityFrameworkCore<TContext>() from " +
+                "RapidRepo.EntityFrameworkCore.");
+
         HandleSingletonWarning(options);
 
         var candidates = RepositoryScanner
-            .GetCandidates(options.Assemblies)
+            .GetCandidates(options.Assemblies, provider?.AdditionalRootInterfaces ?? [])
             .Where(c => PassesFilters(c.ConcreteType, options))
             .ToList();
 
@@ -53,86 +67,17 @@ public static class RapidRepoServiceCollectionExtensions
                 services.TryAddEnumerable(descriptor);
         }
 
-        if (options.RegisterGenericRepositories)
-        {
-            if (options.DbContextType is { } genericRepoContext)
-            {
-                // Closed per entity and bound to the context, so several contexts can coexist.
-                DbContextRegistrar.RegisterClosedGenericRepositories(
-                    services, genericRepoContext, options.Lifetime, options.RegisterAsSelf);
-            }
-            else
-            {
-                var repoType = typeof(EfRepository<,>);
-                services.TryAdd(ServiceDescriptor.Describe(typeof(IRepository<,>),         repoType, options.Lifetime));
-                services.TryAdd(ServiceDescriptor.Describe(typeof(IReadOnlyRepository<,>), repoType, options.Lifetime));
-                services.TryAdd(ServiceDescriptor.Describe(typeof(IWriteRepository<,>),    repoType, options.Lifetime));
-            }
-        }
-
         foreach (var (iface, impl) in options.UnitOfWorkRegistrations)
             UnitOfWorkRegistrar.Register(services, iface, impl, options.Lifetime);
 
-        HandleDbContext(services, options, candidates);
+        provider?.Register(services, new RapidRepoRegistrationContext(
+            candidates.Select(c => new RepositoryRegistration(c.ConcreteType, c.RegistrationInterfaces)).ToList(),
+            options.UnitOfWorkRegistrations.Select(u => new UnitOfWorkRegistration(u.InterfaceType, u.ImplementationType)).ToList(),
+            options.Lifetime,
+            options.RegisterAsSelf,
+            options.RegisterGenericRepositories));
 
         return services;
-    }
-
-    /// <summary>
-    /// Types this call registers whose constructors the container has to satisfy. The open-generic
-    /// <see cref="EfRepository{TEntity,TId}"/> fallback counts too — it takes a base <see cref="DbContext"/>.
-    /// </summary>
-    private static List<Type> GetDependentTypes(
-        RapidRepoOptions options,
-        List<(Type ConcreteType, IReadOnlyList<Type> RegistrationInterfaces)> candidates)
-    {
-        var types = candidates.Select(c => c.ConcreteType).ToList();
-
-        types.AddRange(options.UnitOfWorkRegistrations.Select(r => r.ImplementationType));
-
-        if (options.RegisterGenericRepositories && options.DbContextType is null)
-            types.Add(typeof(EfRepository<,>));
-
-        return types;
-    }
-
-    private static void HandleDbContext(
-        IServiceCollection services,
-        RapidRepoOptions options,
-        List<(Type ConcreteType, IReadOnlyList<Type> RegistrationInterfaces)> candidates)
-    {
-        var dependentTypes = GetDependentTypes(options, candidates);
-
-        if (options.DbContextType is { } contextType)
-        {
-            DbContextRegistrar.RegisterForwarder(services, contextType, dependentTypes);
-            return;
-        }
-
-        WarnOnMissingDbContext(services, options, dependentTypes);
-    }
-
-    private static void WarnOnMissingDbContext(
-        IServiceCollection services,
-        RapidRepoOptions options,
-        List<Type> dependentTypes)
-    {
-        var needsDbContext = dependentTypes.Any(t => t.GetConstructors()
-            .Any(c => c.GetParameters().Any(p => p.ParameterType == typeof(DbContext))));
-
-        if (!needsDbContext || services.Any(d => d.ServiceType == typeof(DbContext)))
-            return;
-
-        const string message =
-            "Repositories or units of work take a 'DbContext' constructor parameter, but no DbContext service " +
-            "is registered. AddDbContext<TContext>() registers TContext, not the base DbContext type, so these " +
-            "types cannot be activated and will fail on first resolve. Call UseDbContext<TContext>() inside " +
-            "AddRapidRepo to register the forwarder.";
-
-        if (options.ThrowOnMissingDbContext)
-            throw new InvalidOperationException(message);
-
-        Trace.TraceWarning($"[RapidRepo] {message}");
     }
 
     private static bool PassesFilters(Type type, RapidRepoOptions options)
@@ -153,8 +98,8 @@ public static class RapidRepoServiceCollectionExtensions
 
         const string message =
             "RapidRepo repositories are being registered as Singleton. " +
-            "Repositories depend on DbContext, which is Scoped by default. " +
-            "A Singleton repository will capture and hold a single DbContext for the application lifetime, " +
+            "Repositories depend on scoped data access resources, such as an EF Core DbContext or a database " +
+            "connection. A Singleton repository captures one of them for the application lifetime, " +
             "causing thread-safety issues and stale data. Use ServiceLifetime.Scoped instead.";
 
         if (options.ThrowOnSingletonMisuse)

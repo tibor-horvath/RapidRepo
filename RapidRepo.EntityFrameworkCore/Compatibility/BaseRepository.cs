@@ -5,7 +5,7 @@ using RapidRepo.EntityFrameworkCore.Compatibility;
 
 namespace RapidRepo.Repositories;
 
-/// <summary>The 7.x base class for custom repositories; derive from <see cref="EfRepository{TEntity, TId}"/> instead.</summary>
+/// <summary>The 8.x base class for custom repositories; derive from <see cref="EfRepository{TEntity, TId}"/> instead.</summary>
 [Obsolete(Obsoletions.BaseRepository, DiagnosticId = Obsoletions.DiagnosticId)]
 public abstract class BaseRepository<TEntity, TId> : EfRepository<TEntity, TId>
     where TEntity : BaseEntity<TId>

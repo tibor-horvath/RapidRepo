@@ -4,9 +4,9 @@ using RapidRepo.EntityFrameworkCore.Compatibility;
 
 namespace RapidRepo.UnitOfWork;
 
-/// <summary>The 7.x name of <see cref="EfUnitOfWork{TUserKey}"/>.</summary>
+/// <summary>The 8.x name of <see cref="EfUnitOfWork{TUserKey}"/>.</summary>
 /// <remarks>
-/// Still implements <see cref="IDisposable"/> so that 7.x unit of work interfaces declared with
+/// Still implements <see cref="IDisposable"/> so that 8.x unit of work interfaces declared with
 /// <c>: IDisposable</c> keep compiling. <see cref="Dispose"/> no longer disposes the <c>DbContext</c>, which the
 /// unit of work never owned; the container that created it disposes it.
 /// </remarks>
@@ -24,7 +24,7 @@ public abstract class UnitOfWork<TUserKey> : EfUnitOfWork<TUserKey>, IDisposable
     {
     }
 
-    /// <summary>Does nothing; kept for source compatibility with 7.x.</summary>
+    /// <summary>Does nothing; kept for source compatibility with 8.x.</summary>
     public void Dispose()
     {
         GC.SuppressFinalize(this);

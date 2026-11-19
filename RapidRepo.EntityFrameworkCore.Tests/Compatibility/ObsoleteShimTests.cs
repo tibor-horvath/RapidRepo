@@ -1,4 +1,4 @@
-// The shims are obsolete by design; these tests exist to prove that 7.x declarations still compile and behave.
+// The shims are obsolete by design; these tests exist to prove that 8.x declarations still compile and behave.
 #pragma warning disable RRMIG001
 
 using System.Reflection;

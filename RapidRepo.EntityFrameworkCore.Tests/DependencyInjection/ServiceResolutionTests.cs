@@ -1,11 +1,11 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using RapidRepo.Extensions.DependencyInjection.Tests.TestData;
+using RapidRepo.EntityFrameworkCore.Tests.DependencyInjection.TestData;
 using RapidRepo.EntityFrameworkCore;
 using RapidRepo.Repositories.Interfaces;
 
-namespace RapidRepo.Extensions.DependencyInjection.Tests;
+namespace RapidRepo.EntityFrameworkCore.Tests.DependencyInjection;
 
 /// <summary>
 /// The rest of the suite asserts on <see cref="ServiceDescriptor"/>s only. These tests build a real
@@ -14,8 +14,10 @@ namespace RapidRepo.Extensions.DependencyInjection.Tests;
 /// </summary>
 public class ServiceResolutionTests
 {
+    // Scans see the whole test assembly; keep them to this suite's test data, minus the deliberately ambiguous types.
     private static readonly Func<Type, bool> ExcludeAmbiguous =
-        t => t.Namespace?.Contains(".Ambiguous") == true;
+        t => t.Namespace?.Contains(".Ambiguous") == true
+            || t.Namespace?.StartsWith("RapidRepo.EntityFrameworkCore.Tests.DependencyInjection.TestData", StringComparison.Ordinal) != true;
 
     // Keeps each context's scan to its own repositories, the way separate modules would be laid out.
     private static readonly Func<Type, bool> ExcludeBillingModule =
@@ -31,16 +33,16 @@ public class ServiceResolutionTests
         return services;
     }
 
-    // ── UseDbContext: single context ───────────────────────────────────────────
+    // ── UseEntityFrameworkCore: single context ───────────────────────────────────────────
 
     [Fact]
-    public void UseDbContext_RegisterGenericRepositories_ResolvingIRepository_Succeeds()
+    public void UseEntityFrameworkCore_RegisterGenericRepositories_ResolvingIRepository_Succeeds()
     {
         var services = ServicesWithDbContext();
 
         services.AddRapidRepo(o =>
         {
-            o.UseDbContext<TestDbContext>();
+            o.UseEntityFrameworkCore<TestDbContext>();
             o.RegisterGenericRepositories = true;
             o.Exclude(ExcludeAmbiguous);
         });
@@ -54,13 +56,13 @@ public class ServiceResolutionTests
     }
 
     [Fact]
-    public void UseDbContext_ScannedRepository_ResolvingUserDefinedInterface_Succeeds()
+    public void UseEntityFrameworkCore_ScannedRepository_ResolvingUserDefinedInterface_Succeeds()
     {
         var services = ServicesWithDbContext();
 
         services.AddRapidRepo(o =>
         {
-            o.UseDbContext<TestDbContext>();
+            o.UseEntityFrameworkCore<TestDbContext>();
             o.ScanAssembliesContaining<WidgetRepository>();
             o.Exclude(ExcludeAmbiguous);
         });
@@ -74,13 +76,13 @@ public class ServiceResolutionTests
     }
 
     [Fact]
-    public void UseDbContext_ResolvingUnitOfWork_Succeeds()
+    public void UseEntityFrameworkCore_ResolvingUnitOfWork_Succeeds()
     {
         var services = ServicesWithDbContext();
 
         services.AddRapidRepo(o =>
         {
-            o.UseDbContext<TestDbContext>();
+            o.UseEntityFrameworkCore<TestDbContext>();
             o.ScanAssembliesContaining<WidgetRepository>();
             o.Exclude(ExcludeAmbiguous);
             o.UseUnitOfWork<ITestUnitOfWork, TestUnitOfWork>();
@@ -95,17 +97,17 @@ public class ServiceResolutionTests
     }
 
     /// <summary>
-    /// The generic repository resolved through <c>UseDbContext</c> must operate on that context, not merely
+    /// The generic repository resolved through <c>UseEntityFrameworkCore</c> must operate on that context, not merely
     /// be constructible. Saving through the context proves the repository enlisted in the same change tracker.
     /// </summary>
     [Fact]
-    public async Task UseDbContext_GenericRepository_WritesToTheConfiguredContext()
+    public async Task UseEntityFrameworkCore_GenericRepository_WritesToTheConfiguredContext()
     {
         var services = ServicesWithDbContext();
 
         services.AddRapidRepo(o =>
         {
-            o.UseDbContext<TestDbContext>();
+            o.UseEntityFrameworkCore<TestDbContext>();
             o.RegisterGenericRepositories = true;
             o.Exclude(ExcludeAmbiguous);
         });
@@ -122,17 +124,17 @@ public class ServiceResolutionTests
         (await context.Widgets.CountAsync()).Should().Be(1);
     }
 
-    // ── UseDbContext: forwarder behaviour ──────────────────────────────────────
+    // ── UseEntityFrameworkCore: forwarder behaviour ──────────────────────────────────────
 
     [Fact]
-    public void UseDbContext_WhenNothingNeedsTheBaseDbContext_DoesNotRegisterForwarder()
+    public void UseEntityFrameworkCore_WhenNothingNeedsTheBaseDbContext_DoesNotRegisterForwarder()
     {
         var services = new ServiceCollection();
         services.AddDbContext<SalesDbContext>(o => o.UseInMemoryDatabase(Guid.NewGuid().ToString()));
 
         services.AddRapidRepo(o =>
         {
-            o.UseDbContext<SalesDbContext>();
+            o.UseEntityFrameworkCore<SalesDbContext>();
             o.ScanAssembliesContaining<SalesWidgetRepository>();
             o.IncludeType<SalesWidgetRepository>(); // takes SalesDbContext, not DbContext
         });
@@ -143,13 +145,13 @@ public class ServiceResolutionTests
     }
 
     [Fact]
-    public void UseDbContext_WhenSomethingNeedsTheBaseDbContext_RegistersForwarder()
+    public void UseEntityFrameworkCore_WhenSomethingNeedsTheBaseDbContext_RegistersForwarder()
     {
         var services = ServicesWithDbContext();
 
         services.AddRapidRepo(o =>
         {
-            o.UseDbContext<TestDbContext>();
+            o.UseEntityFrameworkCore<TestDbContext>();
             o.IncludeType<WidgetRepository>(); // takes DbContext
             o.ScanAssembliesContaining<WidgetRepository>();
         });
@@ -162,13 +164,13 @@ public class ServiceResolutionTests
     /// open-generic fallback — that substitution is what makes several contexts possible.
     /// </summary>
     [Fact]
-    public void UseDbContext_RegisterGenericRepositories_ReplacesTheOpenGenericFallback()
+    public void UseEntityFrameworkCore_RegisterGenericRepositories_ReplacesTheOpenGenericFallback()
     {
         var services = ServicesWithDbContext();
 
         services.AddRapidRepo(o =>
         {
-            o.UseDbContext<TestDbContext>();
+            o.UseEntityFrameworkCore<TestDbContext>();
             o.RegisterGenericRepositories = true;
             o.Exclude(ExcludeAmbiguous);
         });
@@ -193,13 +195,13 @@ public class ServiceResolutionTests
 
         services.AddRapidRepo(o =>
         {
-            o.UseDbContext<SharedLeftDbContext>();
+            o.UseEntityFrameworkCore<SharedLeftDbContext>();
             o.RegisterGenericRepositories = true;
         });
 
         var act = () => services.AddRapidRepo(o =>
         {
-            o.UseDbContext<SharedRightDbContext>();
+            o.UseEntityFrameworkCore<SharedRightDbContext>();
             o.RegisterGenericRepositories = true;
         });
 
@@ -217,7 +219,7 @@ public class ServiceResolutionTests
 
         void Register() => services.AddRapidRepo(o =>
         {
-            o.UseDbContext<SharedLeftDbContext>();
+            o.UseEntityFrameworkCore<SharedLeftDbContext>();
             o.RegisterGenericRepositories = true;
         });
 
@@ -233,14 +235,14 @@ public class ServiceResolutionTests
     /// so each module can inject the repository for the context it means.
     /// </summary>
     [Fact]
-    public void UseDbContext_RegisterAsSelf_ExposesTheContextQualifiedRepository()
+    public void UseEntityFrameworkCore_RegisterAsSelf_ExposesTheContextQualifiedRepository()
     {
         var services = new ServiceCollection();
         services.AddDbContext<SharedLeftDbContext>(o => o.UseInMemoryDatabase(Guid.NewGuid().ToString()));
 
         services.AddRapidRepo(o =>
         {
-            o.UseDbContext<SharedLeftDbContext>();
+            o.UseEntityFrameworkCore<SharedLeftDbContext>();
             o.RegisterGenericRepositories = true;
             o.RegisterAsSelf = true;
         });
@@ -254,14 +256,14 @@ public class ServiceResolutionTests
     }
 
     [Fact]
-    public void UseDbContext_CalledTwiceInOneCall_Throws()
+    public void UseEntityFrameworkCore_CalledTwiceInOneCall_Throws()
     {
         var services = ServicesWithDbContext();
 
         var act = () => services.AddRapidRepo(o =>
         {
-            o.UseDbContext<TestDbContext>();
-            o.UseDbContext<SalesDbContext>();
+            o.UseEntityFrameworkCore<TestDbContext>();
+            o.UseEntityFrameworkCore<SalesDbContext>();
         });
 
         act.Should().Throw<InvalidOperationException>()
@@ -279,14 +281,14 @@ public class ServiceResolutionTests
 
         services.AddRapidRepo(o =>
         {
-            o.UseDbContext<SalesDbContext>();
+            o.UseEntityFrameworkCore<SalesDbContext>();
             o.ScanAssembliesContaining<SalesWidgetRepository>();
             o.IncludeType<SalesWidgetRepository>();
         });
 
         services.AddRapidRepo(o =>
         {
-            o.UseDbContext<BillingDbContext>();
+            o.UseEntityFrameworkCore<BillingDbContext>();
             o.ScanAssembliesContaining<BillingGadgetRepository>();
             o.IncludeType<BillingGadgetRepository>();
         });
@@ -311,7 +313,7 @@ public class ServiceResolutionTests
 
         services.AddRapidRepo(o =>
         {
-            o.UseDbContext<SalesDbContext>();
+            o.UseEntityFrameworkCore<SalesDbContext>();
             o.RegisterGenericRepositories = true;
             o.Exclude(ExcludeAmbiguous);
             o.Exclude(ExcludeBillingModule);
@@ -319,7 +321,7 @@ public class ServiceResolutionTests
 
         services.AddRapidRepo(o =>
         {
-            o.UseDbContext<BillingDbContext>();
+            o.UseEntityFrameworkCore<BillingDbContext>();
             o.RegisterGenericRepositories = true;
             o.Exclude(ExcludeAmbiguous);
             o.Exclude(ExcludeSalesModule);
@@ -360,14 +362,14 @@ public class ServiceResolutionTests
 
         services.AddRapidRepo(o =>
         {
-            o.UseDbContext<SalesDbContext>();
+            o.UseEntityFrameworkCore<SalesDbContext>();
             o.IncludeType<WidgetRepository>(); // takes DbContext
             o.ScanAssembliesContaining<WidgetRepository>();
         });
 
         var act = () => services.AddRapidRepo(o =>
         {
-            o.UseDbContext<BillingDbContext>();
+            o.UseEntityFrameworkCore<BillingDbContext>();
             o.IncludeType<GadgetRepository>(); // also takes DbContext
             o.ScanAssembliesContaining<WidgetRepository>();
         });
@@ -383,7 +385,7 @@ public class ServiceResolutionTests
 
         void Register() => services.AddRapidRepo(o =>
         {
-            o.UseDbContext<TestDbContext>();
+            o.UseEntityFrameworkCore<TestDbContext>();
             o.ScanAssembliesContaining<WidgetRepository>();
             o.Exclude(ExcludeAmbiguous);
         });
@@ -398,17 +400,17 @@ public class ServiceResolutionTests
     // ── Missing DbContext diagnostics ──────────────────────────────────────────
 
     /// <summary>
-    /// Without <c>UseDbContext</c> the pre-existing behaviour is unchanged: nothing registers the base
-    /// <see cref="DbContext"/>, so activation still fails. Kept as a regression guard on the opt-in being
-    /// genuinely opt-in.
+    /// Without a context binding nothing registers the base <see cref="DbContext"/>, so activation still fails.
+    /// Kept as a regression guard on the forwarder being opt-in.
     /// </summary>
     [Fact]
-    public void WithoutUseDbContext_ScannedRepository_StillFailsToResolve()
+    public void Unbound_ScannedRepository_StillFailsToResolve()
     {
         var services = ServicesWithDbContext();
 
         services.AddRapidRepo(o =>
         {
+            o.UseEntityFrameworkCore();
             o.ScanAssembliesContaining<WidgetRepository>();
             o.Exclude(ExcludeAmbiguous);
         });
@@ -429,13 +431,13 @@ public class ServiceResolutionTests
 
         var act = () => services.AddRapidRepo(o =>
         {
-            o.ThrowOnMissingDbContext = true;
+            o.UseEntityFrameworkCore(ef => ef.ThrowOnMissingDbContext = true);
             o.ScanAssembliesContaining<WidgetRepository>();
             o.Exclude(ExcludeAmbiguous);
         });
 
         act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*UseDbContext*");
+            .WithMessage("*UseEntityFrameworkCore<TContext>()*");
     }
 
     [Fact]
@@ -446,7 +448,7 @@ public class ServiceResolutionTests
 
         var act = () => services.AddRapidRepo(o =>
         {
-            o.ThrowOnMissingDbContext = true;
+            o.UseEntityFrameworkCore(ef => ef.ThrowOnMissingDbContext = true);
             o.ScanAssembliesContaining<WidgetRepository>();
             o.Exclude(ExcludeAmbiguous);
         });
@@ -457,7 +459,7 @@ public class ServiceResolutionTests
     // ── Control ────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// The manual forwarder applications had to write before <c>UseDbContext</c> existed keeps working.
+    /// The manual forwarder applications had to write before RapidRepo could register the forwarder keeps working.
     /// </summary>
     [Fact]
     public void WithManualDbContextForwarder_EverythingResolves()
@@ -467,6 +469,7 @@ public class ServiceResolutionTests
 
         services.AddRapidRepo(o =>
         {
+            o.UseEntityFrameworkCore();
             o.RegisterGenericRepositories = true;
             o.ScanAssembliesContaining<WidgetRepository>();
             o.Exclude(ExcludeAmbiguous);

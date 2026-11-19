@@ -29,7 +29,7 @@ public static class ModelBuilderExtensions
     /// <para>
     /// EF Core does not allow anonymous and named filters on the same entity type, so an entity type that already
     /// has an anonymous filter gets an anonymous soft-delete filter instead, which replaces the existing one as in
-    /// RapidRepo 7.x. For such an entity, <c>IncludeDeleted</c> bypasses every filter.
+    /// RapidRepo 8.x. For such an entity, <c>IncludeDeleted</c> bypasses every filter.
     /// </para>
     /// </remarks>
     /// <param name="modelBuilder">The model builder.</param>

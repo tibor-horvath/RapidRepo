@@ -18,6 +18,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RapidRepo\RapidRepo.csproj" />
+    <!-- UseEntityFrameworkCore<TContext>() plugs this provider into AddRapidRepo. -->
+    <ProjectReference Include="..\RapidRepo.Extensions.DependencyInjection\RapidRepo.Extensions.DependencyInjection.csproj" />
   </ItemGroup>
 
   <ItemGroup>

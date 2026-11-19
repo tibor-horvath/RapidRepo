@@ -1,7 +1,7 @@
 namespace RapidRepo.EntityFrameworkCore.Compatibility;
 
 /// <summary>
-/// Messages and the diagnostic ID shared by the 7.x type names kept for one major version to ease the upgrade.
+/// Messages and the diagnostic ID shared by the 8.x type names kept for one major version to ease the upgrade.
 /// </summary>
 /// <remarks>
 /// The shared <see cref="DiagnosticId"/> lets an application silence every shim warning at once

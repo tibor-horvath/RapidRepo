@@ -82,7 +82,7 @@ internal static class IQueryableExtensions
     /// Bypasses the soft-delete filter. When the entity has the named filter that
     /// <see cref="ModelBuilderExtensions.AddSoftDeleteQueryFilters"/> registers, only that filter is bypassed and
     /// other filters, such as a tenant filter, stay in force. Otherwise the soft-delete filter cannot be told apart
-    /// from the rest, so every filter is bypassed, as in RapidRepo 7.x.
+    /// from the rest, so every filter is bypassed, as in RapidRepo 8.x.
     /// </summary>
     /// <param name="query">The query.</param>
     /// <param name="model">The model the query runs against, if known.</param>

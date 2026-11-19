@@ -131,7 +131,7 @@ public class SoftDeleteFilterTests : IDisposable
     [Fact]
     public void AnonymousFilter_IncludeDeleted_FallsBackToBypassingEveryFilter()
     {
-        // As in 7.x, AddSoftDeleteQueryFilters replaced the existing anonymous filter, so "hidden" is visible.
+        // As in 8.x, AddSoftDeleteQueryFilters replaced the existing anonymous filter, so "hidden" is visible.
         _legacies.GetAll().Select(l => l.Title).Should().BeEquivalentTo(["visible", "hidden"]);
         _legacies.GetAll(options: IncludeDeleted).Should().HaveCount(3);
     }
