@@ -83,11 +83,12 @@ Each type passed to the attribute is a **source** of entities:
 | A type deriving from `Microsoft.EntityFrameworkCore.DbContext` | Every public `DbSet<TEntity>` property whose entity derives from `BaseEntity<TKey>` |
 | A type deriving from `BaseEntity<TKey>` | That entity |
 
-Entity sources are how providers without a `DbContext`, such as Dapper, use the generator. The two kinds can be mixed:
+Entity sources are how providers without a `DbContext` use the generator. The two kinds can be mixed:
 
 ```csharp
+// MyOrmUnitOfWork<Guid> stands for the unit-of-work base class of a provider without a DbContext.
 [GenerateUnitOfWork(typeof(Product), typeof(Order), typeof(Category))]
-public partial class CatalogUnitOfWork : DapperUnitOfWork<Guid>, ICatalogUnitOfWork { ... }
+public partial class CatalogUnitOfWork : MyOrmUnitOfWork<Guid>, ICatalogUnitOfWork { ... }
 
 [GenerateUnitOfWork(typeof(AppDbContext), typeof(AuditEntry))]
 public partial class AppUnitOfWork : EfUnitOfWork<Guid>, IAppUnitOfWork { ... }

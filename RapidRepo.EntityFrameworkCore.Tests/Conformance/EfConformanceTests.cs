@@ -9,9 +9,11 @@ public sealed class InMemoryStagedChangesConformanceTests : StagedChangesConform
 public sealed class InMemorySoftDeleteConformanceTests : SoftDeleteConformanceTests<EfInMemoryConformanceStore>;
 public sealed class InMemoryAuditConformanceTests : AuditConformanceTests<EfInMemoryConformanceStore>;
 public sealed class InMemoryQueryConformanceTests : QueryConformanceTests<EfInMemoryConformanceStore>;
+public sealed class InMemoryQueryExpressionConformanceTests : QueryExpressionConformanceTests<EfInMemoryConformanceStore>;
 
 public sealed class SqliteCrudConformanceTests : CrudConformanceTests<EfSqliteConformanceStore>;
 public sealed class SqliteStagedChangesConformanceTests : StagedChangesConformanceTests<EfSqliteConformanceStore>;
 public sealed class SqliteSoftDeleteConformanceTests : SoftDeleteConformanceTests<EfSqliteConformanceStore>;
 public sealed class SqliteAuditConformanceTests : AuditConformanceTests<EfSqliteConformanceStore>;
 public sealed class SqliteQueryConformanceTests : QueryConformanceTests<EfSqliteConformanceStore>;
+public sealed class SqliteQueryExpressionConformanceTests : QueryExpressionConformanceTests<EfSqliteConformanceStore>;

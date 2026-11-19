@@ -150,7 +150,7 @@ A provider may accept a subclass with its own hints, for example `EfReadOptions<
 
 ### Selector overloads
 
-`GetAll`, `GetAllPaged`, `GetFirst*`, `GetSingle*`, `GetById` and `GetByIds` all have a `selector` overload that projects the result without loading the full entity:
+`GetAll`, `GetAllPaged`, `GetFirst*`, `GetSingle*`, `GetById` and `GetByIds` all have a `selector` overload that returns a projection instead of the entity. With Entity Framework Core the projection runs in the database, so only the selected columns are read; a provider that cannot translate selectors may load the matching rows and project them in memory (see [Writing a provider](providers.md#reads)):
 
 ```csharp
 IEnumerable<ProductSummary> summaries = await _unitOfWork.Products.GetAllAsync(

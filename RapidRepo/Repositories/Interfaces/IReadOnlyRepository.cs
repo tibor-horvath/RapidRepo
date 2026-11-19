@@ -18,6 +18,13 @@ namespace RapidRepo.Repositories.Interfaces;
 /// Unless <see cref="ReadOptions.IncludeDeleted"/> is set, soft-deleted entities are excluded.
 /// </para>
 /// <para>
+/// Every provider translates a common set of conditions (comparisons, <c>&amp;&amp;</c>, <c>||</c>, <c>!</c>, null
+/// checks, <see cref="string"/> <c>StartsWith</c>/<c>EndsWith</c>/<c>Contains</c> and <c>Contains</c> on an in-memory
+/// collection) and throws <see cref="NotSupportedException"/> for conditions it cannot translate. Filtering, sorting
+/// and paging always happen in the store. Selectors run in the store where the provider can translate them; otherwise
+/// the provider applies them in memory to the rows it read.
+/// </para>
+/// <para>
 /// Paging without a sort order orders by <c>Id</c>, so every provider returns the same, stable pages. Other reads
 /// without a sort order return entities in whatever order the provider produces.
 /// </para>

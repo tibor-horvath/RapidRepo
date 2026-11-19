@@ -82,8 +82,9 @@ public abstract class EfUnitOfWork<TUserKey> : UnitOfWorkBase<TUserKey>
     /// stamped (unchanged, detached or hard-deleted).
     /// </summary>
     /// <remarks>
-    /// A soft delete or restore is recognised by comparing the original and current <c>DeletedAt</c>. Only the
-    /// transition counts, so saving an already deleted entity again does not overwrite who deleted it and when.
+    /// A soft delete or restore is recognised by <see cref="EntityChangeClassifier.ClassifyUpdate"/>, from the
+    /// original <c>DeletedAt</c>. Only the transition counts, so saving an already deleted entity again does not
+    /// overwrite who deleted it and when.
     /// </remarks>
     private static EntityChangeKind? Classify(EntityEntry entry)
     {
@@ -94,16 +95,9 @@ public abstract class EfUnitOfWork<TUserKey> : UnitOfWorkBase<TUserKey>
 
             case EntityState.Modified when entry.Entity is IDeletableEntity
                 && entry.Metadata.FindProperty(nameof(IDeletableEntity.DeletedAt)) is not null:
-                var deletedAt = entry.Property(nameof(IDeletableEntity.DeletedAt));
-                var wasDeleted = deletedAt.OriginalValue is not null;
-                var isDeleted = deletedAt.CurrentValue is not null;
+                var originalDeletedAt = (DateTime?)entry.Property(nameof(IDeletableEntity.DeletedAt)).OriginalValue;
 
-                return (wasDeleted, isDeleted) switch
-                {
-                    (false, true) => EntityChangeKind.SoftDeleted,
-                    (true, false) => EntityChangeKind.Restored,
-                    _ => EntityChangeKind.Modified,
-                };
+                return EntityChangeClassifier.ClassifyUpdate(entry.Entity, originalDeletedAt);
 
             case EntityState.Modified:
                 return EntityChangeKind.Modified;

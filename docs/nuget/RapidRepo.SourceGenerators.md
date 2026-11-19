@@ -45,7 +45,7 @@ public partial class AppUnitOfWork
 }
 ```
 
-- Sources can be `DbContext` types or entity types: `[GenerateUnitOfWork(typeof(Product), typeof(Order))]` works without a `DbContext`, for example with a Dapper provider.
+- Sources can be `DbContext` types or entity types: `[GenerateUnitOfWork(typeof(Product), typeof(Order))]` works without a `DbContext`, for providers that have none.
 - Property names come from the `DbSet<T>` member, the entity name in plural (`Category` becomes `Categories`), or the repository interface (`IMatchRepository` becomes `Matches`).
 - A custom repository wins over a `DbSet<T>` or entity source of the same entity.
 - `[UnitOfWorkProperty("People")]` on an interface overrides the generated name.
