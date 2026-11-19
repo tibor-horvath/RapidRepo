@@ -61,6 +61,8 @@ public class ProductRepository(AppDbContext context) : EfRepository<Product, lon
 }
 ```
 
+The write methods of `EfRepository` are virtual, and the write rules call them through the repository. An override of `HardDelete`, for example, also sees the hard deletes that `Delete`, `DeleteById` and `HardDeleteById` make. To change how changes are staged in the `DbContext` rather than what an operation does, derive from `EfWriteRepository<TEntity, TId>` and override its `Stage*` hooks.
+
 ### Which context to take
 
 The base classes accept any `DbContext`. Taking your derived context (`AppDbContext`) resolves with no further setup, because `AddDbContext<AppDbContext>()` registers `AppDbContext` and not the base `DbContext` type. Taking the base `DbContext` keeps a repository reusable across contexts, but needs a forwarder, which [`UseEntityFrameworkCore<TContext>()`](dependency-injection.md) registers for you. In an application with several contexts, always take the derived context.

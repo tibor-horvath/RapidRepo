@@ -5,6 +5,9 @@
 
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <!-- EF1001 flags every '*.EntityFrameworkCore.Internal' namespace as EF Core's own internals, which includes
+         RapidRepo.EntityFrameworkCore.Internal that these tests reach through InternalsVisibleTo. -->
+    <NoWarn>$(NoWarn);EF1001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

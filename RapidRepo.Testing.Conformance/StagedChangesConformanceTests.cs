@@ -65,6 +65,22 @@ public abstract class StagedChangesConformanceTests<TStore> : ConformanceTests<T
     }
 
     [Fact]
+    public void DeleteById_OfTheDefaultKey_LeavesPendingInsertsAlone()
+    {
+        var session = OpenSession();
+
+        session.Widgets().Add(new Widget { Name = "Pending" });
+        session.Notes().Add(new Note { Title = "Pending" });
+        session.Widgets().DeleteById(default);
+        session.Widgets().HardDeleteById(default);
+        session.Notes().DeleteById(default);
+        session.UnitOfWork.Commit();
+
+        InNewSession(s => s.Widgets().Count()).Should().Be(1);
+        InNewSession(s => s.Notes().Count()).Should().Be(1);
+    }
+
+    [Fact]
     public void Sessions_DoNotSeeEachOthersStagedChanges()
     {
         var writer = OpenSession();

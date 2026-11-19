@@ -1,6 +1,5 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using RapidRepo.Entities;
-using RapidRepo.Repositories.Interfaces;
 
 namespace RapidRepo.EntityFrameworkCore;
 
@@ -16,12 +15,12 @@ public class EfRepository<TEntity, TId> : EfReadOnlyRepository<TEntity, TId>, IE
     where TEntity : BaseEntity<TId>
     where TId : notnull
 {
-    private readonly IWriteRepository<TEntity, TId> _writeRepository;
+    private readonly WriteRepository _writeRepository;
 
     public EfRepository(DbContext dbContext)
         : base(dbContext)
     {
-        _writeRepository = new WriteRepository(dbContext);
+        _writeRepository = new WriteRepository(this, dbContext);
     }
 
     public virtual void Add(TEntity entity) => _writeRepository.Add(entity);
@@ -34,11 +33,11 @@ public class EfRepository<TEntity, TId> : EfReadOnlyRepository<TEntity, TId>, IE
     public virtual Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default) =>
         _writeRepository.AddRangeAsync(entities, cancellationToken);
 
-    public virtual void Delete(TEntity entity) => _writeRepository.Delete(entity);
+    public virtual void Delete(TEntity entity) => _writeRepository.BaseDelete(entity);
 
     public virtual void DeleteRange(IEnumerable<TEntity> entities) => _writeRepository.DeleteRange(entities);
 
-    public virtual void Restore(TEntity entity) => _writeRepository.Restore(entity);
+    public virtual void Restore(TEntity entity) => _writeRepository.BaseRestore(entity);
 
     public virtual void RestoreRange(IEnumerable<TEntity> entities) => _writeRepository.RestoreRange(entities);
 
@@ -51,9 +50,9 @@ public class EfRepository<TEntity, TId> : EfReadOnlyRepository<TEntity, TId>, IE
         CancellationToken cancellationToken = default) =>
         _writeRepository.RestoreByIdAsync(id, includeDeleted, cancellationToken);
 
-    public virtual void HardDelete(TEntity entity) => _writeRepository.HardDelete(entity);
+    public virtual void HardDelete(TEntity entity) => _writeRepository.BaseHardDelete(entity);
 
-    public virtual void HardDeleteRange(IEnumerable<TEntity> entities) => _writeRepository.HardDeleteRange(entities);
+    public virtual void HardDeleteRange(IEnumerable<TEntity> entities) => _writeRepository.BaseHardDeleteRange(entities);
 
     public virtual void HardDeleteById(TId id, bool includeDeleted = false) =>
         _writeRepository.HardDeleteById(id, includeDeleted);
@@ -76,7 +75,32 @@ public class EfRepository<TEntity, TId> : EfReadOnlyRepository<TEntity, TId>, IE
     /// <summary>
     /// The write side this repository delegates to; C# has no multiple inheritance from the two abstract bases.
     /// </summary>
-    private sealed class WriteRepository(DbContext dbContext) : EfWriteRepository<TEntity, TId>(dbContext);
+    /// <remarks>
+    /// The write rules call some operations from others: <c>DeleteById</c> calls <c>Delete</c>, <c>Delete</c> of an
+    /// entity without soft delete calls <c>HardDelete</c>, and so on. Those calls are routed back through
+    /// <paramref name="owner"/>, so that a repository overriding <see cref="EfRepository{TEntity, TId}.HardDelete"/>
+    /// sees every hard delete, not only direct calls. The owner's default implementations call the
+    /// <c>Base*</c> members, which run the rules themselves.
+    /// </remarks>
+    private sealed class WriteRepository(EfRepository<TEntity, TId> owner, DbContext dbContext)
+        : EfWriteRepository<TEntity, TId>(dbContext)
+    {
+        public override void Delete(TEntity entity) => owner.Delete(entity);
+
+        public override void Restore(TEntity entity) => owner.Restore(entity);
+
+        public override void HardDelete(TEntity entity) => owner.HardDelete(entity);
+
+        public override void HardDeleteRange(IEnumerable<TEntity> entities) => owner.HardDeleteRange(entities);
+
+        internal void BaseDelete(TEntity entity) => base.Delete(entity);
+
+        internal void BaseRestore(TEntity entity) => base.Restore(entity);
+
+        internal void BaseHardDelete(TEntity entity) => base.HardDelete(entity);
+
+        internal void BaseHardDeleteRange(IEnumerable<TEntity> entities) => base.HardDeleteRange(entities);
+    }
 }
 
 /// <summary>

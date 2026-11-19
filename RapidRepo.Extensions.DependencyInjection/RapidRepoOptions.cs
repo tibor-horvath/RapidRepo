@@ -107,7 +107,9 @@ public sealed class RapidRepoOptions
     /// Register a unit of work. Registers <typeparamref name="TInterface"/> → <typeparamref name="TImpl"/>
     /// and also forwards any closed <c>IUnitOfWork&lt;TKey&gt;</c> that <typeparamref name="TImpl"/> implements.
     /// </summary>
-    /// <exception cref="ArgumentException"><typeparamref name="TInterface"/> is not an interface type.</exception>
+    /// <exception cref="ArgumentException">
+    /// <typeparamref name="TInterface"/> is not an interface type, or <typeparamref name="TImpl"/> is abstract.
+    /// </exception>
     /// <exception cref="InvalidOperationException"><typeparamref name="TInterface"/> has already been registered.</exception>
     public RapidRepoOptions UseUnitOfWork<TInterface, TImpl>()
         where TInterface : class
@@ -118,15 +120,8 @@ public sealed class RapidRepoOptions
                 $"'{typeof(TInterface).Name}' is not an interface type. TInterface must be an interface.",
                 nameof(TInterface));
 
-        var interfaceType = typeof(TInterface);
-
-        if (_unitOfWorkRegistrations.Any(r => r.InterfaceType == interfaceType))
-            throw new InvalidOperationException(
-                $"A unit of work has already been registered for interface '{interfaceType.Name}'. " +
-                "Call UseUnitOfWork once per interface type.");
-
-        _unitOfWorkRegistrations.Add((interfaceType, typeof(TImpl)));
-        return this;
+        EnsureConcrete(typeof(TImpl), nameof(TImpl));
+        return AddUnitOfWork(typeof(TInterface), typeof(TImpl));
     }
 
     /// <summary>
@@ -135,6 +130,7 @@ public sealed class RapidRepoOptions
     /// Use the two-type overload <see cref="UseUnitOfWork{TInterface,TImpl}"/> when
     /// <typeparamref name="TImpl"/> has zero or more than one such interface.
     /// </summary>
+    /// <exception cref="ArgumentException"><typeparamref name="TImpl"/> is abstract.</exception>
     /// <exception cref="InvalidOperationException">
     /// <typeparamref name="TImpl"/> implements no user-defined <see cref="IUnitOfWork{TUserKey}"/> interface,
     /// implements more than one, or the detected interface has already been registered.
@@ -144,11 +140,7 @@ public sealed class RapidRepoOptions
     {
         var implType = typeof(TImpl);
 
-        if (implType.IsAbstract)
-            throw new ArgumentException(
-                $"'{implType.Name}' is abstract and cannot be used as a unit-of-work implementation. " +
-                "Provide a concrete class.",
-                nameof(TImpl));
+        EnsureConcrete(implType, nameof(TImpl));
 
         // Collect user-defined interfaces that extend IUnitOfWork<TKey> but are not the root itself.
         var candidateInterfaces = implType.GetInterfaces()
@@ -170,15 +162,7 @@ public sealed class RapidRepoOptions
                 $"[{string.Join(", ", candidateInterfaces.Select(i => i.Name))}]. " +
                 $"Use UseUnitOfWork<TInterface, TImpl>() to specify the interface explicitly.");
 
-        var interfaceType = candidateInterfaces[0];
-
-        if (_unitOfWorkRegistrations.Any(r => r.InterfaceType == interfaceType))
-            throw new InvalidOperationException(
-                $"A unit of work has already been registered for interface '{interfaceType.Name}'. " +
-                "Call UseUnitOfWork once per interface type.");
-
-        _unitOfWorkRegistrations.Add((interfaceType, implType));
-        return this;
+        return AddUnitOfWork(candidateInterfaces[0], implType);
     }
 
     /// <summary>
@@ -242,4 +226,24 @@ public sealed class RapidRepoOptions
     /// Equivalent to <c>Exclude(t =&gt; t == typeof(T))</c>.
     /// </summary>
     public RapidRepoOptions ExcludeType<T>() => Exclude(t => t == typeof(T));
+
+    private RapidRepoOptions AddUnitOfWork(Type interfaceType, Type implementationType)
+    {
+        if (_unitOfWorkRegistrations.Any(r => r.InterfaceType == interfaceType))
+            throw new InvalidOperationException(
+                $"A unit of work has already been registered for interface '{interfaceType.Name}'. " +
+                "Call UseUnitOfWork once per interface type.");
+
+        _unitOfWorkRegistrations.Add((interfaceType, implementationType));
+        return this;
+    }
+
+    private static void EnsureConcrete(Type implementationType, string paramName)
+    {
+        if (implementationType.IsAbstract)
+            throw new ArgumentException(
+                $"'{implementationType.Name}' is abstract and cannot be used as a unit-of-work implementation. " +
+                "Provide a concrete class.",
+                paramName);
+    }
 }

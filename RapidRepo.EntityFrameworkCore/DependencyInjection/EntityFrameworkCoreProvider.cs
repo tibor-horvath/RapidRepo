@@ -16,13 +16,9 @@ namespace RapidRepo.EntityFrameworkCore.DependencyInjection;
 internal sealed class EntityFrameworkCoreProvider(Type? contextType, EntityFrameworkCoreProviderOptions options)
     : IRapidRepoProvider
 {
-    private static readonly Type[] EfRootInterfaces = [typeof(IEfReadOnlyRepository<,>), typeof(IEfRepository<,>)];
-
     public string Name => contextType is null ? "EntityFrameworkCore" : $"EntityFrameworkCore ({contextType.Name})";
 
-    public IEnumerable<Type> AdditionalRootInterfaces => EfRootInterfaces;
-
-    internal Type? ContextType => contextType;
+    public IEnumerable<Type> AdditionalRootInterfaces => DbContextRegistrar.EfRootInterfaces;
 
     public void Register(IServiceCollection services, RapidRepoRegistrationContext context)
     {
@@ -58,10 +54,8 @@ internal sealed class EntityFrameworkCoreProvider(Type? contextType, EntityFrame
 
     private void WarnOnMissingDbContext(IServiceCollection services, List<Type> dependentTypes)
     {
-        var needsDbContext = dependentTypes.Any(t => t.GetConstructors()
-            .Any(c => c.GetParameters().Any(p => p.ParameterType == typeof(DbContext))));
-
-        if (!needsDbContext || services.Any(d => d.ServiceType == typeof(DbContext)))
+        if (!dependentTypes.Any(DbContextRegistrar.TakesBaseDbContext)
+            || services.Any(d => d.ServiceType == typeof(DbContext)))
             return;
 
         const string message =

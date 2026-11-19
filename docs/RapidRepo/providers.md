@@ -10,6 +10,7 @@ RapidRepo's core package defines the contracts and the rules; a provider impleme
 |---|---|---|
 | `IReadOnlyRepository<,>`, `IWriteRepository<,>`, `IRepository<,>`, `IUnitOfWork<>` | `RapidRepo.Repositories.Interfaces`, `RapidRepo.UnitOfWork` | The contracts application code depends on |
 | `ReadOptions`, `SortOrder<T>` | `RapidRepo.Repositories` | Read options and a declarative sort order, both inspectable |
+| `Paging` | `RapidRepo.Repositories` | Page validation, the page offset, the default page order and building `Paged<T>` |
 | `WriteRepositoryBase<TEntity, TKey>` | `RapidRepo.Repositories` | Soft vs. hard delete, restore, argument guards and error messages |
 | `UnitOfWorkBase<TUserKey>` | `RapidRepo.UnitOfWork` | `Commit`/`CommitAsync`, `GetRepository`, `ResolveRepository`, and the auditor |
 | `AuditStamper<TUserKey>`, `EntityChangeKind` | `RapidRepo.Auditing` | The audit rules, applied per entity and change kind |
@@ -42,7 +43,7 @@ Implement `IReadOnlyRepository<TEntity, TKey>`:
 
 - Translate `Expression<Func<TEntity, bool>>` conditions and selectors for your store. Throw `NotSupportedException` for expressions you cannot translate; never fall back to filtering on the client.
 - Translate `SortOrder<TEntity>.Keys` into your ordering.
-- When paging without a sort order, order by `Id`.
+- When paging, call `Paging.EnsureValid`, skip `Paging.Offset` items, fall back to `Paging.DefaultOrder<TEntity, TKey>()` when no sort order is given, and build the result with `Paging.ToPage`.
 - Exclude soft-deleted entities unless `ReadOptions.IncludeDeleted` is set. Use only the `ReadOptions` members of options meant for another provider.
 
 ---

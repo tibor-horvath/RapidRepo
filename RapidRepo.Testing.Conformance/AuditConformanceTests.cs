@@ -95,6 +95,20 @@ public abstract class AuditConformanceTests<TStore> : ConformanceTests<TStore>
     }
 
     [Fact]
+    public void Delete_OfAnAlreadyDeletedEntity_KeepsTheDeletionStamp()
+    {
+        var id = SeedNotes(new Note())[0].Id;
+        Commit(s => s.Notes().DeleteById(id), Alice);
+        Clock.UtcNow = T2;
+
+        Commit(s => s.Notes().Delete(s.Notes().GetById(id, IncludeDeleted)!), Bob);
+
+        var read = InNewSession(s => s.Notes().GetById(id, IncludeDeleted))!;
+        read.DeletedAt.Should().Be(T1);
+        read.DeletedBy.Should().Be(Alice);
+    }
+
+    [Fact]
     public void Restore_ClearsDeletedBy_AndStampsTheModification()
     {
         var id = SeedNotes(new Note())[0].Id;

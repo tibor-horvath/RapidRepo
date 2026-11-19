@@ -26,9 +26,12 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
     /// The order paging falls back to without a sort order, so pages are stable. <see cref="EfReadOptions{TEntity}.OrderBy"/>
     /// still takes precedence over it.
     /// </summary>
-    private static readonly SortOrder<TEntity> PageOrder = SortOrder<TEntity>.By(e => e.Id);
+    private static readonly SortOrder<TEntity> PageOrder = Paging.DefaultOrder<TEntity, TId>();
 
-    protected readonly DbContext DbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+    /// <summary>
+    /// Gets the <see cref="DbContext"/> the repository reads from and stages changes in.
+    /// </summary>
+    protected DbContext DbContext { get; } = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
 
     public virtual IQueryable<TEntity> Query(EfReadOptions<TEntity>? options = null) => BuildQuery(options: options);
 
@@ -364,11 +367,11 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         int pageSize = 10,
         ReadOptions? options = null)
     {
-        EnsureValidPage(pageIndex, pageSize);
+        Paging.EnsureValid(pageIndex, pageSize);
 
         var query = BuildQuery(condition, orderBy ?? PageOrder, options);
 
-        return ToPage(query.Count(), Page(query, pageIndex, pageSize).ToList(), pageIndex, pageSize);
+        return Paging.ToPage(query.Count(), Page(query, pageIndex, pageSize).ToList(), pageIndex, pageSize);
     }
 
     public virtual Paged<TResult> GetAllPaged<TResult>(
@@ -381,11 +384,11 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         where TResult : class
     {
         ArgumentNullException.ThrowIfNull(selector);
-        EnsureValidPage(pageIndex, pageSize);
+        Paging.EnsureValid(pageIndex, pageSize);
 
         var query = Untracked(condition, orderBy ?? PageOrder, options);
 
-        return ToPage(query.Count(), Page(query.Select(selector), pageIndex, pageSize).ToList(), pageIndex, pageSize);
+        return Paging.ToPage(query.Count(), Page(query.Select(selector), pageIndex, pageSize).ToList(), pageIndex, pageSize);
     }
 
     public virtual async Task<Paged<TEntity>> GetAllPagedAsync(
@@ -396,13 +399,13 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         ReadOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        EnsureValidPage(pageIndex, pageSize);
+        Paging.EnsureValid(pageIndex, pageSize);
 
         var query = BuildQuery(condition, orderBy ?? PageOrder, options);
         var totalCount = await query.CountAsync(cancellationToken);
         var results = await Page(query, pageIndex, pageSize).ToListAsync(cancellationToken);
 
-        return ToPage(totalCount, results, pageIndex, pageSize);
+        return Paging.ToPage(totalCount, results, pageIndex, pageSize);
     }
 
     public virtual async Task<Paged<TResult>> GetAllPagedAsync<TResult>(
@@ -416,13 +419,13 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         where TResult : class
     {
         ArgumentNullException.ThrowIfNull(selector);
-        EnsureValidPage(pageIndex, pageSize);
+        Paging.EnsureValid(pageIndex, pageSize);
 
         var query = Untracked(condition, orderBy ?? PageOrder, options);
         var totalCount = await query.CountAsync(cancellationToken);
         var results = await Page(query.Select(selector), pageIndex, pageSize).ToListAsync(cancellationToken);
 
-        return ToPage(totalCount, results, pageIndex, pageSize);
+        return Paging.ToPage(totalCount, results, pageIndex, pageSize);
     }
 
     /// <summary>
@@ -456,21 +459,5 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
     private static Expression<Func<TEntity, bool>> ByIds(ICollection<TId> ids) => e => ids.Contains(e.Id);
 
     private static IQueryable<T> Page<T>(IQueryable<T> query, int pageIndex, int pageSize) =>
-        query.Skip((pageIndex - 1) * pageSize).Take(pageSize);
-
-    private static Paged<T> ToPage<T>(int totalCount, List<T> results, int pageIndex, int pageSize)
-        where T : class =>
-        new()
-        {
-            Results = results,
-            TotalCount = totalCount,
-            Page = pageIndex,
-            PageSize = pageSize
-        };
-
-    private static void EnsureValidPage(int pageIndex, int pageSize)
-    {
-        ArgumentOutOfRangeException.ThrowIfLessThan(pageIndex, 1);
-        ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
-    }
+        query.Skip(Paging.Offset(pageIndex, pageSize)).Take(pageSize);
 }

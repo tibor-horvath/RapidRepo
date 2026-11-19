@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using RapidRepo.Auditing;
 using RapidRepo.Entities;
 using RapidRepo.EntityFrameworkCore.Internal;
@@ -19,7 +20,10 @@ public abstract class EfWriteRepository<TEntity, TId>(DbContext dbContext) : Wri
 {
     private static readonly ReadOptions IncludingDeleted = new() { IncludeDeleted = true };
 
-    protected readonly DbContext DbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+    /// <summary>
+    /// Gets the <see cref="DbContext"/> the repository reads from and stages changes in.
+    /// </summary>
+    protected DbContext DbContext { get; } = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
 
     protected override void StageInsert(TEntity entity) => DbContext.Set<TEntity>().Add(entity);
 
@@ -77,12 +81,19 @@ public abstract class EfWriteRepository<TEntity, TId>(DbContext dbContext) : Wri
     /// <summary>
     /// Finds an entity staged for insertion but not yet committed, which no store query can reach.
     /// </summary>
+    /// <remarks>
+    /// Only additions whose key is already final are matched. A store-generated key is unset or temporary until
+    /// the commit, so matching on it would let <c>DeleteById(default)</c> discard an arbitrary pending insert.
+    /// </remarks>
     private TEntity? FindPendingAddition(TId id) =>
         DbContext.ChangeTracker
             .Entries<TEntity>()
-            .Where(e => e.State == EntityState.Added)
+            .Where(e => e.State == EntityState.Added && HasFinalKey(e))
             .Select(e => e.Entity)
             .FirstOrDefault(e => id.Equals(e.Id));
+
+    private static bool HasFinalKey(EntityEntry<TEntity> entry) =>
+        entry.IsKeySet && !entry.Metadata.FindPrimaryKey()!.Properties.Any(p => entry.Property(p.Name).IsTemporary);
 
     private IQueryable<TEntity> QueryById(TId id, bool includeDeleted) =>
         DbContext

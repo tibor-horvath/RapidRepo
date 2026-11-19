@@ -11,6 +11,11 @@ namespace RapidRepo.EntityFrameworkCore.Internal;
 internal static class DbContextRegistrar
 {
     /// <summary>
+    /// EF Core's own open generic repository interfaces.
+    /// </summary>
+    internal static readonly Type[] EfRootInterfaces = [typeof(IEfRepository<,>), typeof(IEfReadOnlyRepository<,>)];
+
+    /// <summary>
     /// The service types a generic repository is registered against: the core contracts and EF's own.
     /// </summary>
     internal static readonly Type[] RootInterfaces =
@@ -18,8 +23,7 @@ internal static class DbContextRegistrar
         typeof(IRepository<,>),
         typeof(IReadOnlyRepository<,>),
         typeof(IWriteRepository<,>),
-        typeof(IEfRepository<,>),
-        typeof(IEfReadOnlyRepository<,>)
+        .. EfRootInterfaces
     ];
 
     /// <summary>
@@ -191,7 +195,10 @@ internal static class DbContextRegistrar
         }
     }
 
-    private static bool TakesBaseDbContext(Type type)
+    /// <summary>
+    /// Whether the container has to supply a base <see cref="DbContext"/> to activate <paramref name="type"/>.
+    /// </summary>
+    internal static bool TakesBaseDbContext(Type type)
         => type.GetConstructors()
             .Any(c => c.GetParameters().Any(p => p.ParameterType == typeof(DbContext)));
 

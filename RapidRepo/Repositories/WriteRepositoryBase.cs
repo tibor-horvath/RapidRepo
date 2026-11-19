@@ -291,11 +291,26 @@ public abstract class WriteRepositoryBase<TEntity, TKey> : IWriteRepository<TEnt
     }
 
     /// <summary>
+    /// Gets the clock for the provisional <c>DeletedAt</c> that <c>Delete</c> sets before the commit. Defaults to
+    /// <see cref="TimeProvider.System"/>; the unit of work stamps the definitive time with its own clock at commit.
+    /// </summary>
+    protected virtual TimeProvider TimeProvider => TimeProvider.System;
+
+    /// <summary>
     /// Marks the entity as deleted. <c>DeletedAt</c> gets a provisional value here; the unit of work stamps the
     /// definitive time and user at commit.
     /// </summary>
+    /// <remarks>
+    /// An entity that is already deleted keeps its marks: only the transition counts, so deleting it again must
+    /// not move <c>DeletedAt</c> away from the <c>DeletedBy</c> it belongs with. It is still staged, so that a
+    /// provider can, for example, revive an entity staged for removal.
+    /// </remarks>
     private void MarkAsDeleted(TEntity entity) =>
-        StageDeletionChange(entity, EntityChangeKind.SoftDeleted, () => ((IDeletableEntity)entity).DeletedAt = DateTime.UtcNow);
+        StageDeletionChange(entity, EntityChangeKind.SoftDeleted, () =>
+        {
+            var deletable = (IDeletableEntity)entity;
+            deletable.DeletedAt ??= TimeProvider.GetUtcNow().UtcDateTime;
+        });
 
     /// <summary>
     /// Clears <c>DeletedAt</c> and, when the entity records it, <c>DeletedBy</c>.
