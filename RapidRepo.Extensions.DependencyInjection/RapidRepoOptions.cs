@@ -1,4 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
+using RapidRepo.Auditing;
+using RapidRepo.Extensions.DependencyInjection.Internal;
 using RapidRepo.UnitOfWork;
 using System.Diagnostics;
 using System.Reflection;
@@ -14,6 +16,7 @@ public sealed class RapidRepoOptions
     private readonly List<Func<Type, bool>> _includes = [];
     private readonly List<Func<Type, bool>> _excludes = [];
     private readonly List<(Type InterfaceType, Type ImplementationType)> _unitOfWorkRegistrations = [];
+    private readonly List<CurrentUserProviderRegistration> _currentUserProviderRegistrations = [];
 
     /// <summary>Lifetime applied to every discovered repository. Default: <see cref="ServiceLifetime.Scoped"/>.</summary>
     public ServiceLifetime Lifetime { get; set; } = ServiceLifetime.Scoped;
@@ -36,7 +39,20 @@ public sealed class RapidRepoOptions
     /// </summary>
     public bool RegisterGenericRepositories { get; set; }
 
+    /// <summary>
+    /// Make a commit that has no audit user throw when it is about to stamp a user field (<c>CreatedBy</c>,
+    /// <c>ModifiedBy</c>, <c>DeletedBy</c>), instead of stamping the unit of work's default user key. A commit has
+    /// no user when no <c>userId</c> is passed and the current-user provider (see
+    /// <see cref="UseCurrentUserProvider{TProvider,TUserKey}"/>) returns <see langword="null"/> or is not configured.
+    /// A commit that stamps no user field succeeds without a user.
+    /// Registers <see cref="CurrentUserOptions"/>, which a unit of work reads from the
+    /// <see cref="IServiceProvider"/> passed to its constructor. Default: <c>false</c>.
+    /// </summary>
+    public bool RequireCurrentUser { get; set; }
+
     internal IRapidRepoProvider? Provider { get; private set; }
+
+    internal IReadOnlyList<CurrentUserProviderRegistration> CurrentUserProviderRegistrations => _currentUserProviderRegistrations;
 
     internal IReadOnlyList<Assembly> Assemblies => _assemblies;
     internal IReadOnlyList<Func<Type, bool>> Includes => _includes;
@@ -164,6 +180,67 @@ public sealed class RapidRepoOptions
     }
 
     /// <summary>
+    /// Register <typeparamref name="TProvider"/> as the <see cref="ICurrentUserProvider{TUserKey}"/> that units of
+    /// work ask for the audit user when a commit names none. It is registered with <see cref="Lifetime"/>, the
+    /// lifetime of the units of work, so it can depend on per-request services.
+    /// </summary>
+    /// <remarks>
+    /// A unit of work picks the provider up from the <see cref="IServiceProvider"/> passed to its constructor, or
+    /// takes it as a constructor parameter of its own. A registration the application already made for
+    /// <see cref="ICurrentUserProvider{TUserKey}"/> takes precedence.
+    /// </remarks>
+    /// <typeparam name="TProvider">The provider implementation.</typeparam>
+    /// <typeparam name="TUserKey">The type of the user key, the same as the unit of work's.</typeparam>
+    /// <returns>The same options, for chaining.</returns>
+    /// <exception cref="ArgumentException"><typeparamref name="TProvider"/> is abstract.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// A current-user provider has already been configured for <typeparamref name="TUserKey"/>.
+    /// </exception>
+    public RapidRepoOptions UseCurrentUserProvider<TProvider, TUserKey>()
+        where TProvider : class, ICurrentUserProvider<TUserKey>
+        where TUserKey : struct
+    {
+        if (typeof(TProvider).IsAbstract)
+            throw new ArgumentException(
+                $"'{typeof(TProvider).Name}' is abstract and cannot be used as a current-user provider. " +
+                "Provide a concrete class.",
+                nameof(TProvider));
+
+        return AddCurrentUserProvider(
+            typeof(TUserKey),
+            lifetime => new ServiceDescriptor(typeof(ICurrentUserProvider<TUserKey>), typeof(TProvider), lifetime));
+    }
+
+    /// <summary>
+    /// Register a delegate as the <see cref="ICurrentUserProvider{TUserKey}"/> that units of work ask for the audit
+    /// user when a commit names none, for example
+    /// <c>UseCurrentUser&lt;Guid&gt;(sp =&gt; sp.GetRequiredService&lt;IHttpContextAccessor&gt;().HttpContext?.User.GetUserId())</c>.
+    /// </summary>
+    /// <remarks>
+    /// The delegate runs once per commit that names no user, with the service provider of the unit of work's
+    /// scope. The provider is registered with <see cref="Lifetime"/>, the lifetime of the units of work.
+    /// </remarks>
+    /// <typeparam name="TUserKey">The type of the user key, the same as the unit of work's.</typeparam>
+    /// <param name="getCurrentUserId">Returns the current user, or <see langword="null"/> when there is none.</param>
+    /// <returns>The same options, for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="getCurrentUserId"/> is <c>null</c>.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// A current-user provider has already been configured for <typeparamref name="TUserKey"/>.
+    /// </exception>
+    public RapidRepoOptions UseCurrentUser<TUserKey>(Func<IServiceProvider, TUserKey?> getCurrentUserId)
+        where TUserKey : struct
+    {
+        ArgumentNullException.ThrowIfNull(getCurrentUserId);
+
+        return AddCurrentUserProvider(
+            typeof(TUserKey),
+            lifetime => new ServiceDescriptor(
+                typeof(ICurrentUserProvider<TUserKey>),
+                sp => new DelegateCurrentUserProvider<TUserKey>(sp, getCurrentUserId),
+                lifetime));
+    }
+
+    /// <summary>
     /// Additive include predicate. A type is registered only if at least one include predicate returns <c>true</c>
     /// (when any includes are configured). Evaluated after excludes; exclude always wins.
     /// </summary>
@@ -233,6 +310,17 @@ public sealed class RapidRepoOptions
                 "Call UseUnitOfWork once per interface type.");
 
         _unitOfWorkRegistrations.Add((interfaceType, implementationType));
+        return this;
+    }
+
+    private RapidRepoOptions AddCurrentUserProvider(Type userKeyType, Func<ServiceLifetime, ServiceDescriptor> createDescriptor)
+    {
+        if (_currentUserProviderRegistrations.Any(r => r.UserKeyType == userKeyType))
+            throw new InvalidOperationException(
+                $"A current-user provider has already been configured for user key type '{userKeyType.Name}'. " +
+                "Call UseCurrentUserProvider or UseCurrentUser once per user key type.");
+
+        _currentUserProviderRegistrations.Add(new CurrentUserProviderRegistration(userKeyType, createDescriptor));
         return this;
     }
 

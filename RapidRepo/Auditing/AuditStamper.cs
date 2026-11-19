@@ -39,6 +39,13 @@ public sealed class AuditStamper<TUserKey>(TUserKey defaultUserKey, TimeProvider
     public TUserKey DefaultUserKey { get; } = defaultUserKey;
 
     /// <summary>
+    /// Called when a user field is about to be stamped and the commit has no user. Returns the exception to throw
+    /// (strict mode), or <see langword="null"/> to stamp <see cref="DefaultUserKey"/>. Set by
+    /// <c>UnitOfWorkBase&lt;TUserKey&gt;</c>, so that a commit that stamps no user field never fails for lack of one.
+    /// </summary>
+    internal Func<Exception?>? OnMissingUser { get; set; }
+
+    /// <summary>
     /// Gets the current UTC time from the configured clock.
     /// </summary>
     public DateTime UtcNow => _timeProvider.GetUtcNow().UtcDateTime;
@@ -65,19 +72,17 @@ public sealed class AuditStamper<TUserKey>(TUserKey defaultUserKey, TimeProvider
     {
         ArgumentNullException.ThrowIfNull(entity);
 
-        var user = userId ?? DefaultUserKey;
-
         if (kind == EntityChangeKind.Added)
         {
             if (entity is IAuditableEntity auditable)
                 auditable.CreatedAt = utcNow;
 
             if (entity is IAuditableEntity<TUserKey> auditableByUser)
-                auditableByUser.CreatedBy = user;
+                auditableByUser.CreatedBy = ResolveUser(userId);
 
             // Added and soft-deleted before the commit: inserted as deleted, so it is stamped as deleted too.
             if (entity is IDeletableEntity { DeletedAt: not null })
-                StampDeletion(entity, user, utcNow);
+                StampDeletion(entity, userId, utcNow);
 
             return;
         }
@@ -86,12 +91,12 @@ public sealed class AuditStamper<TUserKey>(TUserKey defaultUserKey, TimeProvider
             modified.ModifiedAt = utcNow;
 
         if (entity is IAuditableEntity<TUserKey> modifiedByUser)
-            modifiedByUser.ModifiedBy = user;
+            modifiedByUser.ModifiedBy = ResolveUser(userId);
 
         switch (kind)
         {
             case EntityChangeKind.SoftDeleted:
-                StampDeletion(entity, user, utcNow);
+                StampDeletion(entity, userId, utcNow);
                 break;
 
             case EntityChangeKind.Restored:
@@ -104,12 +109,27 @@ public sealed class AuditStamper<TUserKey>(TUserKey defaultUserKey, TimeProvider
         }
     }
 
-    private static void StampDeletion(object entity, TUserKey user, DateTime utcNow)
+    private void StampDeletion(object entity, TUserKey? userId, DateTime utcNow)
     {
         if (entity is IDeletableEntity deleted)
             deleted.DeletedAt = utcNow;
 
         if (entity is IDeletableEntity<TUserKey> deletedByUser)
-            deletedByUser.DeletedBy = user;
+            deletedByUser.DeletedBy = ResolveUser(userId);
+    }
+
+    /// <summary>
+    /// The user for a user field: <paramref name="userId"/>, else <see cref="DefaultUserKey"/> unless
+    /// <see cref="OnMissingUser"/> says the commit must have one. Asked only when a user field is stamped.
+    /// </summary>
+    private TUserKey ResolveUser(TUserKey? userId)
+    {
+        if (userId is { } user)
+            return user;
+
+        if (OnMissingUser?.Invoke() is { } exception)
+            throw exception;
+
+        return DefaultUserKey;
     }
 }

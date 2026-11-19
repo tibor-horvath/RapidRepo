@@ -1,3 +1,4 @@
+using RapidRepo.Auditing;
 using RapidRepo.Entities;
 using RapidRepo.Repositories.Interfaces;
 using RapidRepo.UnitOfWork;
@@ -20,8 +21,12 @@ public interface IConformanceStore : IDisposable
     /// see each other's committed changes and nothing else, like separate requests in an application.
     /// </summary>
     /// <param name="clock">The clock the unit of work stamps audit fields with.</param>
+    /// <param name="currentUserProvider">
+    /// The unit of work's current-user provider, or <see langword="null"/> for none. Pass it to the
+    /// <c>UnitOfWorkBase&lt;TUserKey&gt;</c> constructor, which owns the resolution order.
+    /// </param>
     /// <returns>The session.</returns>
-    IConformanceSession OpenSession(TimeProvider clock);
+    IConformanceSession OpenSession(TimeProvider clock, ICurrentUserProvider<Guid>? currentUserProvider = null);
 }
 
 /// <summary>

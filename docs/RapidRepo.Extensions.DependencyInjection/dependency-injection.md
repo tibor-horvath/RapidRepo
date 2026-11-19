@@ -62,6 +62,9 @@ This single call replaces one `AddScoped<>` line per repository. Any concrete, n
 | `ThrowOnAmbiguousRegistration` | `bool` | `true` | Throw when two concretes implement the same user-defined interface. |
 | `ThrowOnSingletonMisuse` | `bool` | `false` | Throw (instead of warn) when `Lifetime` is `Singleton`. |
 | `RegisterGenericRepositories` | `bool` | `false` | Have the provider register its generic repository for the root interfaces. Requires a provider. |
+| `RequireCurrentUser` | `bool` | `false` | A commit with no audit user throws when it would stamp `CreatedBy`, `ModifiedBy` or `DeletedBy`, instead of stamping the default user key. See [Current user](#current-user). |
+| `UseCurrentUserProvider<TProvider, TUserKey>()` | method | — | Register the `ICurrentUserProvider<TUserKey>` units of work ask for the audit user. One per user key type. |
+| `UseCurrentUser<TUserKey>(Func<IServiceProvider, TUserKey?>)` | method | — | Same, from a delegate. |
 | `UseProvider(IRapidRepoProvider)` | method | — | Configure the provider for this call. Provider packages wrap it, e.g. `UseEntityFrameworkCore<TContext>()`. One per call. |
 | `ScanAssemblies(params Assembly[])` | method | — | Add one or more assemblies to scan. |
 | `ScanAssembliesContaining<TMarker>()` | method | — | Add the assembly that contains `TMarker`. |
@@ -208,6 +211,34 @@ This is equivalent to the two-type form above. Startup throws in the following c
 | The detected interface was already registered | `InvalidOperationException` |
 
 Call `UseUnitOfWork` once per unit of work interface type. Registering the same interface twice — whether via the same overload or by mixing both overloads — throws `InvalidOperationException`.
+
+---
+
+## Current user
+
+Register an `ICurrentUserProvider<TUserKey>` so that units of work stamp the audit user without every commit passing one. For the resolution order and how a unit of work finds the provider, see [Unit of Work — The current user](../RapidRepo/unit-of-work.md#the-current-user).
+
+```csharp
+builder.Services.AddRapidRepo(options =>
+{
+    options.UseEntityFrameworkCore<AppDbContext>();
+    options.UseUnitOfWork<AppUnitOfWork>();
+    options.UseCurrentUserProvider<HttpContextUserProvider, Guid>();
+});
+```
+
+For a one-liner, use a delegate. It runs with the service provider of the unit of work's scope:
+
+```csharp
+options.UseCurrentUser<Guid>(sp =>
+    sp.GetRequiredService<IHttpContextAccessor>().HttpContext?.User.GetUserId());
+```
+
+- The provider is registered with `Lifetime`, the lifetime of the units of work, so a scoped unit of work gets a scoped provider that can depend on per-request services. With a `Singleton` lifetime, the singleton misuse warning or error mentions the provider too.
+- Configure one provider per user key type; a second `UseCurrentUserProvider` or `UseCurrentUser` for the same type throws `InvalidOperationException`.
+- A registration the application already made for `ICurrentUserProvider<TUserKey>` takes precedence.
+
+Set `RequireCurrentUser = true` to make a commit with no user throw, instead of stamping the default user key, when it would stamp a user field. It registers `CurrentUserOptions`, which the unit of work reads from the service provider passed to its constructor.
 
 ---
 

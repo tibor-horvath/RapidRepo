@@ -71,7 +71,9 @@ Derive from `UnitOfWorkBase<TUserKey>` and implement:
 | Member | Responsibility |
 |---|---|
 | `CreateRepository<TEntity, TKey>()` | Your generic repository, bound to this unit of work. Generated code reaches it through `GetRepository` |
-| `CommitCore` / `CommitCoreAsync` | Map each staged change to an `EntityChangeKind` (inserts are `Added`; for updates call `EntityChangeClassifier.ClassifyUpdate(entity, originalDeletedAt)`), call `Auditor.Stamp(entity, kind, userId, utcNow)` with one `Auditor.UtcNow` for the whole commit, then persist everything, ideally in one transaction |
+| `CommitCore` / `CommitCoreAsync` | Map each staged change to an `EntityChangeKind` (inserts are `Added`; for updates call `EntityChangeClassifier.ClassifyUpdate(entity, originalDeletedAt)`), call `Auditor.Stamp(entity, kind, userId, utcNow)` with one `Auditor.UtcNow` for the whole commit, then persist everything, ideally in one transaction. `userId` arrives already resolved from the commit's argument and the current-user provider, so a provider needs no code for either |
+
+Offer a constructor that takes an `ICurrentUserProvider<TUserKey>?` and passes it to the `UnitOfWorkBase` constructor, as `EfUnitOfWork` does, so applications that don't pass an `IServiceProvider` can still supply one.
 
 Report a soft delete as `SoftDeleted` only on the transition from not deleted to deleted, so an edit to an already deleted entity keeps its deletion stamp. `EntityChangeClassifier` applies this rule; it needs the `DeletedAt` the entity had before the change. A change-tracking provider reads its original value. A command-based provider records it the first time it stages the entity, before `StageDeletionChange` calls `applyChange`.
 
