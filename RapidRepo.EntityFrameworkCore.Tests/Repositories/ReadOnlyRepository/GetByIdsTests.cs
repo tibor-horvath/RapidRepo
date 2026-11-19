@@ -1,4 +1,5 @@
 using FluentAssertions;
+using RapidRepo.Repositories;
 using RapidRepo.EntityFrameworkCore.Tests.Repositories.ReadOnlyRepository.TestData;
 using RapidRepo.EntityFrameworkCore.Tests.Repositories.TestData;
 
@@ -136,7 +137,7 @@ public class GetByIdsTests : BaseReadOnlyRepositoryTest
         DetachAllEntities();
 
         // Act
-        var result = _sut.GetByIds([employee.Id], ignoreQueryFilters: true).ToList();
+        var result = _sut.GetByIds([employee.Id], options: new ReadOptions { IncludeDeleted = true }).ToList();
 
         // Assert
         result.Should().HaveCount(1);
@@ -256,7 +257,7 @@ public class GetByIdsTests : BaseReadOnlyRepositoryTest
         DetachAllEntities();
 
         // Act
-        var result = (await _sut.GetByIdsAsync([employee.Id], ignoreQueryFilters: true)).ToList();
+        var result = (await _sut.GetByIdsAsync([employee.Id], options: new ReadOptions { IncludeDeleted = true })).ToList();
 
         // Assert
         result.Should().HaveCount(1);

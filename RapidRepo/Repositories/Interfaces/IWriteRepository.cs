@@ -87,35 +87,33 @@ public interface IWriteRepository<TEntity, in TKey>
     /// Restores a soft-deleted entity by its identifier. Does nothing when no entity has that identifier.
     /// </summary>
     /// <remarks>
-    /// <paramref name="ignoreQueryFilters"/> defaults to <see langword="true"/> because a soft-deleted entity is
-    /// hidden by its own soft-delete filter, so the lookup would otherwise never find anything to restore. Note
-    /// that this bypasses <em>every</em> global query filter on the entity, not only the soft-delete one — with a
-    /// multi-tenant or similar filter in place, pass <see langword="false"/> and load the entity yourself.
+    /// <paramref name="includeDeleted"/> defaults to <see langword="true"/> because the lookup would otherwise
+    /// skip the very soft-deleted entity it is meant to restore. Providers that cannot separate the soft-delete
+    /// filter from other filters may bypass those too; see the provider's documentation.
     /// </remarks>
     /// <param name="id">The identifier of the entity to restore.</param>
-    /// <param name="ignoreQueryFilters">Whether to bypass the global query filters when looking the entity up.</param>
+    /// <param name="includeDeleted">Whether the lookup also finds soft-deleted entities.</param>
     /// <exception cref="InvalidOperationException">
     /// Thrown when <typeparamref name="TEntity"/> does not implement <see cref="Entities.Interfaces.IDeletableEntity"/>.
     /// </exception>
-    void RestoreById(TKey id, bool ignoreQueryFilters = true);
+    void RestoreById(TKey id, bool includeDeleted = true);
 
     /// <summary>
     /// Restores a soft-deleted entity by its identifier asynchronously. Does nothing when no entity has that identifier.
     /// </summary>
     /// <remarks>
-    /// <paramref name="ignoreQueryFilters"/> defaults to <see langword="true"/> because a soft-deleted entity is
-    /// hidden by its own soft-delete filter, so the lookup would otherwise never find anything to restore. Note
-    /// that this bypasses <em>every</em> global query filter on the entity, not only the soft-delete one — with a
-    /// multi-tenant or similar filter in place, pass <see langword="false"/> and load the entity yourself.
+    /// <paramref name="includeDeleted"/> defaults to <see langword="true"/> because the lookup would otherwise
+    /// skip the very soft-deleted entity it is meant to restore. Providers that cannot separate the soft-delete
+    /// filter from other filters may bypass those too; see the provider's documentation.
     /// </remarks>
     /// <param name="id">The identifier of the entity to restore.</param>
-    /// <param name="ignoreQueryFilters">Whether to bypass the global query filters when looking the entity up.</param>
+    /// <param name="includeDeleted">Whether the lookup also finds soft-deleted entities.</param>
     /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
     /// <exception cref="InvalidOperationException">
     /// Thrown when <typeparamref name="TEntity"/> does not implement <see cref="Entities.Interfaces.IDeletableEntity"/>.
     /// </exception>
-    Task RestoreByIdAsync(TKey id, bool ignoreQueryFilters = true, CancellationToken cancellationToken = default);
+    Task RestoreByIdAsync(TKey id, bool includeDeleted = true, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Permanently removes an entity, bypassing soft delete.
@@ -140,30 +138,30 @@ public interface IWriteRepository<TEntity, in TKey>
     /// Does nothing when no entity has that identifier.
     /// </summary>
     /// <remarks>
-    /// <paramref name="ignoreQueryFilters"/> defaults to <see langword="false"/>, so only entities the caller can
-    /// normally see are reachable. Pass <see langword="true"/> to also reach rows that are already soft-deleted —
-    /// but be aware that it bypasses <em>every</em> global query filter on the entity, so with a multi-tenant or
-    /// similar filter in place it can permanently erase a row the caller was never meant to see.
+    /// <paramref name="includeDeleted"/> defaults to <see langword="false"/>, so only entities the caller can
+    /// normally see are reachable. Pass <see langword="true"/> to also reach rows that are already soft-deleted.
+    /// Providers that cannot separate the soft-delete filter from other filters may bypass those too (for example
+    /// a tenant filter), so check the provider's documentation before erasing rows by identifier.
     /// </remarks>
     /// <param name="id">The identifier of the entity to remove.</param>
-    /// <param name="ignoreQueryFilters">Whether to bypass the global query filters when looking the entity up.</param>
-    void HardDeleteById(TKey id, bool ignoreQueryFilters = false);
+    /// <param name="includeDeleted">Whether the lookup also finds soft-deleted entities.</param>
+    void HardDeleteById(TKey id, bool includeDeleted = false);
 
     /// <summary>
     /// Permanently removes an entity by its identifier asynchronously, bypassing soft delete.
     /// Does nothing when no entity has that identifier.
     /// </summary>
     /// <remarks>
-    /// <paramref name="ignoreQueryFilters"/> defaults to <see langword="false"/>, so only entities the caller can
-    /// normally see are reachable. Pass <see langword="true"/> to also reach rows that are already soft-deleted —
-    /// but be aware that it bypasses <em>every</em> global query filter on the entity, so with a multi-tenant or
-    /// similar filter in place it can permanently erase a row the caller was never meant to see.
+    /// <paramref name="includeDeleted"/> defaults to <see langword="false"/>, so only entities the caller can
+    /// normally see are reachable. Pass <see langword="true"/> to also reach rows that are already soft-deleted.
+    /// Providers that cannot separate the soft-delete filter from other filters may bypass those too (for example
+    /// a tenant filter), so check the provider's documentation before erasing rows by identifier.
     /// </remarks>
     /// <param name="id">The identifier of the entity to remove.</param>
-    /// <param name="ignoreQueryFilters">Whether to bypass the global query filters when looking the entity up.</param>
+    /// <param name="includeDeleted">Whether the lookup also finds soft-deleted entities.</param>
     /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
-    Task HardDeleteByIdAsync(TKey id, bool ignoreQueryFilters = false, CancellationToken cancellationToken = default);
+    Task HardDeleteByIdAsync(TKey id, bool includeDeleted = false, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Updates an existing entity in the repository.

@@ -12,7 +12,7 @@ namespace RapidRepo.EntityFrameworkCore;
 /// </remarks>
 /// <typeparam name="TEntity">The type of the entity managed by the repository.</typeparam>
 /// <typeparam name="TId">The type of the entity's identifier.</typeparam>
-public class EfRepository<TEntity, TId> : EfReadOnlyRepository<TEntity, TId>, IRepository<TEntity, TId>
+public class EfRepository<TEntity, TId> : EfReadOnlyRepository<TEntity, TId>, IEfRepository<TEntity, TId>
     where TEntity : BaseEntity<TId>
     where TId : notnull
 {
@@ -42,27 +42,27 @@ public class EfRepository<TEntity, TId> : EfReadOnlyRepository<TEntity, TId>, IR
 
     public virtual void RestoreRange(IEnumerable<TEntity> entities) => _writeRepository.RestoreRange(entities);
 
-    public virtual void RestoreById(TId id, bool ignoreQueryFilters = true) =>
-        _writeRepository.RestoreById(id, ignoreQueryFilters);
+    public virtual void RestoreById(TId id, bool includeDeleted = true) =>
+        _writeRepository.RestoreById(id, includeDeleted);
 
     public virtual Task RestoreByIdAsync(
         TId id,
-        bool ignoreQueryFilters = true,
+        bool includeDeleted = true,
         CancellationToken cancellationToken = default) =>
-        _writeRepository.RestoreByIdAsync(id, ignoreQueryFilters, cancellationToken);
+        _writeRepository.RestoreByIdAsync(id, includeDeleted, cancellationToken);
 
     public virtual void HardDelete(TEntity entity) => _writeRepository.HardDelete(entity);
 
     public virtual void HardDeleteRange(IEnumerable<TEntity> entities) => _writeRepository.HardDeleteRange(entities);
 
-    public virtual void HardDeleteById(TId id, bool ignoreQueryFilters = false) =>
-        _writeRepository.HardDeleteById(id, ignoreQueryFilters);
+    public virtual void HardDeleteById(TId id, bool includeDeleted = false) =>
+        _writeRepository.HardDeleteById(id, includeDeleted);
 
     public virtual Task HardDeleteByIdAsync(
         TId id,
-        bool ignoreQueryFilters = false,
+        bool includeDeleted = false,
         CancellationToken cancellationToken = default) =>
-        _writeRepository.HardDeleteByIdAsync(id, ignoreQueryFilters, cancellationToken);
+        _writeRepository.HardDeleteByIdAsync(id, includeDeleted, cancellationToken);
 
     public virtual void Update(TEntity entity) => _writeRepository.Update(entity);
 

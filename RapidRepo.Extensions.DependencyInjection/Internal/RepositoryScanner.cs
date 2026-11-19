@@ -1,3 +1,4 @@
+using RapidRepo.EntityFrameworkCore;
 using RapidRepo.Repositories.Interfaces;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -10,7 +11,13 @@ internal static class RepositoryScanner
     [
         typeof(IReadOnlyRepository<,>),
         typeof(IWriteRepository<,>),
-        typeof(IRepository<,>)
+        typeof(IRepository<,>),
+
+        // Provider interfaces are roots too: every EfRepository implements them, so treating them as
+        // user-defined would make every scanned repository ambiguous.
+        // TODO(#111, Phase 5): supplied by the provider through IRapidRepoProvider.AdditionalRootInterfaces.
+        typeof(IEfReadOnlyRepository<,>),
+        typeof(IEfRepository<,>)
     ];
 
     internal static IEnumerable<(Type ConcreteType, IReadOnlyList<Type> RegistrationInterfaces)> GetCandidates(

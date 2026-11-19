@@ -1,4 +1,5 @@
 using FluentAssertions;
+using RapidRepo.Repositories;
 using RapidRepo.EntityFrameworkCore.Tests.Repositories.ReadOnlyRepository.TestData;
 using RapidRepo.EntityFrameworkCore.Tests.Repositories.TestData;
 
@@ -70,7 +71,7 @@ public class ExistsByIdTests : BaseReadOnlyRepositoryTest
         DetachAllEntities();
 
         // Act
-        var result = _sut.ExistsById(employee.Id, ignoreQueryFilters: true);
+        var result = _sut.ExistsById(employee.Id, options: new ReadOptions { IncludeDeleted = true });
 
         // Assert
         result.Should().BeTrue();
@@ -153,7 +154,7 @@ public class ExistsByIdTests : BaseReadOnlyRepositoryTest
         DetachAllEntities();
 
         // Act
-        var result = await _sut.ExistsByIdAsync(employee.Id, ignoreQueryFilters: true);
+        var result = await _sut.ExistsByIdAsync(employee.Id, options: new ReadOptions { IncludeDeleted = true });
 
         // Assert
         result.Should().BeTrue();

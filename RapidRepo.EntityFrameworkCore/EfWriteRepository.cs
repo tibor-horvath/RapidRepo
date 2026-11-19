@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 using RapidRepo.Entities;
 using RapidRepo.Entities.Interfaces;
 using RapidRepo.EntityFrameworkCore.Internal;
+using RapidRepo.Repositories;
 using RapidRepo.Repositories.Interfaces;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -24,6 +25,8 @@ public abstract class EfWriteRepository<TEntity, TId>(DbContext dbContext) : IWr
     private static readonly bool TracksDeletedBy = Array.Exists(
         typeof(TEntity).GetInterfaces(),
         i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IDeletableEntity<>));
+
+    private static readonly ReadOptions IncludingDeleted = new() { IncludeDeleted = true };
 
     protected readonly DbContext DbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     protected readonly bool SupportsSoftDelete =
@@ -102,23 +105,23 @@ public abstract class EfWriteRepository<TEntity, TId>(DbContext dbContext) : IWr
         }
     }
 
-    public virtual void RestoreById(TId id, bool ignoreQueryFilters = true)
+    public virtual void RestoreById(TId id, bool includeDeleted = true)
     {
         ArgumentNullException.ThrowIfNull(id);
         EnsureSupportsSoftDelete();
 
-        ApplyById(id, ignoreQueryFilters, Restore);
+        ApplyById(id, includeDeleted, Restore);
     }
 
     public virtual Task RestoreByIdAsync(
         TId id,
-        bool ignoreQueryFilters = true,
+        bool includeDeleted = true,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(id);
         EnsureSupportsSoftDelete();
 
-        return ApplyByIdAsync(id, ignoreQueryFilters, Restore, cancellationToken);
+        return ApplyByIdAsync(id, includeDeleted, Restore, cancellationToken);
     }
 
     public virtual void HardDelete(TEntity entity)
@@ -133,21 +136,21 @@ public abstract class EfWriteRepository<TEntity, TId>(DbContext dbContext) : IWr
         DbContext.RemoveRange(entities.ToList());
     }
 
-    public virtual void HardDeleteById(TId id, bool ignoreQueryFilters = false)
+    public virtual void HardDeleteById(TId id, bool includeDeleted = false)
     {
         ArgumentNullException.ThrowIfNull(id);
 
-        ApplyById(id, ignoreQueryFilters, HardDelete);
+        ApplyById(id, includeDeleted, HardDelete);
     }
 
     public virtual Task HardDeleteByIdAsync(
         TId id,
-        bool ignoreQueryFilters = false,
+        bool includeDeleted = false,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(id);
 
-        return ApplyByIdAsync(id, ignoreQueryFilters, HardDelete, cancellationToken);
+        return ApplyByIdAsync(id, includeDeleted, HardDelete, cancellationToken);
     }
 
     public virtual void Update(TEntity entity)
@@ -247,11 +250,11 @@ public abstract class EfWriteRepository<TEntity, TId>(DbContext dbContext) : IWr
     /// Applies an operation to the entity with the given identifier, if there is one.
     /// </summary>
     /// <param name="id">The identifier of the entity.</param>
-    /// <param name="ignoreQueryFilters">Whether to bypass the global query filters when looking the entity up.</param>
+    /// <param name="includeDeleted">Whether the lookup also finds soft-deleted entities.</param>
     /// <param name="operation">The operation to apply.</param>
-    private void ApplyById(TId id, bool ignoreQueryFilters, Action<TEntity> operation)
+    private void ApplyById(TId id, bool includeDeleted, Action<TEntity> operation)
     {
-        var entity = FindById(id, ignoreQueryFilters);
+        var entity = FindById(id, includeDeleted);
         if (entity != null)
         {
             operation(entity);
@@ -262,17 +265,17 @@ public abstract class EfWriteRepository<TEntity, TId>(DbContext dbContext) : IWr
     /// Asynchronously applies an operation to the entity with the given identifier, if there is one.
     /// </summary>
     /// <param name="id">The identifier of the entity.</param>
-    /// <param name="ignoreQueryFilters">Whether to bypass the global query filters when looking the entity up.</param>
+    /// <param name="includeDeleted">Whether the lookup also finds soft-deleted entities.</param>
     /// <param name="operation">The operation to apply.</param>
     /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
     private async Task ApplyByIdAsync(
         TId id,
-        bool ignoreQueryFilters,
+        bool includeDeleted,
         Action<TEntity> operation,
         CancellationToken cancellationToken)
     {
-        var entity = await FindByIdAsync(id, ignoreQueryFilters, cancellationToken);
+        var entity = await FindByIdAsync(id, includeDeleted, cancellationToken);
         if (entity != null)
         {
             operation(entity);
@@ -284,26 +287,26 @@ public abstract class EfWriteRepository<TEntity, TId>(DbContext dbContext) : IWr
     /// </summary>
     /// <remarks>
     /// A pending addition exists only in the change tracker, so it is looked up there; anything already in the
-    /// store is resolved by the query, which is what applies <paramref name="ignoreQueryFilters"/>. EF returns
+    /// store is resolved by the query, which is what applies <paramref name="includeDeleted"/>. EF returns
     /// the tracked instance for a row it already tracks, so a tracked entity is still found — but only when the
     /// filters admit it. Consulting the tracker for those as well would let a soft-deleted entity be reached
     /// through <see cref="HardDeleteById(TId, bool)"/> merely because something had loaded it earlier.
     /// </remarks>
     /// <param name="id">The identifier of the entity.</param>
-    /// <param name="ignoreQueryFilters">Whether to bypass the global query filters when querying the store.</param>
+    /// <param name="includeDeleted">Whether the store query also finds soft-deleted entities.</param>
     /// <returns>The entity, or <see langword="null"/> when no entity has that identifier.</returns>
-    private TEntity? FindById(TId id, bool ignoreQueryFilters) =>
-        FindPendingAddition(id) ?? QueryById(id, ignoreQueryFilters).FirstOrDefault();
+    private TEntity? FindById(TId id, bool includeDeleted) =>
+        FindPendingAddition(id) ?? QueryById(id, includeDeleted).FirstOrDefault();
 
     /// <summary>
     /// Asynchronously finds an entity by its identifier, including one staged for insertion but not yet committed.
     /// </summary>
     /// <param name="id">The identifier of the entity.</param>
-    /// <param name="ignoreQueryFilters">Whether to bypass the global query filters when querying the store.</param>
+    /// <param name="includeDeleted">Whether the store query also finds soft-deleted entities.</param>
     /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
     /// <returns>The entity, or <see langword="null"/> when no entity has that identifier.</returns>
-    private async Task<TEntity?> FindByIdAsync(TId id, bool ignoreQueryFilters, CancellationToken cancellationToken) =>
-        FindPendingAddition(id) ?? await QueryById(id, ignoreQueryFilters).FirstOrDefaultAsync(cancellationToken);
+    private async Task<TEntity?> FindByIdAsync(TId id, bool includeDeleted, CancellationToken cancellationToken) =>
+        FindPendingAddition(id) ?? await QueryById(id, includeDeleted).FirstOrDefaultAsync(cancellationToken);
 
     /// <summary>
     /// Finds an entity staged for insertion but not yet committed, which no store query can reach.
@@ -321,15 +324,14 @@ public abstract class EfWriteRepository<TEntity, TId>(DbContext dbContext) : IWr
     /// Builds a store query for a single entity.
     /// </summary>
     /// <param name="id">The identifier of the entity.</param>
-    /// <param name="ignoreQueryFilters">Whether to bypass the global query filters.</param>
+    /// <param name="includeDeleted">Whether the query also finds soft-deleted entities.</param>
     /// <returns>The query.</returns>
-    private IQueryable<TEntity> QueryById(TId id, bool ignoreQueryFilters) =>
+    private IQueryable<TEntity> QueryById(TId id, bool includeDeleted) =>
         DbContext
             .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
+            .ApplyRead(
                 condition: e => id.Equals(e.Id),
-                ignoreQueryFilters: ignoreQueryFilters);
+                options: includeDeleted ? IncludingDeleted : ReadOptions.Default);
 
     /// <summary>
     /// Guards operations that are only meaningful for entities participating in soft delete.

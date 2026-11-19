@@ -1,231 +1,128 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query;
 using RapidRepo.Dtos;
 using RapidRepo.Entities;
 using RapidRepo.EntityFrameworkCore.Internal;
-using RapidRepo.Repositories.Interfaces;
+using RapidRepo.Repositories;
 using System.Linq.Expressions;
 
 namespace RapidRepo.EntityFrameworkCore;
-public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IReadOnlyRepository<TEntity, TId>
+
+/// <summary>
+/// An EF Core implementation of the read side of the repository contract.
+/// </summary>
+/// <remarks>
+/// Every read accepts <see cref="EfReadOptions{TEntity}"/> in place of <see cref="ReadOptions"/> for includes,
+/// tracking, split queries and query filters. Entities are tracked unless the options say otherwise; projections,
+/// counts and existence checks are never tracked.
+/// </remarks>
+/// <typeparam name="TEntity">The type of the entity managed by the repository.</typeparam>
+/// <typeparam name="TId">The type of the entity's identifier.</typeparam>
+/// <param name="dbContext">The <see cref="DbContext"/> used for data access operations.</param>
+public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : IEfReadOnlyRepository<TEntity, TId>
     where TEntity : BaseEntity<TId>
     where TId : notnull
 {
     protected readonly DbContext DbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
 
-    public virtual bool Any(Expression<Func<TEntity, bool>> condition)
+    public virtual IQueryable<TEntity> Query(EfReadOptions<TEntity>? options = null) => BuildQuery(options: options);
+
+    public virtual bool ExistsById(TId id, ReadOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(id);
+
+        return Untracked(options: options).Any(ById(id));
+    }
+
+    public virtual Task<bool> ExistsByIdAsync(
+        TId id,
+        ReadOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(id);
+
+        return Untracked(options: options).AnyAsync(ById(id), cancellationToken);
+    }
+
+    public virtual bool Any(Expression<Func<TEntity, bool>> condition, ReadOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(condition);
 
-        return DbContext.Set<TEntity>().AsNoTracking().Any(condition);
+        return Untracked(options: options).Any(condition);
     }
 
-    public virtual async Task<bool> AnyAsync(
+    public virtual Task<bool> AnyAsync(
         Expression<Func<TEntity, bool>> condition,
+        ReadOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(condition);
 
-        return await DbContext.Set<TEntity>().AsNoTracking().AnyAsync(condition, cancellationToken);
+        return Untracked(options: options).AnyAsync(condition, cancellationToken);
     }
 
-    public virtual bool ExistsById(TId id, bool ignoreQueryFilters = false)
+    public virtual int Count(Expression<Func<TEntity, bool>>? condition = null, ReadOptions? options = null) =>
+        Untracked(condition, options: options).Count();
+
+    public virtual Task<int> CountAsync(
+        Expression<Func<TEntity, bool>>? condition = null,
+        ReadOptions? options = null,
+        CancellationToken cancellationToken = default) =>
+        Untracked(condition, options: options).CountAsync(cancellationToken);
+
+    public virtual TEntity? GetById(TId id, ReadOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(id);
 
-        return DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: false)
-            .Any(e => id.Equals(e.Id));
-    }
-
-    public virtual async Task<bool> ExistsByIdAsync(
-        TId id,
-        bool ignoreQueryFilters = false,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(id);
-
-        return await DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: false)
-            .AnyAsync(e => id.Equals(e.Id), cancellationToken);
-    }
-
-    public virtual int Count(
-        Expression<Func<TEntity, bool>>? condition = null,
-        bool ignoreQueryFilters = false)
-    {
-        return DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: false)
-            .Count();
-    }
-
-    public virtual async Task<int> CountAsync(
-        Expression<Func<TEntity,
-        bool>>? condition = null,
-        bool ignoreQueryFilters = false,
-        CancellationToken cancellationToken = default)
-    {
-        return await DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: false)
-            .CountAsync(cancellationToken);
-    }
-
-
-    public virtual IEnumerable<TEntity> GetAll(
-        Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false,
-        bool track = true)
-    {
-        return DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: track)
-            .ToList();
-    }
-
-    public virtual async Task<IEnumerable<TEntity>> GetAllAsync(
-        Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false,
-        bool track = true,
-        CancellationToken cancellationToken = default)
-    {
-        return await DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: track)
-            .ToListAsync(cancellationToken);
-    }
-
-    public virtual TEntity? GetById(
-        TId id,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool track = true,
-        bool ignoreQueryFilters = false)
-    {
-        ArgumentNullException.ThrowIfNull(id);
-
-        return DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: track)
-            .FirstOrDefault(e => id.Equals(e.Id));
+        return BuildQuery(options: options).FirstOrDefault(ById(id));
     }
 
     public virtual TResult? GetById<TResult>(
         TId id,
         Expression<Func<TEntity, TResult>> selector,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false)
+        ReadOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(id);
         ArgumentNullException.ThrowIfNull(selector);
 
-        return DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: false)
-            .Where(e => id.Equals(e.Id))
-            .Select(selector)
-            .FirstOrDefault();
+        return Untracked(ById(id), options: options).Select(selector).FirstOrDefault();
     }
 
-    public virtual async Task<TEntity?> GetByIdAsync(
+    public virtual Task<TEntity?> GetByIdAsync(
         TId id,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool track = true,
-        bool ignoreQueryFilters = false,
+        ReadOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(id);
 
-        return await DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: track)
-            .FirstOrDefaultAsync(e => id.Equals(e.Id), cancellationToken);
+        return BuildQuery(options: options).FirstOrDefaultAsync(ById(id), cancellationToken);
     }
 
-    public virtual IEnumerable<TEntity> GetByIds(
-        IEnumerable<TId> ids,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool track = true,
-        bool ignoreQueryFilters = false)
+    public virtual Task<TResult?> GetByIdAsync<TResult>(
+        TId id,
+        Expression<Func<TEntity, TResult>> selector,
+        ReadOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(id);
+        ArgumentNullException.ThrowIfNull(selector);
+
+        return Untracked(ById(id), options: options).Select(selector).FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public virtual IEnumerable<TEntity> GetByIds(IEnumerable<TId> ids, ReadOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(ids);
 
         var idList = ids as ICollection<TId> ?? ids.ToList();
         if (idList.Count == 0) return [];
 
-        return DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: track)
-            .Where(e => idList.Contains(e.Id))
-            .ToList();
+        return BuildQuery(ByIds(idList), options: options).ToList();
     }
 
     public virtual IEnumerable<TResult> GetByIds<TResult>(
         IEnumerable<TId> ids,
         Expression<Func<TEntity, TResult>> selector,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false)
+        ReadOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(ids);
         ArgumentNullException.ThrowIfNull(selector);
@@ -233,25 +130,12 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         var idList = ids as ICollection<TId> ?? ids.ToList();
         if (idList.Count == 0) return [];
 
-        return DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: false)
-            .Where(e => idList.Contains(e.Id))
-            .Select(selector)
-            .ToList();
+        return Untracked(ByIds(idList), options: options).Select(selector).ToList();
     }
 
     public virtual async Task<IEnumerable<TEntity>> GetByIdsAsync(
         IEnumerable<TId> ids,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool track = true,
-        bool ignoreQueryFilters = false,
+        ReadOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(ids);
@@ -259,24 +143,13 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         var idList = ids as ICollection<TId> ?? ids.ToList();
         if (idList.Count == 0) return [];
 
-        return await DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: track)
-            .Where(e => idList.Contains(e.Id))
-            .ToListAsync(cancellationToken);
+        return await BuildQuery(ByIds(idList), options: options).ToListAsync(cancellationToken);
     }
 
     public virtual async Task<IEnumerable<TResult>> GetByIdsAsync<TResult>(
         IEnumerable<TId> ids,
         Expression<Func<TEntity, TResult>> selector,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false,
+        ReadOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(ids);
@@ -285,640 +158,313 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         var idList = ids as ICollection<TId> ?? ids.ToList();
         if (idList.Count == 0) return [];
 
-        return await DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: false)
-            .Where(e => idList.Contains(e.Id))
-            .Select(selector)
-            .ToListAsync(cancellationToken);
+        return await Untracked(ByIds(idList), options: options).Select(selector).ToListAsync(cancellationToken);
+    }
+
+    public virtual TEntity? GetFirstOrDefault(
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        ReadOptions? options = null) =>
+        BuildQuery(condition, orderBy, options).FirstOrDefault();
+
+    public virtual TResult? GetFirstOrDefault<TResult>(
+        Expression<Func<TEntity, TResult>> selector,
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        ReadOptions? options = null)
+        where TResult : class
+    {
+        ArgumentNullException.ThrowIfNull(selector);
+
+        return Untracked(condition, orderBy, options).Select(selector).FirstOrDefault();
+    }
+
+    public virtual Task<TEntity?> GetFirstOrDefaultAsync(
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        ReadOptions? options = null,
+        CancellationToken cancellationToken = default) =>
+        BuildQuery(condition, orderBy, options).FirstOrDefaultAsync(cancellationToken);
+
+    public virtual Task<TResult?> GetFirstOrDefaultAsync<TResult>(
+        Expression<Func<TEntity, TResult>> selector,
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        ReadOptions? options = null,
+        CancellationToken cancellationToken = default)
+        where TResult : class
+    {
+        ArgumentNullException.ThrowIfNull(selector);
+
+        return Untracked(condition, orderBy, options).Select(selector).FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public virtual TEntity GetFirst(
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        ReadOptions? options = null) =>
+        BuildQuery(condition, orderBy, options).First();
+
+    public virtual TResult GetFirst<TResult>(
+        Expression<Func<TEntity, TResult>> selector,
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        ReadOptions? options = null)
+        where TResult : class
+    {
+        ArgumentNullException.ThrowIfNull(selector);
+
+        return Untracked(condition, orderBy, options).Select(selector).First();
+    }
+
+    public virtual Task<TEntity> GetFirstAsync(
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        ReadOptions? options = null,
+        CancellationToken cancellationToken = default) =>
+        BuildQuery(condition, orderBy, options).FirstAsync(cancellationToken);
+
+    public virtual Task<TResult> GetFirstAsync<TResult>(
+        Expression<Func<TEntity, TResult>> selector,
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        ReadOptions? options = null,
+        CancellationToken cancellationToken = default)
+        where TResult : class
+    {
+        ArgumentNullException.ThrowIfNull(selector);
+
+        return Untracked(condition, orderBy, options).Select(selector).FirstAsync(cancellationToken);
+    }
+
+    public virtual TEntity? GetSingleOrDefault(
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        ReadOptions? options = null) =>
+        BuildQuery(condition, orderBy, options).SingleOrDefault();
+
+    public virtual TResult? GetSingleOrDefault<TResult>(
+        Expression<Func<TEntity, TResult>> selector,
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        ReadOptions? options = null)
+        where TResult : class
+    {
+        ArgumentNullException.ThrowIfNull(selector);
+
+        return Untracked(condition, orderBy, options).Select(selector).SingleOrDefault();
+    }
+
+    public virtual Task<TEntity?> GetSingleOrDefaultAsync(
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        ReadOptions? options = null,
+        CancellationToken cancellationToken = default) =>
+        BuildQuery(condition, orderBy, options).SingleOrDefaultAsync(cancellationToken);
+
+    public virtual Task<TResult?> GetSingleOrDefaultAsync<TResult>(
+        Expression<Func<TEntity, TResult>> selector,
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        ReadOptions? options = null,
+        CancellationToken cancellationToken = default)
+        where TResult : class
+    {
+        ArgumentNullException.ThrowIfNull(selector);
+
+        return Untracked(condition, orderBy, options).Select(selector).SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public virtual TEntity GetSingle(
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        ReadOptions? options = null) =>
+        BuildQuery(condition, orderBy, options).Single();
+
+    public virtual TResult GetSingle<TResult>(
+        Expression<Func<TEntity, TResult>> selector,
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        ReadOptions? options = null)
+        where TResult : class
+    {
+        ArgumentNullException.ThrowIfNull(selector);
+
+        return Untracked(condition, orderBy, options).Select(selector).Single();
+    }
+
+    public virtual Task<TEntity> GetSingleAsync(
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        ReadOptions? options = null,
+        CancellationToken cancellationToken = default) =>
+        BuildQuery(condition, orderBy, options).SingleAsync(cancellationToken);
+
+    public virtual Task<TResult> GetSingleAsync<TResult>(
+        Expression<Func<TEntity, TResult>> selector,
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        ReadOptions? options = null,
+        CancellationToken cancellationToken = default)
+        where TResult : class
+    {
+        ArgumentNullException.ThrowIfNull(selector);
+
+        return Untracked(condition, orderBy, options).Select(selector).SingleAsync(cancellationToken);
+    }
+
+    public virtual IEnumerable<TEntity> GetAll(
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        ReadOptions? options = null) =>
+        BuildQuery(condition, orderBy, options).ToList();
+
+    public virtual IEnumerable<TResult> GetAll<TResult>(
+        Expression<Func<TEntity, TResult>> selector,
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        ReadOptions? options = null)
+        where TResult : class
+    {
+        ArgumentNullException.ThrowIfNull(selector);
+
+        return Untracked(condition, orderBy, options).Select(selector).ToList();
+    }
+
+    public virtual async Task<IEnumerable<TEntity>> GetAllAsync(
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        ReadOptions? options = null,
+        CancellationToken cancellationToken = default) =>
+        await BuildQuery(condition, orderBy, options).ToListAsync(cancellationToken);
+
+    public virtual async Task<IEnumerable<TResult>> GetAllAsync<TResult>(
+        Expression<Func<TEntity, TResult>> selector,
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        ReadOptions? options = null,
+        CancellationToken cancellationToken = default)
+        where TResult : class
+    {
+        ArgumentNullException.ThrowIfNull(selector);
+
+        return await Untracked(condition, orderBy, options).Select(selector).ToListAsync(cancellationToken);
+    }
+
+    public virtual Paged<TEntity> GetAllPaged(
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        int pageIndex = 1,
+        int pageSize = 10,
+        ReadOptions? options = null)
+    {
+        EnsureValidPage(pageIndex, pageSize);
+
+        var query = BuildQuery(condition, orderBy, options);
+
+        return ToPage(query.Count(), Page(query, pageIndex, pageSize).ToList(), pageIndex, pageSize);
     }
 
     public virtual Paged<TResult> GetAllPaged<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false,
+        SortOrder<TEntity>? orderBy = null,
         int pageIndex = 1,
-        int pageSize = 10)
+        int pageSize = 10,
+        ReadOptions? options = null)
         where TResult : class
     {
         ArgumentNullException.ThrowIfNull(selector);
-        ArgumentOutOfRangeException.ThrowIfLessThan(pageIndex, 1);
-        ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
+        EnsureValidPage(pageIndex, pageSize);
 
-        var query = DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: false);
+        var query = Untracked(condition, orderBy, options);
 
-        var totalCount = query.Count();
+        return ToPage(query.Count(), Page(query.Select(selector), pageIndex, pageSize).ToList(), pageIndex, pageSize);
+    }
 
-        var results = query
-            .Select(selector)
-            .Skip((pageIndex - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
+    public virtual async Task<Paged<TEntity>> GetAllPagedAsync(
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        int pageIndex = 1,
+        int pageSize = 10,
+        ReadOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureValidPage(pageIndex, pageSize);
 
-        return new Paged<TResult>
-        {
-            Results = results,
-            TotalCount = totalCount,
-            Page = pageIndex,
-            PageSize = pageSize
-        };
+        var query = BuildQuery(condition, orderBy, options);
+        var totalCount = await query.CountAsync(cancellationToken);
+        var results = await Page(query, pageIndex, pageSize).ToListAsync(cancellationToken);
+
+        return ToPage(totalCount, results, pageIndex, pageSize);
     }
 
     public virtual async Task<Paged<TResult>> GetAllPagedAsync<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false,
+        SortOrder<TEntity>? orderBy = null,
         int pageIndex = 1,
         int pageSize = 10,
+        ReadOptions? options = null,
         CancellationToken cancellationToken = default)
         where TResult : class
     {
         ArgumentNullException.ThrowIfNull(selector);
-        ArgumentOutOfRangeException.ThrowIfLessThan(pageIndex, 1);
-        ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
+        EnsureValidPage(pageIndex, pageSize);
 
-        var query = DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: false);
-
+        var query = Untracked(condition, orderBy, options);
         var totalCount = await query.CountAsync(cancellationToken);
+        var results = await Page(query.Select(selector), pageIndex, pageSize).ToListAsync(cancellationToken);
 
-        var results = await query
-            .Select(selector)
-            .Skip((pageIndex - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
-
-        return new Paged<TResult>
-        {
-            Results = results,
-            TotalCount = totalCount,
-            Page = pageIndex,
-            PageSize = pageSize
-        };
-    }
-
-    public virtual TEntity GetFirst(
-        Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false,
-        bool track = true)
-    {
-        return DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: track)
-            .First();
-    }
-
-    public virtual async Task<TEntity> GetFirstAsync(
-        Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false,
-        bool track = true,
-        CancellationToken cancellationToken = default)
-    {
-        return await DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: track)
-            .FirstAsync(cancellationToken);
-    }
-
-    public virtual TEntity? GetFirstOrDefault(
-        Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false,
-        bool track = true)
-    {
-        return DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: track)
-            .FirstOrDefault();
-    }
-
-    public virtual async Task<TEntity?> GetFirstOrDefaultAsync(
-        Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false,
-        bool track = true,
-        CancellationToken cancellationToken = default)
-    {
-        return await DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: track)
-            .FirstOrDefaultAsync(cancellationToken);
-    }
-
-    public virtual Paged<TEntity> GetAllPaged(
-        Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false,
-        bool track = true,
-        int pageIndex = 1,
-        int pageSize = 10)
-    {
-        ArgumentOutOfRangeException.ThrowIfLessThan(pageIndex, 1);
-        ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
-
-        var query = DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: track);
-
-        var totalCount = query.Count();
-
-        var results = query.Skip((pageIndex - 1) * pageSize)
-                           .Take(pageSize)
-                           .ToList();
-
-        return new Paged<TEntity>
-        {
-            Results = results,
-            TotalCount = totalCount,
-            Page = pageIndex,
-            PageSize = pageSize
-        };
-    }
-
-    public virtual async Task<Paged<TEntity>> GetAllPagedAsync(
-        Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false,
-        bool track = true,
-        int pageIndex = 1,
-        int pageSize = 10,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentOutOfRangeException.ThrowIfLessThan(pageIndex, 1);
-        ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
-
-        var query = DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: track);
-
-        var totalCount = await query.CountAsync(cancellationToken);
-
-        var results = await query.Skip((pageIndex - 1) * pageSize)
-                           .Take(pageSize)
-                           .ToListAsync(cancellationToken);
-
-        return new Paged<TEntity>
-        {
-            Results = results,
-            TotalCount = totalCount,
-            Page = pageIndex,
-            PageSize = pageSize
-        };
-    }
-
-    public virtual TEntity GetSingle(
-        Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false,
-        bool track = true)
-    {
-        return DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: track)
-            .Single();
-    }
-
-    public virtual async Task<TEntity> GetSingleAsync(
-        Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false,
-        bool track = true,
-        CancellationToken cancellationToken = default)
-    {
-        return await DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: track)
-            .SingleAsync(cancellationToken);
-    }
-
-    public virtual TEntity? GetSingleOrDefault(
-        Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false,
-        bool track = true)
-    {
-        return DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-               condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: track)
-            .SingleOrDefault();
-    }
-
-    public virtual async Task<TEntity?> GetSingleOrDefaultAsync(
-        Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false,
-        bool track = true,
-        CancellationToken cancellationToken = default)
-    {
-        return await DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: track)
-            .SingleOrDefaultAsync(cancellationToken);
-    }
-
-
-    public virtual Task<TResult?> GetByIdAsync<TResult>(
-        TId id,
-        Expression<Func<TEntity, TResult>> selector,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(id);
-        ArgumentNullException.ThrowIfNull(selector);
-
-        return DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: false)
-            .Where(e => id.Equals(e.Id))
-            .Select(selector)
-            .FirstOrDefaultAsync(cancellationToken);
-    }
-
-    public virtual TResult? GetFirstOrDefault<TResult>(
-        Expression<Func<TEntity, TResult>> selector,
-        Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false)
-    {
-        ArgumentNullException.ThrowIfNull(selector);
-
-        return DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: false)
-            .Select(selector)
-            .FirstOrDefault();
-    }
-
-    public virtual Task<TResult?> GetFirstOrDefaultAsync<TResult>(
-        Expression<Func<TEntity, TResult>> selector,
-        Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(selector);
-
-        return DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: false)
-            .Select(selector)
-            .FirstOrDefaultAsync(cancellationToken);
-    }
-
-    public virtual TResult GetFirst<TResult>(
-        Expression<Func<TEntity, TResult>> selector,
-        Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false)
-    {
-        ArgumentNullException.ThrowIfNull(selector);
-
-        return DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: false)
-            .Select(selector)
-            .First();
-    }
-
-    public virtual Task<TResult> GetFirstAsync<TResult>(
-        Expression<Func<TEntity, TResult>> selector,
-        Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(selector);
-
-        return DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: false)
-            .Select(selector)
-            .FirstAsync(cancellationToken);
-    }
-
-    public virtual TResult? GetSingleOrDefault<TResult>(
-        Expression<Func<TEntity, TResult>> selector,
-        Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false)
-    {
-        ArgumentNullException.ThrowIfNull(selector);
-
-        return DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: false)
-            .Select(selector)
-            .SingleOrDefault();
-    }
-
-    public virtual async Task<TResult?> GetSingleOrDefaultAsync<TResult>(
-        Expression<Func<TEntity, TResult>> selector,
-        Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(selector);
-
-        return await DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: false)
-            .Select(selector)
-            .SingleOrDefaultAsync(cancellationToken);
-    }
-
-    public virtual TResult GetSingle<TResult>(
-        Expression<Func<TEntity, TResult>> selector,
-        Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false)
-    {
-        ArgumentNullException.ThrowIfNull(selector);
-
-        return DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: false)
-            .Select(selector)
-            .Single();
-    }
-
-    public virtual async Task<TResult> GetSingleAsync<TResult>(
-        Expression<Func<TEntity, TResult>> selector,
-        Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(selector);
-
-        return await DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: false)
-            .Select(selector)
-            .SingleAsync(cancellationToken);
-    }
-
-    public virtual IEnumerable<TResult> GetAll<TResult>(
-        Expression<Func<TEntity, TResult>> selector,
-        Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false)
-    {
-        ArgumentNullException.ThrowIfNull(selector);
-
-        return DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: false)
-            .Select(selector)
-            .ToList();
-    }
-
-    public virtual async Task<IEnumerable<TResult>> GetAllAsync<TResult>(
-        Expression<Func<TEntity, TResult>> selector,
-        Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(selector);
-
-        var query = DbContext
-            .Set<TEntity>()
-            .AsQueryable()
-            .ApplyFilters<TEntity, TId>(
-                condition: condition,
-                orderBy: orderBy,
-                include: include,
-                useSplitQueries: useSplitQueries,
-                ignoreQueryFilters: ignoreQueryFilters,
-                track: false);
-
-        return await query
-            .Select(selector)
-            .ToListAsync(cancellationToken);
+        return ToPage(totalCount, results, pageIndex, pageSize);
     }
 
     /// <summary>
-    /// Builds a queryable for <typeparamref name="TEntity"/> with the standard filters applied.
-    /// Use this in custom repository methods to avoid duplicating the filter-chaining logic.
+    /// Builds a queryable for <typeparamref name="TEntity"/> with the standard read pipeline applied.
+    /// Use this in custom repository methods to avoid duplicating the option handling.
     /// </summary>
+    /// <param name="condition">The filter, if any.</param>
+    /// <param name="orderBy">The sort order, if any.</param>
+    /// <param name="options">
+    /// The read options, or <see langword="null"/> for <see cref="ReadOptions.Default"/>. Pass
+    /// <see cref="EfReadOptions{TEntity}"/> for includes, tracking and split queries.
+    /// </param>
+    /// <returns>The query.</returns>
     protected IQueryable<TEntity> BuildQuery(
         Expression<Func<TEntity, bool>>? condition = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-        bool useSplitQueries = false,
-        bool ignoreQueryFilters = false,
-        bool track = true)
-        => DbContext.Set<TEntity>().AsQueryable()
-            .ApplyFilters<TEntity, TId>(condition, orderBy, include, useSplitQueries, ignoreQueryFilters, track);
+        SortOrder<TEntity>? orderBy = null,
+        ReadOptions? options = null) =>
+        DbContext.Set<TEntity>().ApplyRead(condition, orderBy, options);
+
+    /// <summary>
+    /// Builds a no-tracking query, for projections and aggregates.
+    /// </summary>
+    private IQueryable<TEntity> Untracked(
+        Expression<Func<TEntity, bool>>? condition = null,
+        SortOrder<TEntity>? orderBy = null,
+        ReadOptions? options = null) =>
+        DbContext.Set<TEntity>().ApplyRead(condition, orderBy, options, allowTracking: false);
+
+    private static Expression<Func<TEntity, bool>> ById(TId id) => e => id.Equals(e.Id);
+
+    private static Expression<Func<TEntity, bool>> ByIds(ICollection<TId> ids) => e => ids.Contains(e.Id);
+
+    private static IQueryable<T> Page<T>(IQueryable<T> query, int pageIndex, int pageSize) =>
+        query.Skip((pageIndex - 1) * pageSize).Take(pageSize);
+
+    private static Paged<T> ToPage<T>(int totalCount, List<T> results, int pageIndex, int pageSize)
+        where T : class =>
+        new()
+        {
+            Results = results,
+            TotalCount = totalCount,
+            Page = pageIndex,
+            PageSize = pageSize
+        };
+
+    private static void EnsureValidPage(int pageIndex, int pageSize)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(pageIndex, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
+    }
 }

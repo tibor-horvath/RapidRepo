@@ -1,6 +1,7 @@
 ﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Moq;
+using RapidRepo.Repositories;
 using RapidRepo.EntityFrameworkCore.Internal;
 using RapidRepo.EntityFrameworkCore.Tests.Repositories.BaseRepository;
 using RapidRepo.EntityFrameworkCore.Tests.Repositories.TestData;
@@ -15,7 +16,7 @@ public class IQueryableExtensionsTests : BaseWriteRepositoryTest
     }
 
     [Fact]
-    public void ApplyFilters_ShouldApplyCondition_WhenConditionIsNotNull()
+    public void ApplyRead_ShouldApplyCondition_WhenConditionIsNotNull()
     {
         // Arrange
         var testData = new List<Employee>
@@ -32,7 +33,7 @@ public class IQueryableExtensionsTests : BaseWriteRepositoryTest
         mockSet.As<IQueryable<Employee>>().Setup(m => m.GetEnumerator()).Returns(testData.GetEnumerator());
 
         // Act
-        var result = mockSet.Object.ApplyFilters<Employee, int>(condition: e => e.FirstName == "John");
+        var result = mockSet.Object.ApplyRead(condition: e => e.FirstName == "John");
 
         // Assert
         result.Count().Should().Be(2);
@@ -40,7 +41,7 @@ public class IQueryableExtensionsTests : BaseWriteRepositoryTest
     }
 
     [Fact]
-    public void ApplyFilters_ShouldApplyOrderBy_WhenOrderByIsNotNull()
+    public void ApplyRead_ShouldApplyOrderBy_WhenOrderByIsNotNull()
     {
         // Arrange
         var testData = new List<Employee>
@@ -57,7 +58,7 @@ public class IQueryableExtensionsTests : BaseWriteRepositoryTest
         mockSet.As<IQueryable<Employee>>().Setup(m => m.GetEnumerator()).Returns(testData.GetEnumerator());
 
         // Act
-        var result = mockSet.Object.ApplyFilters<Employee, int>(orderBy: e => e.OrderBy(e => e.LastName));
+        var result = mockSet.Object.ApplyRead(orderBy: SortOrder<Employee>.By(e => e.LastName));
 
         // Assert
         result.Count().Should().Be(3);
@@ -65,7 +66,7 @@ public class IQueryableExtensionsTests : BaseWriteRepositoryTest
     }
 
     [Fact]
-    public void ApplyFilters_ShouldApplyInclude_WhenIncludeIsNotNull()
+    public void ApplyRead_ShouldApplyInclude_WhenIncludeIsNotNull()
     {
         // Arrange
         var testData = new List<Employee>
@@ -90,7 +91,7 @@ public class IQueryableExtensionsTests : BaseWriteRepositoryTest
         mockSet.As<IQueryable<Employee>>().Setup(m => m.GetEnumerator()).Returns(testData.GetEnumerator());
 
         // Act
-        var result = mockSet.Object.ApplyFilters<Employee, int>(include: i => i.Include(e => e.Manager!));
+        var result = mockSet.Object.ApplyRead(options: new EfReadOptions<Employee> { Include = i => i.Include(e => e.Manager!) });
 
         // Assert
         result.Count().Should().Be(1);
@@ -98,7 +99,7 @@ public class IQueryableExtensionsTests : BaseWriteRepositoryTest
     }
 
     [Fact]
-    public void ApplyFilters_ShouldNotApplyNoTracking_WhenTrackIsTrue()
+    public void ApplyRead_ShouldNotApplyNoTracking_WhenTrackIsTrue()
     {
         // Arrange       
         var employee1 = new Employee
@@ -120,7 +121,7 @@ public class IQueryableExtensionsTests : BaseWriteRepositoryTest
         DetachAllEntities();
 
         // Act
-        var result = _sut.GetById(id: employee1.Id, track: true)!;
+        var result = _sut.GetById(id: employee1.Id, options: new EfReadOptions<Employee> { Track = true })!;
 
         // Assert
         bool tracked = _dbContext.Entry(result).State != EntityState.Detached;
@@ -128,7 +129,7 @@ public class IQueryableExtensionsTests : BaseWriteRepositoryTest
     }
 
     [Fact]
-    public void ApplyFilters_ShouldApplyNoTracking_WhenTrackIsFalse()
+    public void ApplyRead_ShouldApplyNoTracking_WhenTrackIsFalse()
     {
         // Arrange
         var employee1 = new Employee
@@ -150,7 +151,7 @@ public class IQueryableExtensionsTests : BaseWriteRepositoryTest
         DetachAllEntities();
 
         // Act
-        var result = _sut.GetById(id: employee1.Id, track: false)!;
+        var result = _sut.GetById(id: employee1.Id, options: new EfReadOptions<Employee> { Track = false })!;
 
         // Assert        
         bool tracked = _dbContext.Entry(result).State == EntityState.Detached;
@@ -181,7 +182,7 @@ public class IQueryableExtensionsTests : BaseWriteRepositoryTest
         DetachAllEntities();
 
         // Act
-        var result = _sut.GetAll(ignoreQueryFilters: true);
+        var result = _sut.GetAll(options: new ReadOptions { IncludeDeleted = true });
 
         // Assert
         result.Should().HaveCount(2);
@@ -210,7 +211,7 @@ public class IQueryableExtensionsTests : BaseWriteRepositoryTest
         DetachAllEntities();
 
         // Act
-        var result = _sut.GetAll(ignoreQueryFilters: false);
+        var result = _sut.GetAll(options: ReadOptions.Default);
 
         // Assert
         result.Should().HaveCount(1);

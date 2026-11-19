@@ -94,7 +94,7 @@ public class RestoreByIdTests : BaseWriteRepositoryTest
         DetachAllEntities();
 
         // Act
-        _sut.RestoreById(employee.Id, ignoreQueryFilters: false);
+        _sut.RestoreById(employee.Id, includeDeleted: false);
         _dbContext.SaveChanges();
         DetachAllEntities();
 
@@ -116,7 +116,7 @@ public class RestoreByIdTests : BaseWriteRepositoryTest
         // Deliberately left tracked: the query filters, not the change tracker, decide what is reachable.
 
         // Act
-        _sut.RestoreById(employee.Id, ignoreQueryFilters: false);
+        _sut.RestoreById(employee.Id, includeDeleted: false);
         _dbContext.SaveChanges();
         DetachAllEntities();
 

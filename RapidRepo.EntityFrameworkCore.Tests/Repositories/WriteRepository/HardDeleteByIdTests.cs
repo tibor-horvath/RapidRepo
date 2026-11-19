@@ -19,7 +19,7 @@ public class HardDeleteByIdTests : BaseWriteRepositoryTest
         DetachAllEntities();
 
         // Act
-        _sut.HardDeleteById(employee.Id, ignoreQueryFilters: true);
+        _sut.HardDeleteById(employee.Id, includeDeleted: true);
         _dbContext.SaveChanges();
         DetachAllEntities();
 
@@ -40,7 +40,7 @@ public class HardDeleteByIdTests : BaseWriteRepositoryTest
         DetachAllEntities();
 
         // Act
-        await _sut.HardDeleteByIdAsync(employee.Id, ignoreQueryFilters: true);
+        await _sut.HardDeleteByIdAsync(employee.Id, includeDeleted: true);
         await _dbContext.SaveChangesAsync();
         DetachAllEntities();
 
@@ -155,7 +155,7 @@ public class HardDeleteByIdTests : BaseWriteRepositoryTest
         _dbContext.SaveChanges();
 
         // Act
-        _sut.HardDeleteById(employee.Id, ignoreQueryFilters: true);
+        _sut.HardDeleteById(employee.Id, includeDeleted: true);
         _dbContext.SaveChanges();
         DetachAllEntities();
 

@@ -10,15 +10,11 @@ namespace RapidRepo.Tests.Architecture;
 /// </summary>
 public class CoreAssemblyDependencyTests
 {
-    // TODO(#111): un-skip once the contracts are neutralised and the EF Core references are
-    // removed from RapidRepo.csproj (Phase 2).
-    private const string PendingProviderSplit = "RapidRepo still depends on EF Core until the provider split (#111, Phase 2).";
-
     private const string EfCoreAssemblyPrefix = "Microsoft.EntityFrameworkCore";
 
     private static readonly Assembly CoreAssembly = typeof(BaseEntity<>).Assembly;
 
-    [Fact(Skip = PendingProviderSplit)]
+    [Fact]
     public void CoreAssembly_DoesNotReferenceEntityFrameworkCore()
     {
         var efReferences = CoreAssembly
@@ -31,7 +27,7 @@ public class CoreAssemblyDependencyTests
             "the RapidRepo core must stay provider-neutral; EF Core types belong in RapidRepo.EntityFrameworkCore");
     }
 
-    [Fact(Skip = PendingProviderSplit)]
+    [Fact]
     public void CorePublicApi_DoesNotExposeEntityFrameworkCoreTypes()
     {
         var offenders = CoreAssembly
