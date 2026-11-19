@@ -87,6 +87,17 @@ public class ObsoleteShimTests : IDisposable
         repository.Count().Should().Be(1);
     }
 
+    [Fact]
+    public void LegacyUnitOfWork_Dispose_LeavesTheContextUsable()
+    {
+        var unitOfWork = new LegacyUnitOfWork(_dbContext);
+
+        unitOfWork.Dispose();
+
+        var act = () => _dbContext.Employees.Count();
+        act.Should().NotThrow("the container, not the unit of work, owns the context");
+    }
+
     private sealed class LegacyEmployeeRepository(DbContext dbContext) : BaseRepository<Employee, int>(dbContext);
 
     private sealed class LegacyUnitOfWork(DbContext dbContext) : UnitOfWork<Guid>(dbContext, Guid.Empty);

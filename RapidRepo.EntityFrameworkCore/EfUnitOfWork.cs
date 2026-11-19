@@ -1,4 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using RapidRepo.Auditing;
 using RapidRepo.Entities;
 using RapidRepo.Entities.Interfaces;
 using RapidRepo.Repositories.Interfaces;
@@ -6,112 +8,108 @@ using RapidRepo.UnitOfWork;
 
 namespace RapidRepo.EntityFrameworkCore;
 
-public abstract class EfUnitOfWork<TUserKey> : IUnitOfWork<TUserKey>, IDisposable
+/// <summary>
+/// An EF Core unit of work: stamps audit fields on the tracked changes and saves the <see cref="DbContext"/>.
+/// </summary>
+/// <remarks>
+/// The unit of work does not own the context it is given and never disposes it; whoever created the context,
+/// usually the dependency injection container, does.
+/// </remarks>
+/// <typeparam name="TUserKey">The type of the user key recorded in audit fields.</typeparam>
+public abstract class EfUnitOfWork<TUserKey> : UnitOfWorkBase<TUserKey>
     where TUserKey : struct
 {
-    private readonly TUserKey _defaultUserKey;
-    private readonly IServiceProvider? _serviceProvider;
-
-    protected DbContext DbContext { get; set; }
-
     protected EfUnitOfWork(DbContext dbContext, TUserKey defaultUserKey)
+        : this(dbContext, defaultUserKey, serviceProvider: null, timeProvider: null)
     {
-        DbContext = dbContext;
-        _defaultUserKey = defaultUserKey;
     }
 
     protected EfUnitOfWork(DbContext dbContext, TUserKey defaultUserKey, IServiceProvider serviceProvider)
-        : this(dbContext, defaultUserKey)
+        : this(dbContext, defaultUserKey, serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider)), timeProvider: null)
     {
-        ArgumentNullException.ThrowIfNull(serviceProvider);
-        _serviceProvider = serviceProvider;
     }
 
-    protected TRepo ResolveRepository<TRepo>() where TRepo : class
+    /// <param name="dbContext">The context whose changes this unit of work commits.</param>
+    /// <param name="defaultUserKey">The user recorded in audit fields when a commit names none.</param>
+    /// <param name="serviceProvider">The service provider custom repositories are resolved from, if any.</param>
+    /// <param name="timeProvider">The clock for audit timestamps, or <see langword="null"/> for the system clock.</param>
+    protected EfUnitOfWork(
+        DbContext dbContext,
+        TUserKey defaultUserKey,
+        IServiceProvider? serviceProvider,
+        TimeProvider? timeProvider)
+        : base(defaultUserKey, serviceProvider, timeProvider)
     {
-        if (_serviceProvider is null)
-        {
-            throw new InvalidOperationException(
-                $"ResolveRepository<{typeof(TRepo).Name}>() requires an IServiceProvider. " +
-                "Pass IServiceProvider to the unit of work constructor.");
-        }
-
-        return (TRepo?)_serviceProvider.GetService(typeof(TRepo))
-            ?? throw new InvalidOperationException(
-                $"No service of type '{typeof(TRepo).Name}' is registered.");
+        DbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }
 
-    public void Commit(TUserKey? userId = null)
+    protected DbContext DbContext { get; }
+
+    protected override IRepository<TEntity, TKey> CreateRepository<TEntity, TKey>() =>
+        new EfRepository<TEntity, TKey>(DbContext);
+
+    protected override void CommitCore(TUserKey? userId)
     {
-        ExecuteAudit(userId);
+        StampChanges(userId);
         DbContext.SaveChanges();
     }
 
-    public async Task CommitAsync(TUserKey? userId = null, CancellationToken cancellationToken = default)
+    protected override async Task CommitCoreAsync(TUserKey? userId, CancellationToken cancellationToken)
     {
-        ExecuteAudit(userId);
+        StampChanges(userId);
         await DbContext.SaveChangesAsync(cancellationToken);
     }
 
-    protected IRepository<TEntity, TKey> GetRepository<TEntity, TKey>()
-        where TEntity : BaseEntity<TKey>
-        where TKey : notnull
-        => new EfRepository<TEntity, TKey>(DbContext);
-
-    public void Dispose()
+    /// <summary>
+    /// Stamps every added or modified entry with one timestamp for the whole commit.
+    /// </summary>
+    private void StampChanges(TUserKey? userId)
     {
-        DbContext.Dispose();
+        var utcNow = Auditor.UtcNow;
+
+        foreach (var entry in DbContext.ChangeTracker.Entries())
+        {
+            var kind = Classify(entry);
+            if (kind is { } changeKind)
+            {
+                Auditor.Stamp(entry.Entity, changeKind, userId, utcNow);
+            }
+        }
     }
 
     /// <summary>
-    /// Executes the audit process for the entities being added or modified.
+    /// Maps a change tracker entry to the kind of change it represents, or <see langword="null"/> when it is not
+    /// stamped (unchanged, detached or hard-deleted).
     /// </summary>
-    /// <param name="userId">The optional user ID to associate with the audit.</param>
-    private void ExecuteAudit(TUserKey? userId = null)
+    /// <remarks>
+    /// A soft delete or restore is recognised by comparing the original and current <c>DeletedAt</c>. Only the
+    /// transition counts, so saving an already deleted entity again does not overwrite who deleted it and when.
+    /// </remarks>
+    private static EntityChangeKind? Classify(EntityEntry entry)
     {
-        var utcNow = DateTime.UtcNow;
-        var defaultUserKey = _defaultUserKey;
-
-        foreach (var entry in DbContext.ChangeTracker.Entries()
-            .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified))
+        switch (entry.State)
         {
-            var entity = entry.Entity;
-            var state = entry.State;
+            case EntityState.Added:
+                return EntityChangeKind.Added;
 
-            if (entity is IAuditableEntity<TUserKey> auditableEntityWithUserInfo)
-            {
-                if (state == EntityState.Added)
-                {
-                    auditableEntityWithUserInfo.CreatedAt = utcNow;
-                    auditableEntityWithUserInfo.CreatedBy = userId ?? defaultUserKey;
-                }
-                else if (state == EntityState.Modified)
-                {
-                    auditableEntityWithUserInfo.ModifiedAt = utcNow;
-                    auditableEntityWithUserInfo.ModifiedBy = userId ?? defaultUserKey;
-                }
-            }
-            else if (entity is IAuditableEntity auditableEntity)
-            {
-                if (state == EntityState.Added)
-                {
-                    auditableEntity.CreatedAt = utcNow;
-                }
-                else if (state == EntityState.Modified)
-                {
-                    auditableEntity.ModifiedAt = utcNow;
-                }
-            }
+            case EntityState.Modified when entry.Entity is IDeletableEntity
+                && entry.Metadata.FindProperty(nameof(IDeletableEntity.DeletedAt)) is not null:
+                var deletedAt = entry.Property(nameof(IDeletableEntity.DeletedAt));
+                var wasDeleted = deletedAt.OriginalValue is not null;
+                var isDeleted = deletedAt.CurrentValue is not null;
 
-            if (entity is IDeletableEntity<TUserKey> softDeletableEntityWithUserInfo && softDeletableEntityWithUserInfo.DeletedAt != null)
-            {
-                softDeletableEntityWithUserInfo.DeletedAt = utcNow;
-                softDeletableEntityWithUserInfo.DeletedBy = userId ?? defaultUserKey;
-            }
-            else if (entity is IDeletableEntity softDeletableEntity && softDeletableEntity.DeletedAt != null)
-            {
-                softDeletableEntity.DeletedAt = utcNow;
-            }
+                return (wasDeleted, isDeleted) switch
+                {
+                    (false, true) => EntityChangeKind.SoftDeleted,
+                    (true, false) => EntityChangeKind.Restored,
+                    _ => EntityChangeKind.Modified,
+                };
+
+            case EntityState.Modified:
+                return EntityChangeKind.Modified;
+
+            default:
+                return null;
         }
     }
 }

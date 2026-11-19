@@ -1,238 +1,53 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
+using RapidRepo.Auditing;
 using RapidRepo.Entities;
-using RapidRepo.Entities.Interfaces;
 using RapidRepo.EntityFrameworkCore.Internal;
 using RapidRepo.Repositories;
-using RapidRepo.Repositories.Interfaces;
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
 
 namespace RapidRepo.EntityFrameworkCore;
 
-public abstract class EfWriteRepository<TEntity, TId>(DbContext dbContext) : IWriteRepository<TEntity, TId>
+/// <summary>
+/// The EF Core write side of a repository: stages changes in the <see cref="DbContext"/> change tracker. The write
+/// rules themselves (soft delete, restore, guards) live in <see cref="WriteRepositoryBase{TEntity, TKey}"/>.
+/// </summary>
+/// <typeparam name="TEntity">The type of the entity managed by the repository.</typeparam>
+/// <typeparam name="TId">The type of the entity's identifier.</typeparam>
+/// <param name="dbContext">The <see cref="DbContext"/> used for data access operations.</param>
+public abstract class EfWriteRepository<TEntity, TId>(DbContext dbContext) : WriteRepositoryBase<TEntity, TId>
     where TEntity : BaseEntity<TId>
     where TId : notnull
 {
-    /// <summary>
-    /// The name of the property declared by <see cref="IDeletableEntity{TUserKey}"/>.
-    /// </summary>
-    private const string DeletedByPropertyName = nameof(IDeletableEntity<Guid>.DeletedBy);
-
-    /// <summary>
-    /// Whether <typeparamref name="TEntity"/> tracks who deleted it. Resolved once per closed entity type.
-    /// </summary>
-    private static readonly bool TracksDeletedBy = Array.Exists(
-        typeof(TEntity).GetInterfaces(),
-        i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IDeletableEntity<>));
-
     private static readonly ReadOptions IncludingDeleted = new() { IncludeDeleted = true };
 
     protected readonly DbContext DbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
-    protected readonly bool SupportsSoftDelete =
-            typeof(IDeletableEntity).IsAssignableFrom(typeof(TEntity));
 
-    public virtual void Add(TEntity entity)
-    {
-        ArgumentNullException.ThrowIfNull(entity);
-        DbContext.Set<TEntity>().Add(entity);
-    }
+    protected override void StageInsert(TEntity entity) => DbContext.Set<TEntity>().Add(entity);
 
-    public virtual void AddRange(IEnumerable<TEntity> entities)
-    {
-        ArgumentNullException.ThrowIfNull(entities);
-        DbContext.Set<TEntity>().AddRange(entities);
-    }
-
-    public virtual async Task AddAsync(TEntity entity, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(entity);
+    protected override async ValueTask StageInsertAsync(TEntity entity, CancellationToken cancellationToken) =>
         await DbContext.Set<TEntity>().AddAsync(entity, cancellationToken);
-    }
 
-    public virtual async Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(entities);
+    protected override void StageInsertRange(IReadOnlyList<TEntity> entities) => DbContext.Set<TEntity>().AddRange(entities);
+
+    protected override async ValueTask StageInsertRangeAsync(IReadOnlyList<TEntity> entities, CancellationToken cancellationToken) =>
         await DbContext.Set<TEntity>().AddRangeAsync(entities, cancellationToken);
-    }
 
-    public virtual void Delete(TEntity entity)
-    {
-        ArgumentNullException.ThrowIfNull(entity);
+    protected override void StageUpdate(TEntity entity) => DbContext.Set<TEntity>().Update(entity);
 
-        if (!SupportsSoftDelete)
-        {
-            HardDelete(entity);
-            return;
-        }
+    protected override void StageUpdateRange(IReadOnlyList<TEntity> entities) => DbContext.Set<TEntity>().UpdateRange(entities);
 
-        MarkAsDeleted(entity);
-    }
+    protected override void StageRemove(TEntity entity) => DbContext.Remove(entity);
 
-    public virtual void DeleteRange(IEnumerable<TEntity> entities)
-    {
-        ArgumentNullException.ThrowIfNull(entities);
-
-        if (!SupportsSoftDelete)
-        {
-            HardDeleteRange(entities);
-            return;
-        }
-
-        // Materialised before mutating: the source may be a live query over the very set being changed.
-        foreach (var entity in entities.ToList())
-        {
-            MarkAsDeleted(entity);
-        }
-    }
-
-    public virtual void Restore(TEntity entity)
-    {
-        ArgumentNullException.ThrowIfNull(entity);
-        EnsureSupportsSoftDelete();
-
-        ClearDeletionMarks(entity);
-    }
-
-    public virtual void RestoreRange(IEnumerable<TEntity> entities)
-    {
-        ArgumentNullException.ThrowIfNull(entities);
-        EnsureSupportsSoftDelete();
-
-        foreach (var entity in entities.ToList())
-        {
-            ClearDeletionMarks(entity);
-        }
-    }
-
-    public virtual void RestoreById(TId id, bool includeDeleted = true)
-    {
-        ArgumentNullException.ThrowIfNull(id);
-        EnsureSupportsSoftDelete();
-
-        ApplyById(id, includeDeleted, Restore);
-    }
-
-    public virtual Task RestoreByIdAsync(
-        TId id,
-        bool includeDeleted = true,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(id);
-        EnsureSupportsSoftDelete();
-
-        return ApplyByIdAsync(id, includeDeleted, Restore, cancellationToken);
-    }
-
-    public virtual void HardDelete(TEntity entity)
-    {
-        ArgumentNullException.ThrowIfNull(entity);
-        DbContext.Remove(entity);
-    }
-
-    public virtual void HardDeleteRange(IEnumerable<TEntity> entities)
-    {
-        ArgumentNullException.ThrowIfNull(entities);
-        DbContext.RemoveRange(entities.ToList());
-    }
-
-    public virtual void HardDeleteById(TId id, bool includeDeleted = false)
-    {
-        ArgumentNullException.ThrowIfNull(id);
-
-        ApplyById(id, includeDeleted, HardDelete);
-    }
-
-    public virtual Task HardDeleteByIdAsync(
-        TId id,
-        bool includeDeleted = false,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(id);
-
-        return ApplyByIdAsync(id, includeDeleted, HardDelete, cancellationToken);
-    }
-
-    public virtual void Update(TEntity entity)
-    {
-        ArgumentNullException.ThrowIfNull(entity);
-        DbContext.Set<TEntity>().Update(entity);
-    }
-
-    public virtual void DeleteById(TId id)
-    {
-        ArgumentNullException.ThrowIfNull(id);
-
-        var entity = DbContext.Set<TEntity>().Find(id);
-        if (entity != null)
-        {
-            Delete(entity);
-        }
-    }
-
-    public virtual async Task DeleteByIdAsync(TId id, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(id);
-
-        var entity = await DbContext.Set<TEntity>().FindAsync([id], cancellationToken);
-        if (entity != null)
-        {
-            Delete(entity);
-        }
-    }
-
-    public virtual void UpdateRange(IEnumerable<TEntity> entities)
-    {
-        ArgumentNullException.ThrowIfNull(entities);
-        DbContext.Set<TEntity>().UpdateRange(entities);
-    }
+    protected override void StageRemoveRange(IReadOnlyList<TEntity> entities) => DbContext.RemoveRange(entities);
 
     /// <summary>
-    /// Marks the entity as deleted, tracking it first when it is not already tracked as an update.
-    /// </summary>
-    /// <param name="entity">The entity to mark as deleted.</param>
-    private void MarkAsDeleted(TEntity entity)
-    {
-        Debug.Assert(SupportsSoftDelete, $"'{typeof(TEntity).Name}' does not implement '{nameof(IDeletableEntity)}'.");
-
-        TrackForUpdate(entity);
-        ((IDeletableEntity)entity).DeletedAt = DateTime.UtcNow;
-    }
-
-    /// <summary>
-    /// Clears the deletion marks from the entity, tracking it first when it is not already tracked as an update.
+    /// Tracks the entity before the deletion marks change, so that the change tracker records the transition and
+    /// the unit of work can tell a soft delete or restore apart from an ordinary edit.
     /// </summary>
     /// <remarks>
-    /// <c>DeletedBy</c> is declared on the closed <see cref="IDeletableEntity{TUserKey}"/>, whose user key type
-    /// is not a type parameter of this repository, so it cannot be reached through a cast the way
-    /// <see cref="IDeletableEntity.DeletedAt"/> can. EF already models the property, so it is cleared through
-    /// the change tracker rather than through reflection.
+    /// An entity staged for removal by <c>HardDelete</c> is revived, so that a soft delete or a restore applied
+    /// afterwards is not silently discarded when the row is dropped.
     /// </remarks>
-    /// <param name="entity">The entity to restore.</param>
-    private void ClearDeletionMarks(TEntity entity)
-    {
-        Debug.Assert(SupportsSoftDelete, $"'{typeof(TEntity).Name}' does not implement '{nameof(IDeletableEntity)}'.");
-
-        var entry = TrackForUpdate(entity);
-
-        ((IDeletableEntity)entity).DeletedAt = null;
-
-        if (TracksDeletedBy && entry.Metadata.FindProperty(DeletedByPropertyName) != null)
-        {
-            entry.Property(DeletedByPropertyName).CurrentValue = null;
-        }
-    }
-
-    /// <summary>
-    /// Tracks the entity so that subsequent property changes are persisted as an update.
-    /// </summary>
-    /// <remarks>
-    /// An entity staged for removal by <see cref="HardDelete(TEntity)"/> is revived, so that a soft delete
-    /// or a restore applied afterwards is not silently discarded when the row is dropped.
-    /// </remarks>
-    /// <param name="entity">The entity to track.</param>
-    /// <returns>The change tracker entry for the entity.</returns>
-    private EntityEntry<TEntity> TrackForUpdate(TEntity entity)
+    protected override void StageDeletionChange(TEntity entity, EntityChangeKind kind, Action applyChange)
     {
         var entry = DbContext.Entry(entity);
 
@@ -243,76 +58,25 @@ public abstract class EfWriteRepository<TEntity, TId>(DbContext dbContext) : IWr
             _ => entry.State,
         };
 
-        return entry;
+        applyChange();
     }
 
-    /// <summary>
-    /// Applies an operation to the entity with the given identifier, if there is one.
-    /// </summary>
-    /// <param name="id">The identifier of the entity.</param>
-    /// <param name="includeDeleted">Whether the lookup also finds soft-deleted entities.</param>
-    /// <param name="operation">The operation to apply.</param>
-    private void ApplyById(TId id, bool includeDeleted, Action<TEntity> operation)
-    {
-        var entity = FindById(id, includeDeleted);
-        if (entity != null)
-        {
-            operation(entity);
-        }
-    }
-
-    /// <summary>
-    /// Asynchronously applies an operation to the entity with the given identifier, if there is one.
-    /// </summary>
-    /// <param name="id">The identifier of the entity.</param>
-    /// <param name="includeDeleted">Whether the lookup also finds soft-deleted entities.</param>
-    /// <param name="operation">The operation to apply.</param>
-    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
-    /// <returns>A task that represents the asynchronous operation.</returns>
-    private async Task ApplyByIdAsync(
-        TId id,
-        bool includeDeleted,
-        Action<TEntity> operation,
-        CancellationToken cancellationToken)
-    {
-        var entity = await FindByIdAsync(id, includeDeleted, cancellationToken);
-        if (entity != null)
-        {
-            operation(entity);
-        }
-    }
-
-    /// <summary>
-    /// Finds an entity by its identifier, including one staged for insertion but not yet committed.
-    /// </summary>
     /// <remarks>
     /// A pending addition exists only in the change tracker, so it is looked up there; anything already in the
-    /// store is resolved by the query, which is what applies <paramref name="includeDeleted"/>. EF returns
-    /// the tracked instance for a row it already tracks, so a tracked entity is still found — but only when the
+    /// store is resolved by the query, which is what applies <paramref name="includeDeleted"/>. EF returns the
+    /// tracked instance for a row it already tracks, so a tracked entity is still found — but only when the
     /// filters admit it. Consulting the tracker for those as well would let a soft-deleted entity be reached
-    /// through <see cref="HardDeleteById(TId, bool)"/> merely because something had loaded it earlier.
+    /// through <c>HardDeleteById</c> merely because something had loaded it earlier.
     /// </remarks>
-    /// <param name="id">The identifier of the entity.</param>
-    /// <param name="includeDeleted">Whether the store query also finds soft-deleted entities.</param>
-    /// <returns>The entity, or <see langword="null"/> when no entity has that identifier.</returns>
-    private TEntity? FindById(TId id, bool includeDeleted) =>
+    protected override TEntity? FindForWrite(TId id, bool includeDeleted) =>
         FindPendingAddition(id) ?? QueryById(id, includeDeleted).FirstOrDefault();
 
-    /// <summary>
-    /// Asynchronously finds an entity by its identifier, including one staged for insertion but not yet committed.
-    /// </summary>
-    /// <param name="id">The identifier of the entity.</param>
-    /// <param name="includeDeleted">Whether the store query also finds soft-deleted entities.</param>
-    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
-    /// <returns>The entity, or <see langword="null"/> when no entity has that identifier.</returns>
-    private async Task<TEntity?> FindByIdAsync(TId id, bool includeDeleted, CancellationToken cancellationToken) =>
+    protected override async ValueTask<TEntity?> FindForWriteAsync(TId id, bool includeDeleted, CancellationToken cancellationToken) =>
         FindPendingAddition(id) ?? await QueryById(id, includeDeleted).FirstOrDefaultAsync(cancellationToken);
 
     /// <summary>
     /// Finds an entity staged for insertion but not yet committed, which no store query can reach.
     /// </summary>
-    /// <param name="id">The identifier of the entity.</param>
-    /// <returns>The entity, or <see langword="null"/> when no pending addition has that identifier.</returns>
     private TEntity? FindPendingAddition(TId id) =>
         DbContext.ChangeTracker
             .Entries<TEntity>()
@@ -320,35 +84,10 @@ public abstract class EfWriteRepository<TEntity, TId>(DbContext dbContext) : IWr
             .Select(e => e.Entity)
             .FirstOrDefault(e => id.Equals(e.Id));
 
-    /// <summary>
-    /// Builds a store query for a single entity.
-    /// </summary>
-    /// <param name="id">The identifier of the entity.</param>
-    /// <param name="includeDeleted">Whether the query also finds soft-deleted entities.</param>
-    /// <returns>The query.</returns>
     private IQueryable<TEntity> QueryById(TId id, bool includeDeleted) =>
         DbContext
             .Set<TEntity>()
             .ApplyRead(
                 condition: e => id.Equals(e.Id),
                 options: includeDeleted ? IncludingDeleted : ReadOptions.Default);
-
-    /// <summary>
-    /// Guards operations that are only meaningful for entities participating in soft delete.
-    /// </summary>
-    /// <param name="operation">The calling member, supplied by the compiler.</param>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown when <typeparamref name="TEntity"/> does not implement <see cref="IDeletableEntity"/>.
-    /// </exception>
-    private void EnsureSupportsSoftDelete([CallerMemberName] string operation = "")
-    {
-        if (SupportsSoftDelete)
-        {
-            return;
-        }
-
-        throw new InvalidOperationException(
-            $"'{operation}' requires '{typeof(TEntity).Name}' to implement '{nameof(IDeletableEntity)}'. " +
-            $"Entities without soft delete are removed permanently by '{nameof(Delete)}' and cannot be restored.");
-    }
 }
