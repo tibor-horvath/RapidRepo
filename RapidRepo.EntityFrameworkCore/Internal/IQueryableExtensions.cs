@@ -1,4 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
+using RapidRepo.Extensions;
 using RapidRepo.Repositories;
 using System.Linq.Expressions;
 
@@ -16,13 +18,18 @@ internal static class IQueryableExtensions
     /// <param name="allowTracking">
     /// <see langword="false"/> for projections and aggregates, which are never tracked whatever the options say.
     /// </param>
+    /// <param name="model">
+    /// The model, used to find the named soft-delete filter. Without it, <see cref="ReadOptions.IncludeDeleted"/>
+    /// bypasses every filter.
+    /// </param>
     /// <returns>The extended query.</returns>
     public static IQueryable<TEntity> ApplyRead<TEntity>(
         this IQueryable<TEntity> query,
         Expression<Func<TEntity, bool>>? condition = null,
         SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null,
-        bool allowTracking = true)
+        bool allowTracking = true,
+        IModel? model = null)
         where TEntity : class
     {
         options ??= ReadOptions.Default;
@@ -35,10 +42,13 @@ internal static class IQueryableExtensions
             query = query.AsNoTracking();
         }
 
-        // TODO(#111, Phase 4): on EF Core 10, map IncludeDeleted to the named soft-delete filter only.
-        if (options.IncludeDeleted || efOptions is { IgnoreAllQueryFilters: true })
+        if (efOptions is { IgnoreAllQueryFilters: true })
         {
             query = query.IgnoreQueryFilters();
+        }
+        else if (options.IncludeDeleted)
+        {
+            query = query.IgnoreSoftDeleteFilter(model);
         }
 
         if (condition != null)
@@ -66,6 +76,27 @@ internal static class IQueryableExtensions
         }
 
         return query;
+    }
+
+    /// <summary>
+    /// Bypasses the soft-delete filter. When the entity has the named filter that
+    /// <see cref="ModelBuilderExtensions.AddSoftDeleteQueryFilters"/> registers, only that filter is bypassed and
+    /// other filters, such as a tenant filter, stay in force. Otherwise the soft-delete filter cannot be told apart
+    /// from the rest, so every filter is bypassed, as in RapidRepo 7.x.
+    /// </summary>
+    /// <param name="query">The query.</param>
+    /// <param name="model">The model the query runs against, if known.</param>
+    /// <returns>The query without the soft-delete filter.</returns>
+    public static IQueryable<TEntity> IgnoreSoftDeleteFilter<TEntity>(this IQueryable<TEntity> query, IModel? model)
+        where TEntity : class
+    {
+        var rootType = model?.FindEntityType(typeof(TEntity))?.GetRootType();
+        if (rootType?.FindDeclaredQueryFilter(ModelBuilderExtensions.SoftDeleteFilterKey) is not null)
+        {
+            return query.IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilterKey]);
+        }
+
+        return query.IgnoreQueryFilters();
     }
 
     /// <summary>

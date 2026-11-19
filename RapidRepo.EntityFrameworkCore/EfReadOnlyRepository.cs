@@ -434,7 +434,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         Expression<Func<TEntity, bool>>? condition = null,
         SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null) =>
-        DbContext.Set<TEntity>().ApplyRead(condition, orderBy, options);
+        DbContext.Set<TEntity>().ApplyRead(condition, orderBy, options, model: DbContext.Model);
 
     /// <summary>
     /// Builds a no-tracking query, for projections and aggregates.
@@ -443,7 +443,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         Expression<Func<TEntity, bool>>? condition = null,
         SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null) =>
-        DbContext.Set<TEntity>().ApplyRead(condition, orderBy, options, allowTracking: false);
+        DbContext.Set<TEntity>().ApplyRead(condition, orderBy, options, allowTracking: false, model: DbContext.Model);
 
     private static Expression<Func<TEntity, bool>> ById(TId id) => e => id.Equals(e.Id);
 
