@@ -18,6 +18,10 @@ namespace RapidRepo.Repositories.Interfaces;
 /// Unless <see cref="ReadOptions.IncludeDeleted"/> is set, soft-deleted entities are excluded.
 /// </para>
 /// <para>
+/// Paging without a sort order orders by <c>Id</c>, so every provider returns the same, stable pages. Other reads
+/// without a sort order return entities in whatever order the provider produces.
+/// </para>
+/// <para>
 /// Projections that also take a condition require a reference-type result. Without that constraint,
 /// <c>GetFirstOrDefault(e =&gt; e.IsActive)</c> would be ambiguous between a condition and a <see langword="bool"/>
 /// projection. Project scalars through an anonymous type, for example <c>GetAll(e =&gt; new { e.Id })</c>.
@@ -495,7 +499,7 @@ public interface IReadOnlyRepository<TEntity, in TKey>
     /// Gets one page of the entities that match the condition.
     /// </summary>
     /// <param name="condition">The condition to filter entities, or <see langword="null"/> for all entities.</param>
-    /// <param name="orderBy">The sort order, or <see langword="null"/>.</param>
+    /// <param name="orderBy">The sort order, or <see langword="null"/> to order by <c>Id</c> so pages are stable.</param>
     /// <param name="pageIndex">The 1-based page number.</param>
     /// <param name="pageSize">The number of entities per page.</param>
     /// <param name="options">The read options, or <see langword="null"/> for <see cref="ReadOptions.Default"/>.</param>
@@ -516,7 +520,7 @@ public interface IReadOnlyRepository<TEntity, in TKey>
     /// <typeparam name="TResult">The type of the projection.</typeparam>
     /// <param name="selector">The projection to apply.</param>
     /// <param name="condition">The condition to filter entities, or <see langword="null"/> for all entities.</param>
-    /// <param name="orderBy">The sort order, or <see langword="null"/>.</param>
+    /// <param name="orderBy">The sort order, or <see langword="null"/> to order by <c>Id</c> so pages are stable.</param>
     /// <param name="pageIndex">The 1-based page number.</param>
     /// <param name="pageSize">The number of entities per page.</param>
     /// <param name="options">The read options, or <see langword="null"/> for <see cref="ReadOptions.Default"/>.</param>
@@ -537,7 +541,7 @@ public interface IReadOnlyRepository<TEntity, in TKey>
     /// Asynchronously gets one page of the entities that match the condition.
     /// </summary>
     /// <param name="condition">The condition to filter entities, or <see langword="null"/> for all entities.</param>
-    /// <param name="orderBy">The sort order, or <see langword="null"/>.</param>
+    /// <param name="orderBy">The sort order, or <see langword="null"/> to order by <c>Id</c> so pages are stable.</param>
     /// <param name="pageIndex">The 1-based page number.</param>
     /// <param name="pageSize">The number of entities per page.</param>
     /// <param name="options">The read options, or <see langword="null"/> for <see cref="ReadOptions.Default"/>.</param>
@@ -560,7 +564,7 @@ public interface IReadOnlyRepository<TEntity, in TKey>
     /// <typeparam name="TResult">The type of the projection.</typeparam>
     /// <param name="selector">The projection to apply.</param>
     /// <param name="condition">The condition to filter entities, or <see langword="null"/> for all entities.</param>
-    /// <param name="orderBy">The sort order, or <see langword="null"/>.</param>
+    /// <param name="orderBy">The sort order, or <see langword="null"/> to order by <c>Id</c> so pages are stable.</param>
     /// <param name="pageIndex">The 1-based page number.</param>
     /// <param name="pageSize">The number of entities per page.</param>
     /// <param name="options">The read options, or <see langword="null"/> for <see cref="ReadOptions.Default"/>.</param>

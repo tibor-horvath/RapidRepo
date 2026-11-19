@@ -22,6 +22,12 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
     where TEntity : BaseEntity<TId>
     where TId : notnull
 {
+    /// <summary>
+    /// The order paging falls back to without a sort order, so pages are stable. <see cref="EfReadOptions{TEntity}.OrderBy"/>
+    /// still takes precedence over it.
+    /// </summary>
+    private static readonly SortOrder<TEntity> PageOrder = SortOrder<TEntity>.By(e => e.Id);
+
     protected readonly DbContext DbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
 
     public virtual IQueryable<TEntity> Query(EfReadOptions<TEntity>? options = null) => BuildQuery(options: options);
@@ -360,7 +366,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
     {
         EnsureValidPage(pageIndex, pageSize);
 
-        var query = BuildQuery(condition, orderBy, options);
+        var query = BuildQuery(condition, orderBy ?? PageOrder, options);
 
         return ToPage(query.Count(), Page(query, pageIndex, pageSize).ToList(), pageIndex, pageSize);
     }
@@ -377,7 +383,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         ArgumentNullException.ThrowIfNull(selector);
         EnsureValidPage(pageIndex, pageSize);
 
-        var query = Untracked(condition, orderBy, options);
+        var query = Untracked(condition, orderBy ?? PageOrder, options);
 
         return ToPage(query.Count(), Page(query.Select(selector), pageIndex, pageSize).ToList(), pageIndex, pageSize);
     }
@@ -392,7 +398,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
     {
         EnsureValidPage(pageIndex, pageSize);
 
-        var query = BuildQuery(condition, orderBy, options);
+        var query = BuildQuery(condition, orderBy ?? PageOrder, options);
         var totalCount = await query.CountAsync(cancellationToken);
         var results = await Page(query, pageIndex, pageSize).ToListAsync(cancellationToken);
 
@@ -412,7 +418,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         ArgumentNullException.ThrowIfNull(selector);
         EnsureValidPage(pageIndex, pageSize);
 
-        var query = Untracked(condition, orderBy, options);
+        var query = Untracked(condition, orderBy ?? PageOrder, options);
         var totalCount = await query.CountAsync(cancellationToken);
         var results = await Page(query.Select(selector), pageIndex, pageSize).ToListAsync(cancellationToken);
 

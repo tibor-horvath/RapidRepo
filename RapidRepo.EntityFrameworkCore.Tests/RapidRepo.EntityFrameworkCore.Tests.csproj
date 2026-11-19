@@ -15,6 +15,7 @@
     <PackageReference Include="FluentAssertions" Version="8.11.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="11.0.*" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="11.0.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="11.0.*" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.12.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="11.0.*" />
     <PackageReference Include="Moq" Version="4.21.0" />
@@ -27,6 +28,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RapidRepo.EntityFrameworkCore\RapidRepo.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="..\RapidRepo.Testing.Conformance\RapidRepo.Testing.Conformance.csproj" />
   </ItemGroup>
 
   <ItemGroup>

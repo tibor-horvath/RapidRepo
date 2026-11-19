@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Provider-neutral behaviour tests for the RapidRepo contracts. Not a test project itself: each provider's test
+    project derives from the abstract classes here and supplies an IConformanceStore, so every provider runs the
+    same suite.
+  -->
+  <PropertyGroup>
+    <TargetFramework>$(RapidRepoTestTargetFramework)</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>false</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentAssertions" Version="8.11.0" />
+    <PackageReference Include="xunit.extensibility.core" Version="2.9.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RapidRepo\RapidRepo.csproj" />
+  </ItemGroup>
+
+</Project>
