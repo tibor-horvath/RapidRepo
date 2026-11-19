@@ -1,5 +1,12 @@
 # Changelog
 
+## [9.1.0](https://github.com/tibor-horvath/RapidRepo/compare/9.0.0...9.1.0) (2026-11-19)
+
+
+### Features
+
+* **uow:** resolve the audit user from an ambient current-user provider ([#143](https://github.com/tibor-horvath/RapidRepo/issues/143)) ([198725c](https://github.com/tibor-horvath/RapidRepo/commit/198725c2f4d6df17106d5e0084546939ac7d2ad2))
+
 ## [9.0.0](https://github.com/tibor-horvath/RapidRepo/compare/8.0.0...9.0.0) (2026-11-19)
 
 
