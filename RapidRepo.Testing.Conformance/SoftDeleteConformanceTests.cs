@@ -67,6 +67,22 @@ public abstract class SoftDeleteConformanceTests<TStore> : ConformanceTests<TSto
     }
 
     [Fact]
+    public async Task RestoreByIdAsync_BringsTheEntityBack()
+    {
+        var id = SeedNotes(new Note { Title = "Back" })[0].Id;
+        Commit(s => s.Notes().DeleteById(id), Alice);
+
+        var session = OpenSession();
+        await session.Notes().RestoreByIdAsync(id);
+        await session.UnitOfWork.CommitAsync(Bob);
+
+        var restored = InNewSession(s => s.Notes().GetById(id));
+        restored.Should().NotBeNull();
+        restored!.DeletedBy.Should().BeNull();
+        restored.ModifiedBy.Should().Be(Bob);
+    }
+
+    [Fact]
     public void Restore_OfALoadedDeletedEntity_BringsItBack()
     {
         var id = SeedNotes(new Note())[0].Id;

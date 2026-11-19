@@ -160,6 +160,13 @@ public class SoftDeleteFilterTests : IDisposable
         _dbContext.Set<Invoice>().IgnoreQueryFilters().Any(i => i.Id == theirs).Should().BeTrue();
     }
 
+    [Fact]
+    public void IgnoreSoftDeleteFilter_WithoutAModel_BypassesEveryFilter()
+    {
+        // Without the model the filters cannot be inspected, so it falls back to the 8.x behaviour.
+        RapidRepo.EntityFrameworkCore.Internal.IQueryableExtensions.IgnoreSoftDeleteFilter(_dbContext.Notes, model: null).Count().Should().Be(4);
+    }
+
     private int IdOf(string title) =>
         _dbContext.Notes.IgnoreQueryFilters().AsNoTracking().Single(n => n.Title == title).Id;
 

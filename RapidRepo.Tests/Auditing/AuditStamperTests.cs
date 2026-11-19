@@ -32,6 +32,41 @@ public class AuditStamperTests
     }
 
     [Fact]
+    public void Added_OfAnEntityAlreadyMarkedDeleted_AlsoStampsTheDeletion()
+    {
+        var doc = new Doc { DeletedAt = Now.AddHours(-1) };
+
+        _sut.Stamp(doc, EntityChangeKind.Added, User);
+
+        doc.CreatedAt.Should().Be(Now);
+        doc.CreatedBy.Should().Be(User);
+        doc.DeletedAt.Should().Be(Now);
+        doc.DeletedBy.Should().Be(User);
+        doc.ModifiedAt.Should().BeNull("an insert is not a modification");
+    }
+
+    [Fact]
+    public void Restored_OfAnAuditableEntityWithoutSoftDelete_StampsOnlyTheModification()
+    {
+        var entity = new AuditedOnly();
+
+        _sut.Stamp(entity, EntityChangeKind.Restored, User);
+
+        entity.ModifiedAt.Should().Be(Now);
+        entity.ModifiedBy.Should().Be(User);
+    }
+
+    [Fact]
+    public void Stamp_RejectsANullEntity()
+    {
+        var act = () => _sut.Stamp(null!, EntityChangeKind.Added);
+
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    private sealed class AuditedOnly : BaseAuditableEntity<int, Guid>;
+
+    [Fact]
     public void Modified_StampsModifiedFields_AndLeavesDeletionMarksAlone()
     {
         var deletedAt = Now.AddDays(-3);

@@ -141,6 +141,48 @@ public abstract class QueryConformanceTests<TStore> : ConformanceTests<TStore>
         (await session.Widgets().GetSingleOrDefaultAsync(w => w.Name == "Nope")).Should().BeNull();
     }
 
+    [Fact]
+    public async Task AsyncByIdReads_MatchTheirSynchronousCounterparts()
+    {
+        var ids = SeedWidgets(new Widget { Name = "Gear", Rank = 7 }, new Widget { Name = "Cog", Rank = 2 })
+            .Select(w => w.Id).ToList();
+        var session = OpenSession();
+
+        (await session.Widgets().ExistsByIdAsync(ids[0])).Should().BeTrue();
+        (await session.Widgets().ExistsByIdAsync(-1)).Should().BeFalse();
+        (await session.Widgets().GetByIdAsync(ids[0]))!.Name.Should().Be("Gear");
+        (await session.Widgets().GetByIdAsync(-1)).Should().BeNull();
+        (await session.Widgets().GetByIdAsync(ids[1], w => w.Rank)).Should().Be(2);
+        (await session.Widgets().GetByIdsAsync([ids[1], -1])).Select(w => w.Name).Should().Equal("Cog");
+        (await session.Widgets().GetByIdsAsync(ids, w => w.Name)).Should().BeEquivalentTo(["Gear", "Cog"]);
+    }
+
+    [Fact]
+    public async Task AsyncSingleAndFirstReads_FollowTheSynchronousRules()
+    {
+        SeedRanked();
+        var session = OpenSession();
+
+        (await session.Widgets().GetSingleAsync(w => w.Name == "Echo")).Name.Should().Be("Echo");
+        (await session.Widgets().GetSingleAsync(w => new WidgetName(w.Name), w => w.Rank == 3)).Should().Be(new WidgetName("Bravo"));
+        (await session.Widgets().GetFirstOrDefaultAsync(w => w.Name == "Nope")).Should().BeNull();
+        (await session.Widgets().GetFirstOrDefaultAsync(orderBy: SortOrder<Widget>.By(w => w.Name)))!.Name.Should().Be("Alpha");
+
+        var noMatch = () => session.Widgets().GetSingleAsync(w => w.Name == "Nope");
+        var severalMatch = () => session.Widgets().GetSingleOrDefaultAsync(w => w.Rank == 1);
+        await noMatch.Should().ThrowAsync<InvalidOperationException>();
+        await severalMatch.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void GetByIds_WithNoKeys_ReturnsNothing()
+    {
+        SeedWidgets(new Widget { Name = "A" });
+
+        InNewSession(s => s.Widgets().GetByIds([])).Should().BeEmpty();
+        InNewSession(s => s.Widgets().GetByIds([], w => w.Name)).Should().BeEmpty();
+    }
+
     /// <summary>A reference-type projection; condition-bearing projections require one.</summary>
     public sealed record WidgetName(string Name);
 }

@@ -1,4 +1,6 @@
 ﻿using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using RapidRepo.EntityFrameworkCore.Internal;
 using RapidRepo.EntityFrameworkCore.Tests.DependencyInjection.TestData;
 
@@ -44,6 +46,50 @@ public class DbContextRegistrarTests
         var entities = DbContextRegistrar.DiscoverEntities(typeof(DiscoveryDbContext)).ToList();
 
         entities.Should().NotContain(e => e.EntityType == typeof(LegacyRecord));
+    }
+
+    [Fact]
+    public void DiscoverEntities_SkipsStaticAndIndexerProperties()
+    {
+        var entities = DbContextRegistrar.DiscoverEntities(typeof(OddPropertiesDbContext)).ToList();
+
+        entities.Should().Equal((typeof(Widget), typeof(int)));
+    }
+
+    [Fact]
+    public void RegisterForwarder_KeepsADbContextRegistrationTheApplicationMadeItself()
+    {
+        var services = new ServiceCollection();
+        services.AddScoped<DbContext>(sp => sp.GetRequiredService<DiscoveryDbContext>());
+
+        DbContextRegistrar.RegisterForwarder(services, typeof(DiscoveryDbContext), [typeof(NeedsBaseDbContext)]);
+
+        services.Where(d => d.ServiceType == typeof(DbContext)).Should().ContainSingle();
+    }
+
+    [Fact]
+    public void RegisterForwarder_ForTheSameContextTwice_RegistersOnce()
+    {
+        var services = new ServiceCollection();
+
+        DbContextRegistrar.RegisterForwarder(services, typeof(DiscoveryDbContext), [typeof(NeedsBaseDbContext)]);
+        DbContextRegistrar.RegisterForwarder(services, typeof(DiscoveryDbContext), [typeof(NeedsBaseDbContext)]);
+
+        services.Where(d => d.ServiceType == typeof(DbContext)).Should().ContainSingle();
+    }
+
+    private sealed class NeedsBaseDbContext(DbContext dbContext)
+    {
+        public DbContext DbContext { get; } = dbContext;
+    }
+
+    private sealed class OddPropertiesDbContext(DbContextOptions<OddPropertiesDbContext> options) : DbContext(options)
+    {
+        public static DbSet<Gadget>? StaticGadgets { get; set; }
+
+        public DbSet<Widget> Widgets => Set<Widget>();
+
+        public DbSet<PremiumWidget> this[int index] => Set<PremiumWidget>();
     }
 
     [Fact]

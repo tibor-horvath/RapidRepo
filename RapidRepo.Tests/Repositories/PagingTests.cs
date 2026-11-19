@@ -53,6 +53,21 @@ public class PagingTests
         Paging.DefaultOrder<Item, int>().Should().BeSameAs(order);
     }
 
+    [Theory]
+    [InlineData(1, 25, 10, false, true)]
+    [InlineData(2, 25, 10, true, true)]
+    [InlineData(3, 25, 10, true, false)]
+    [InlineData(1, 0, 10, false, false)]
+    [InlineData(1, 10, 10, false, false)]
+    public void ToPage_ReportsWhetherThereIsAPreviousAndANextPage(
+        int pageIndex, int totalCount, int pageSize, bool hasPrevious, bool hasNext)
+    {
+        var page = Paging.ToPage<string>(totalCount, [], pageIndex, pageSize);
+
+        page.HasPrevious.Should().Be(hasPrevious);
+        page.HasNext.Should().Be(hasNext);
+    }
+
     [Fact]
     public void ToPage_CarriesTheCountsAndResults()
     {

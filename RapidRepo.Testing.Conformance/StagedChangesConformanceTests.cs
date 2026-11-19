@@ -65,6 +65,19 @@ public abstract class StagedChangesConformanceTests<TStore> : ConformanceTests<T
     }
 
     [Fact]
+    public void AddThenDelete_OfANonDeletableEntity_InOneCommit_PersistsNothing()
+    {
+        var session = OpenSession();
+        var widget = new Widget { Name = "Short-lived" };
+
+        session.Widgets().Add(widget);
+        session.Widgets().Delete(widget);
+        session.UnitOfWork.Commit();
+
+        InNewSession(s => s.Widgets().Count()).Should().Be(0);
+    }
+
+    [Fact]
     public void DeleteById_OfTheDefaultKey_LeavesPendingInsertsAlone()
     {
         var session = OpenSession();

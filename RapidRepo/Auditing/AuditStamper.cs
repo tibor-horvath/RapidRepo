@@ -8,7 +8,11 @@ namespace RapidRepo.Auditing;
 /// </summary>
 /// <remarks>
 /// <list type="bullet">
-/// <item><see cref="EntityChangeKind.Added"/> sets <c>CreatedAt</c> and <c>CreatedBy</c>.</item>
+/// <item>
+/// <see cref="EntityChangeKind.Added"/> sets <c>CreatedAt</c> and <c>CreatedBy</c>. An entity that was also
+/// soft-deleted before the commit (its <c>DeletedAt</c> is set) is inserted as deleted, so it also gets
+/// <c>DeletedAt</c> and <c>DeletedBy</c>.
+/// </item>
 /// <item>
 /// <see cref="EntityChangeKind.Modified"/>, <see cref="EntityChangeKind.SoftDeleted"/> and
 /// <see cref="EntityChangeKind.Restored"/> set <c>ModifiedAt</c> and <c>ModifiedBy</c>.
@@ -71,6 +75,10 @@ public sealed class AuditStamper<TUserKey>(TUserKey defaultUserKey, TimeProvider
             if (entity is IAuditableEntity<TUserKey> auditableByUser)
                 auditableByUser.CreatedBy = user;
 
+            // Added and soft-deleted before the commit: inserted as deleted, so it is stamped as deleted too.
+            if (entity is IDeletableEntity { DeletedAt: not null })
+                StampDeletion(entity, user, utcNow);
+
             return;
         }
 
@@ -83,11 +91,7 @@ public sealed class AuditStamper<TUserKey>(TUserKey defaultUserKey, TimeProvider
         switch (kind)
         {
             case EntityChangeKind.SoftDeleted:
-                if (entity is IDeletableEntity deleted)
-                    deleted.DeletedAt = utcNow;
-
-                if (entity is IDeletableEntity<TUserKey> deletedByUser)
-                    deletedByUser.DeletedBy = user;
+                StampDeletion(entity, user, utcNow);
                 break;
 
             case EntityChangeKind.Restored:
@@ -98,5 +102,14 @@ public sealed class AuditStamper<TUserKey>(TUserKey defaultUserKey, TimeProvider
                     restoredByUser.DeletedBy = null;
                 break;
         }
+    }
+
+    private static void StampDeletion(object entity, TUserKey user, DateTime utcNow)
+    {
+        if (entity is IDeletableEntity deleted)
+            deleted.DeletedAt = utcNow;
+
+        if (entity is IDeletableEntity<TUserKey> deletedByUser)
+            deletedByUser.DeletedBy = user;
     }
 }

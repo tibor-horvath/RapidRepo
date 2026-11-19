@@ -86,6 +86,7 @@ At commit, the unit of work works out what happened to each entity and stamps th
 | Change | Fields set |
 |---|---|
 | Added | `CreatedAt`; `CreatedBy` for `IAuditableEntity<TUserKey>` |
+| Added and soft-deleted before the commit | As Added, plus `DeletedAt`; `DeletedBy` for `IDeletableEntity<TUserKey>`. The row is inserted as deleted |
 | Modified | `ModifiedAt`; `ModifiedBy` for `IAuditableEntity<TUserKey>` |
 | Soft-deleted (not deleted → deleted) | `ModifiedAt` / `ModifiedBy`, plus `DeletedAt`; `DeletedBy` for `IDeletableEntity<TUserKey>` |
 | Restored (deleted → not deleted) | `ModifiedAt` / `ModifiedBy`; `DeletedAt` and `DeletedBy` cleared |

@@ -209,6 +209,106 @@ public class EntitySourceTests
             .Which.GetMessage().Should().Contain($"'{typeName}'").And.Contain("neither");
     }
 
+    [Fact]
+    public void AttributeWithoutSources_GeneratesOnlyCustomRepositoryProperties()
+    {
+        var source = Entities + """
+            namespace Shop
+            {
+                using RapidRepo.Attributes;
+                using Shop.Catalog;
+
+                public interface IProductRepository : RapidRepo.Repositories.Interfaces.IRepository<Product, int> { }
+
+                [GenerateUnitOfWork]
+                public partial class ShopUnitOfWork : RapidRepo.UnitOfWork.UnitOfWorkBase<System.Guid>
+                {
+                    public ShopUnitOfWork() : base(System.Guid.Empty) { }
+                }
+            }
+            """;
+
+        var (diagnostics, sources) = RunGenerator(source, includeEfCore: false);
+
+        diagnostics.Should().BeEmpty();
+        var cls = FindSource(sources, "ShopUnitOfWork.Repositories");
+        cls.Should().Contain("public IProductRepository Products => ResolveRepository<IProductRepository>();");
+        cls.Should().NotContain("GetRepository<");
+    }
+
+    [Fact]
+    public void CustomRepositoryInterface_ForAnotherEntityUnderTheSameName_EmitsRRUOW002()
+    {
+        var source = """
+            namespace Shop.Sales { public class Order : RapidRepo.Entities.BaseEntity<int> { } }
+            namespace Shop.Archive
+            {
+                public class Order : RapidRepo.Entities.BaseEntity<int> { }
+                public interface IOrderRepository : RapidRepo.Repositories.Interfaces.IRepository<Order, int> { }
+            }
+
+            namespace Shop
+            {
+                using RapidRepo.Attributes;
+
+                [GenerateUnitOfWork(typeof(Shop.Sales.Order))]
+                public partial class ShopUnitOfWork : RapidRepo.UnitOfWork.UnitOfWorkBase<System.Guid>
+                {
+                    public ShopUnitOfWork() : base(System.Guid.Empty) { }
+                }
+            }
+            """;
+
+        var (diagnostics, _) = RunGenerator(source, includeEfCore: false);
+
+        diagnostics.Should().ContainSingle(d => d.Id == "RRUOW002")
+            .Which.GetMessage().Should().Contain("'Orders'").And.Contain("IOrderRepository");
+    }
+
+    [Fact]
+    public void ClosedGenericEntitySource_GeneratesCodeThatCompiles()
+    {
+        var source = """
+            namespace Shop.Catalog
+            {
+                public class Tag<TValue> : RapidRepo.Entities.BaseEntity<int> { public TValue? Value { get; set; } }
+            }
+
+            namespace Shop
+            {
+                using RapidRepo.Attributes;
+                using RapidRepo.Repositories.Interfaces;
+                using Shop.Catalog;
+                using System;
+                using System.Threading;
+                using System.Threading.Tasks;
+
+                [GenerateUnitOfWork(typeof(Tag<string>))]
+                public partial class ShopUnitOfWork : RapidRepo.UnitOfWork.UnitOfWorkBase<Guid>
+                {
+                    public ShopUnitOfWork() : base(Guid.Empty) { }
+
+                    protected override IRepository<TEntity, TKey> CreateRepository<TEntity, TKey>() =>
+                        throw new NotSupportedException();
+
+                    protected override void CommitCore(Guid? userId) { }
+
+                    protected override Task CommitCoreAsync(Guid? userId, CancellationToken cancellationToken) =>
+                        Task.CompletedTask;
+                }
+            }
+            """;
+
+        var compilation = CreateCompilation(source, includeEfCore: false);
+        CSharpGeneratorDriver.Create(new UnitOfWorkGenerator())
+            .RunGeneratorsAndUpdateCompilation(compilation, out var output, out var generatorDiagnostics);
+
+        generatorDiagnostics.Should().BeEmpty();
+        output.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        output.SyntaxTrees.Select(t => t.ToString())
+            .Should().Contain(t => t.Contains("IRepository<Tag<string>, int> Tags"));
+    }
+
     private static (ImmutableArray<Diagnostic> Diagnostics, IReadOnlyList<(string HintName, string Source)> Sources)
         RunGenerator(string source, bool includeEfCore = true)
     {
