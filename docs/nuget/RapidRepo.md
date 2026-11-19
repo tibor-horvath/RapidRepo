@@ -2,6 +2,10 @@
 
 The core of RapidRepo: entities, repository and Unit of Work contracts, and the audit and soft-delete rules, independent of any persistence technology. Add a provider package to use it with a database. [RapidRepo.EntityFrameworkCore](https://www.nuget.org/packages/RapidRepo.EntityFrameworkCore) is the provider available today.
 
+## Why RapidRepo?
+
+It gives you the data-layer plumbing most applications rebuild by hand, with consistent rules. When the Unit of Work commits, it stamps audit fields with the committing user and a clock you can replace in tests. Entities you mark as deletable are soft-deleted instead of removed and, once the provider's filter is set up, hidden from reads, with explicit restore and permanent delete. Paging and sorting are declarative. Domain and application projects can reference only this dependency-free package, while the provider (EF Core today) stays in the infrastructure project, where its own features are still available when you need them. A provider-neutral conformance suite in the repository defines the contract, so other providers can implement the same interfaces with the same behaviour.
+
 ## Features
 
 - `IRepository<TEntity, TId>` plus read-only and write-only variants

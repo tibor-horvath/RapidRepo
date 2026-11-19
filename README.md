@@ -7,8 +7,26 @@
 
 [![Build](https://github.com/tibor-horvath/RapidRepo/actions/workflows/dotnet-build.yml/badge.svg)](https://github.com/tibor-horvath/RapidRepo/actions/workflows/dotnet-build.yml)
 [![Release](https://github.com/tibor-horvath/RapidRepo/actions/workflows/dotnet-release.yml/badge.svg)](https://github.com/tibor-horvath/RapidRepo/actions/workflows/dotnet-release.yml)
+[![Built by Tibor Horváth](https://tiborhorvath.dev/badge/built-by-compact.svg)](https://tiborhorvath.dev)
 
 RapidRepo is a repository and Unit of Work implementation for .NET applications. It gives you a clean, consistent data access layer for common CRUD operations, with auditing, soft delete and paging built in. The contracts are provider-neutral; Entity Framework Core is the provider available today.
+
+## Why RapidRepo?
+
+Most data layers end up rebuilding the same plumbing: setting `CreatedBy` and `ModifiedAt` before every save, a soft-delete flag that every query must remember to filter, paging and sorting helpers, and the DI registrations that wire it all together. RapidRepo provides that plumbing once, with one set of rules:
+
+- **Auditing in one place.** `CommitAsync` stamps the created and modified fields of auditable entities (`IAuditableEntity`, `BaseAuditableEntity`) and the deleted fields of soft-deletable ones with the committing user (or the Unit of Work's default user) and one timestamp per commit. The time comes from a `TimeProvider` that tests can replace. Services don't set these fields by hand, as long as they save through the Unit of Work and not `DbContext.SaveChanges()`.
+- **Soft delete you opt into per entity.** For entities that implement `IDeletableEntity` (or derive from `BaseAuditableDeletableEntity`), `Delete` sets `DeletedAt` instead of removing the row. `Restore` and `HardDelete` are explicit operations. Other entities are deleted normally. Reads exclude deleted rows unless you pass `IncludeDeleted`; with EF Core, you turn this on once with `modelBuilder.AddSoftDeleteQueryFilters()`.
+- **Your domain can stay free of EF Core.** Entities, repository interfaces and the Unit of Work interface only need the `RapidRepo` contracts package, which has no dependencies. In a layered solution, only the infrastructure project that installs `RapidRepo.EntityFrameworkCore` references EF Core, and the interfaces your services use are easy to mock.
+- **A specified contract, not just an implementation.** Write, soft-delete, audit and query semantics are pinned down by a provider-neutral xUnit conformance suite in this repository. The EF Core provider runs it, and a new provider can run it to prove it behaves the same way behind the same interfaces. See [Writing a provider](docs/RapidRepo/providers.md).
+- **EF Core is still there for hard queries.** When the contract isn't enough, `EfReadOptions` adds includes, tracking and split queries, `Query()` returns an `IQueryable`, and the `DbContext` is still yours.
+- **Little boilerplate.** With `RegisterGenericRepositories = true`, you can inject `IRepository<TEntity, TKey>` without writing a class. `AddRapidRepo` scans assemblies and registers your repositories and Unit of Work. `[GenerateUnitOfWork]` generates the Unit of Work's repository properties and its interface.
+
+### "Isn't `DbContext` already a repository and Unit of Work?"
+
+It is, and RapidRepo builds on it rather than hiding it. What it adds is a smaller, intention-revealing surface; audit and soft-delete rules enforced in one place instead of in every service; and contracts that keep EF Core types out of the layers that don't need them.
+
+**When it may not fit:** small apps where using `DbContext` directly is simpler, or data access that is mostly complex, store-specific queries. Those would live behind `Query()` or the `DbContext` anyway, so the abstraction would add little.
 
 ## Features
 
