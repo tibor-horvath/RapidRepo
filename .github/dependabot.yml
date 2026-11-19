@@ -26,6 +26,12 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "Microsoft.EntityFrameworkCore.Relational"
         update-types: ["version-update:semver-major"]
+      # Test-only EF Core providers follow the test projects' target framework (net11.0):
+      # EF Core 12 needs net12.0, so a major bump would only produce a failing PR.
+      - dependency-name: "Microsoft.EntityFrameworkCore.InMemory"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Microsoft.EntityFrameworkCore.Sqlite"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
