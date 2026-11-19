@@ -2,7 +2,9 @@ name: Publish NuGet Package
 
 on:
   release:
-    types: [published, prereleased]
+    # `published` also fires for prereleases; adding `prereleased` would start a
+    # second run pushing the same version.
+    types: [published]
 
 permissions:
   contents: read
