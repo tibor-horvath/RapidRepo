@@ -2,6 +2,9 @@
 
   <!-- Settings shared by every project in the repository. Projects may still override any of these. -->
   <PropertyGroup>
+    <!-- One version for every package, bumped by release-please. CI overrides the package version with the release
+         tag (-p:PackageVersion); this keeps the assembly, file and informational versions in step with it. -->
+    <Version>8.0.0</Version><!-- x-release-please-version -->
     <Authors>Tibor Horváth</Authors>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>

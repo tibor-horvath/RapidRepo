@@ -7,7 +7,7 @@
   "extra-files": [
     {
       "type": "generic",
-      "path": "RapidRepo/RapidRepo.csproj"
+      "path": "Directory.Build.props"
     }
   ],
   "packages": {
