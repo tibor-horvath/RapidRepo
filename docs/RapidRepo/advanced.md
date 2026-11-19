@@ -1,119 +1,102 @@
 # Advanced Usage
 
+These patterns use only the provider-neutral contract. For EF Core specifics (eager loading, tracking, split queries, `IQueryable`, query filters), see [EF Core](../RapidRepo.EntityFrameworkCore/entity-framework-core.md).
+
 ---
 
-## Filtering, sorting, and eager loading
+## Filtering and sorting
 
-All query methods accept optional `condition`, `orderBy`, and `include` parameters:
+Every multi-result query takes an optional `condition` and a `SortOrder<TEntity>`:
 
 ```csharp
 var products = await _unitOfWork.Products.GetAllAsync(
     condition: p => p.IsActive && p.Price > 10m,
-    orderBy: q => q.OrderByDescending(p => p.Price).ThenBy(p => p.Name),
-    include: q => q.Include(p => p.Category));
+    orderBy: SortOrder<Product>.ByDescending(p => p.Price).ThenBy(p => p.Name));
 ```
+
+Conditions are expression trees, which is what lets each provider translate them for its store.
 
 ---
 
 ## Projecting to a DTO (selector)
 
-Use a `selector` expression to project results without loading the full entity. This reduces data transfer and avoids materializing objects you don't need.
-
-`GetAll`, `GetFirst`, `GetSingle`, `GetById`, `GetByIds`, and `GetAllPaged` all have selector overloads.
+Use a `selector` expression to project results without loading the full entity:
 
 ```csharp
-// Project to a DTO
 record ProductSummary(long Id, string Name, decimal Price);
 
 var summaries = await _unitOfWork.Products.GetAllAsync(
     selector: p => new ProductSummary(p.Id, p.Name, p.Price),
     condition: p => p.IsActive,
-    orderBy: q => q.OrderBy(p => p.Name));
+    orderBy: SortOrder<Product>.By(p => p.Name));
 
-// Project to a scalar
-var names = await _unitOfWork.Products.GetAllAsync(
-    selector: p => p.Name);
+// Scalars: through GetById / GetByIds directly ...
+string? name = await _unitOfWork.Products.GetByIdAsync(id, selector: p => p.Name);
 
-// Paged projection
-Paged<ProductSummary> page = await _unitOfWork.Products.GetAllPagedAsync(
-    selector: p => new ProductSummary(p.Id, p.Name, p.Price),
-    pageIndex: 1,
-    pageSize: 20);
+// ... or through an anonymous type for the overloads that also take a condition.
+var ids = (await _unitOfWork.Products.GetAllAsync(selector: p => new { p.Id })).Select(x => x.Id);
 ```
 
-Selector overloads always use `AsNoTracking` internally — there is no `track` parameter on them.
+Projections are never tracked by the provider.
 
 ---
 
 ## Bulk fetch by IDs
 
-Use `GetByIdsAsync` when you have a set of known primary keys and want to fetch all matching entities in a single query:
+Use `GetByIdsAsync` when you have a set of known keys and want all matching entities in a single query:
 
 ```csharp
 IEnumerable<Product> products = await _unitOfWork.Products.GetByIdsAsync(ids);
 
-// With eager loading
-IEnumerable<Product> products = await _unitOfWork.Products.GetByIdsAsync(ids,
-    include: q => q.Include(p => p.Category));
-
-// Projected to a DTO
 IEnumerable<ProductSummary> summaries = await _unitOfWork.Products.GetByIdsAsync(ids,
     selector: p => new ProductSummary(p.Id, p.Name, p.Price));
 ```
 
-An empty `ids` collection returns an empty result immediately without a database round-trip. Soft-deleted entities are excluded by default; pass `ignoreQueryFilters: true` to include them.
+An empty `ids` collection returns an empty result immediately, without querying the store. Soft-deleted entities are excluded unless you pass `new ReadOptions { IncludeDeleted = true }`.
 
 ---
 
 ## Paged queries
 
-Use `GetAllPagedAsync` to return a `Paged<T>` result suitable for list views and APIs:
+`GetAllPagedAsync` returns a `Paged<T>` suitable for list views and APIs:
 
 ```csharp
 Paged<Product> page = await _unitOfWork.Products.GetAllPagedAsync(
     condition: p => p.IsActive,
-    orderBy: q => q.OrderBy(p => p.Name),
+    orderBy: SortOrder<Product>.By(p => p.Name),
     pageIndex: 2,
     pageSize: 25);
 
-foreach (var item in page.Results)
-{
-    Console.WriteLine(item.Name);
-}
-
 Console.WriteLine($"Page {page.Page} of {page.TotalPages} ({page.TotalCount} total)");
-Console.WriteLine($"Has next: {page.HasNext}, Has previous: {page.HasPrevious}");
 ```
 
-### Paging with a DTO projection
+**Without a sort order, paging orders by `Id`.** Pages are therefore stable and the same on every provider, which also satisfies databases that require an `ORDER BY` for offset paging.
 
-Pass a `selector` to project each page item to a DTO without loading full entities:
+Pass a `selector` to project each page item:
 
 ```csharp
-record ProductSummary(long Id, string Name, decimal Price);
-
 Paged<ProductSummary> page = await _unitOfWork.Products.GetAllPagedAsync(
     selector: p => new ProductSummary(p.Id, p.Name, p.Price),
     condition: p => p.IsActive,
-    orderBy: q => q.OrderBy(p => p.Name),
+    orderBy: SortOrder<Product>.By(p => p.Name),
     pageIndex: 1,
     pageSize: 25);
 ```
 
-> **Two-query pattern:** `GetAllPaged` / `GetAllPagedAsync` always issue two SQL statements — a `COUNT(*)` to get the total, then a `SELECT ... OFFSET ... FETCH` to get the page. For very large tables or high-latency connections this can be significant. If you already know the total count (e.g. from a cache), avoid the double round-trip by writing a custom repository method that skips the count query and constructs `Paged<T>` directly using `BuildQuery`.
->
-> `pageIndex` must be ≥ 1 and `pageSize` must be ≥ 1; passing a lower value throws `ArgumentOutOfRangeException`.
+> **Two queries:** paging counts the matching rows, then fetches the page. If you already know the total, for example from a cache, write a custom repository method that skips the count and builds `Paged<T>` itself.
 
 ---
 
-## Disabling change tracking (read-only queries)
+## Soft-deleted entities in reads
 
-Set `track: false` for queries whose results will not be modified. This avoids the overhead of EF change tracking and improves performance for read-heavy paths:
+Reads exclude soft-deleted entities by default. Pass `IncludeDeleted` to see them:
 
 ```csharp
-var products = await _unitOfWork.Products.GetAllAsync(
-    condition: p => p.IsActive,
-    track: false);
+var includeDeleted = new ReadOptions { IncludeDeleted = true };
+
+var all = await _unitOfWork.Products.GetAllAsync(options: includeDeleted);
+bool existsEvenIfDeleted = await _unitOfWork.Products.ExistsByIdAsync(id, includeDeleted);
+int total = await _unitOfWork.Products.CountAsync(options: includeDeleted);
 ```
 
 ---
@@ -124,193 +107,54 @@ Use `ExistsByIdAsync` instead of `AnyAsync(e => e.Id == id)` when you only need 
 
 ```csharp
 bool exists = await _unitOfWork.Products.ExistsByIdAsync(id);
-
-// Include soft-deleted entities
-bool existsDeleted = await _unitOfWork.Products.ExistsByIdAsync(id, ignoreQueryFilters: true);
 ```
 
 ---
 
-## Bypassing global query filters
+## Restoring and permanently removing soft-deleted records
 
-Use `ignoreQueryFilters: true` to see records excluded by global EF query filters (e.g. soft-deleted entities):
-
-```csharp
-var allIncludingDeleted = await _unitOfWork.Products.GetAllAsync(
-    ignoreQueryFilters: true);
-```
-
----
-
-## Split queries for large includes
-
-When including multiple collection navigations, use `useSplitQueries: true` to avoid a Cartesian explosion. See the [EF Core documentation](https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries) for details.
+`Delete` is not the end of the line for an `IDeletableEntity`:
 
 ```csharp
-var products = await _unitOfWork.Products.GetAllAsync(
-    include: q => q.Include(p => p.Tags).Include(p => p.Reviews),
-    useSplitQueries: true);
+// RestoreById finds the deleted entity by default, and does nothing when there is none.
+_unitOfWork.Products.RestoreById(id);
+await _unitOfWork.CommitAsync(currentUserId);
+
+// HardDeleteById only reaches visible rows by default ...
+_unitOfWork.Products.HardDeleteById(id);
+
+// ... and reaches a soft-deleted one when asked to.
+_unitOfWork.Products.HardDeleteById(id, includeDeleted: true);
+await _unitOfWork.CommitAsync();
 ```
+
+- A restore is an ordinary modification, so `ModifiedAt` and `ModifiedBy` are stamped on commit.
+- An entity already staged for removal by `HardDelete` is revived by `Restore`, so the restore is not silently discarded.
+- `Restore` throws `InvalidOperationException` for an entity that does not implement `IDeletableEntity`; a hard-deleted row is gone.
 
 ---
 
 ## Bulk insert and update
 
 ```csharp
-// Add multiple entities in one commit
-var newProducts = new List<Product>
-{
-    new() { Name = "Widget A", Price = 9.99m },
-    new() { Name = "Widget B", Price = 14.99m },
-};
-
 await _unitOfWork.Products.AddRangeAsync(newProducts);
 await _unitOfWork.CommitAsync(userId: currentUserId);
 
-// Update multiple entities
 foreach (var p in products) p.Price *= 1.1m;
 _unitOfWork.Products.UpdateRange(products);
 await _unitOfWork.CommitAsync(userId: currentUserId);
 ```
 
+Call `UpdateRange` (or `Update`) even for entities you loaded through the same unit of work. Only change-tracking providers notice changes without it.
+
 ---
 
 ## Committing with a user ID
 
-Pass the authenticated user's ID so audit fields (`CreatedBy`, `ModifiedBy`) are populated automatically:
+Pass the authenticated user's ID so the audit fields record it:
 
 ```csharp
 await _unitOfWork.CommitAsync(userId: currentUserId);
 ```
 
-If no `userId` is passed, the default key supplied to the `UnitOfWork` constructor is used instead.
-
----
-
-## Custom repository methods
-
-Encapsulate domain-specific queries inside the repository. Use the `BuildQuery` helper (available on `ReadOnlyRepository` and `BaseRepository`) to apply the standard filter chain — tracking, includes, query filters, split queries — without duplicating it:
-
-```csharp
-public interface IProductRepository : IRepository<Product, long>
-{
-    Task<IEnumerable<Product>> GetActiveByCategoryAsync(long categoryId);
-    Task<bool> SkuExistsAsync(string sku);
-    Task<List<ProductSummary>> SearchAsync(string term, int limit);
-}
-
-public class ProductRepository : BaseRepository<Product, long>, IProductRepository
-{
-    public ProductRepository(AppDbContext context) : base(context) { }
-
-    public async Task<IEnumerable<Product>> GetActiveByCategoryAsync(long categoryId)
-        => await GetAllAsync(
-            condition: p => p.IsActive && p.CategoryId == categoryId,
-            orderBy: q => q.OrderBy(p => p.Name),
-            track: false);
-
-    public async Task<bool> SkuExistsAsync(string sku)
-        => await AnyAsync(p => p.Sku == sku);
-
-    public async Task<List<ProductSummary>> SearchAsync(string term, int limit)
-        => await BuildQuery(
-                condition: p => p.Name.Contains(term),
-                orderBy: q => q.OrderByDescending(p => p.CreatedAt),
-                track: false)
-            .Select(p => new ProductSummary(p.Id, p.Name, p.Price))
-            .Take(limit)
-            .ToListAsync();
-}
-```
-
----
-
-## Setting up soft-delete query filters
-
-Register the soft-delete filter in your `DbContext.OnModelCreating` to exclude soft-deleted records from all queries by default. `AddSoftDeleteQueryFilters` is defined in the `RapidRepo.Extensions` namespace.
-
-```csharp
-using RapidRepo.Extensions;
-
-// inside DbContext:
-protected override void OnModelCreating(ModelBuilder modelBuilder)
-{
-    base.OnModelCreating(modelBuilder);
-
-    // Adds a HasQueryFilter(e => e.DeletedAt == null) to every entity
-    // that implements IDeletableEntity — no per-entity configuration needed.
-    modelBuilder.AddSoftDeleteQueryFilters();
-}
-```
-
-To include soft-deleted records in a specific query, pass `ignoreQueryFilters: true` (see the section above).
-
-### Restoring soft-deleted records
-
-`Delete` is not the end of the line for an entity that implements `IDeletableEntity`. `Restore` clears `DeletedAt` (and `DeletedBy`, when the entity tracks it), making the record visible to the query filters again.
-
-```csharp
-// The entity is hidden by the query filter, so load it with ignoreQueryFilters ...
-var product = await _unitOfWork.Products.GetByIdAsync(id, ignoreQueryFilters: true);
-if (product is not null)
-{
-    _unitOfWork.Products.Restore(product);
-    await _unitOfWork.CommitAsync(currentUserId);
-}
-
-// ... or let RestoreById do the lookup — it bypasses query filters by default,
-// and quietly does nothing when no entity has that identifier.
-_unitOfWork.Products.RestoreById(id);
-await _unitOfWork.CommitAsync(currentUserId);
-```
-
-A restore is an ordinary modification, so `ModifiedAt` / `ModifiedBy` are stamped on commit like any other update. An entity already staged for removal by `HardDelete` is revived, so the restore is not silently discarded.
-
-Calling `Restore` on an entity that does not implement `IDeletableEntity` throws `InvalidOperationException` — a hard-deleted row is gone, and there is nothing to undo.
-
-### Permanently removing records
-
-Once an entity implements `IDeletableEntity`, `Delete` will never physically remove it. `HardDelete` is the explicit opt-out, for erasure requests, retention jobs, and test cleanup:
-
-```csharp
-// Physically removes the row, whether or not it was already soft-deleted.
-_unitOfWork.Products.HardDelete(product);
-await _unitOfWork.CommitAsync();
-
-// By default HardDeleteById only reaches rows the query filters let you see.
-_unitOfWork.Products.HardDeleteById(id);
-await _unitOfWork.CommitAsync();
-
-// Opt in to reach a row that has already been soft-deleted.
-_unitOfWork.Products.HardDeleteById(id, ignoreQueryFilters: true);
-await _unitOfWork.CommitAsync();
-```
-
-`HardDelete` works on every entity. For one without soft-delete support it does exactly what `Delete` does.
-
-### `ignoreQueryFilters` is all-or-nothing
-
-`RestoreById` and `HardDeleteById` take an `ignoreQueryFilters` flag, and EF Core's `IgnoreQueryFilters()` drops **every** global filter on the entity — there is no way to disable just the soft-delete clause. Given a filter like:
-
-```csharp
-modelBuilder.Entity<Product>()
-    .HasQueryFilter(p => p.TenantId == _tenantId && p.DeletedAt == null);
-```
-
-`HardDeleteById(id, ignoreQueryFilters: true)` will find and permanently destroy another tenant's row if the identifier belongs to one. This is why the two defaults differ:
-
-| Method | Default | Why |
-|---|---|---|
-| `RestoreById` | `true` | A soft-deleted row is hidden by its own filter, so the lookup would never find anything to restore. A wrong restore is reversible. |
-| `HardDeleteById` | `false` | The operation is irreversible, so reaching beyond what the caller can normally see must be a deliberate choice. |
-
-When any filter other than soft delete is in play, do not rely on the flag. Load the entity through a query you control and pass it to `Restore(entity)` or `HardDelete(entity)`:
-
-```csharp
-var product = await _unitOfWork.Products.GetByIdAsync(id, ignoreQueryFilters: true);
-if (product?.TenantId == currentTenantId)
-{
-    _unitOfWork.Products.HardDelete(product);
-    await _unitOfWork.CommitAsync();
-}
-```
+If no `userId` is passed, the default key supplied to the unit of work constructor is used instead.

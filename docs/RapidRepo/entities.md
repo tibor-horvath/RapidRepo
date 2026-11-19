@@ -118,7 +118,7 @@ public class Product : BaseAuditableEntity<long, Guid>, IDeletableEntity<Guid>
 }
 ```
 
-> To hide soft-deleted records automatically, configure a global EF Core query filter on `DeletedAt == null` in your `DbContext`. Use `ignoreQueryFilters: true` on any query to bypass it.
+> Reads exclude soft-deleted records by default, and `new ReadOptions { IncludeDeleted = true }` brings them back. How the exclusion is set up is up to the provider. With EF Core, call `modelBuilder.AddSoftDeleteQueryFilters()`; see [Soft delete and query filters](../RapidRepo.EntityFrameworkCore/entity-framework-core.md#soft-delete-and-query-filters).
 
 ---
 
@@ -166,5 +166,5 @@ public class Product  : AppAuditableEntity<long> { }
 public class AuditLog : AppAuditableDeletableEntity<int> { }
 ```
 
-Combined with `class AppUnitOfWork : UnitOfWork<Guid>` (or `UnitOfWork<long>`), the user-key
+Combined with `class AppUnitOfWork : EfUnitOfWork<Guid>` (or `EfUnitOfWork<long>`), the user-key
 type is declared in exactly two places across the whole application.

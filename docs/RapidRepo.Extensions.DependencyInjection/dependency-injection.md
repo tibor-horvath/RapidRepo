@@ -2,11 +2,15 @@
 
 `RapidRepo.Extensions.DependencyInjection` provides an `IServiceCollection.AddRapidRepo(...)` extension that auto-discovers and registers repositories and the unit of work by scanning assemblies.
 
+The package is provider-neutral. What depends on the persistence technology, such as the generic repository implementation and its data source, comes from a provider you configure in the same call, for example `UseEntityFrameworkCore<TContext>()` from [RapidRepo.EntityFrameworkCore](../RapidRepo.EntityFrameworkCore/dependency-injection.md).
+
 ## Installation
 
 ```bash
 dotnet add package RapidRepo.Extensions.DependencyInjection
 ```
+
+EF Core applications get this package through `RapidRepo.EntityFrameworkCore`, which depends on it.
 
 No extra `using` directive is needed — the extension method lives in the `Microsoft.Extensions.DependencyInjection` namespace.
 
@@ -39,7 +43,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddRapidRepo(options =>
 {
-    options.UseDbContext<AppDbContext>();
+    options.UseEntityFrameworkCore<AppDbContext>();
     options.ScanAssembliesContaining<ProductRepository>();
     options.UseUnitOfWork<IAppUnitOfWork, AppUnitOfWork>();
 });
@@ -54,12 +58,11 @@ This single call replaces one `AddScoped<>` line per repository. Any concrete, n
 | Member | Type | Default | Description |
 |---|---|---|---|
 | `Lifetime` | `ServiceLifetime` | `Scoped` | Lifetime applied to all discovered repositories. |
-| `RegisterAsSelf` | `bool` | `false` | Also registers each concrete type against itself, including `Repository<TEntity, TId, TContext>` when `UseDbContext` is set. |
+| `RegisterAsSelf` | `bool` | `false` | Also registers each concrete type against itself. Providers may register their own types against themselves too. |
 | `ThrowOnAmbiguousRegistration` | `bool` | `true` | Throw when two concretes implement the same user-defined interface. |
 | `ThrowOnSingletonMisuse` | `bool` | `false` | Throw (instead of warn) when `Lifetime` is `Singleton`. |
-| `ThrowOnMissingDbContext` | `bool` | `false` | Throw (instead of warn) when registered types need a base `DbContext` that nothing provides. |
-| `RegisterGenericRepositories` | `bool` | `false` | Register generic repositories for all three root interfaces. Open-generic by default; closed per entity when `UseDbContext` is set. |
-| `UseDbContext<TContext>()` | method | — | Bind this call to `TContext`. Registers the `DbContext` forwarder when needed, and binds generic repositories to that context. |
+| `RegisterGenericRepositories` | `bool` | `false` | Have the provider register its generic repository for the root interfaces. Requires a provider. |
+| `UseProvider(IRapidRepoProvider)` | method | — | Configure the provider for this call. Provider packages wrap it, e.g. `UseEntityFrameworkCore<TContext>()`. One per call. |
 | `ScanAssemblies(params Assembly[])` | method | — | Add one or more assemblies to scan. |
 | `ScanAssembliesContaining<TMarker>()` | method | — | Add the assembly that contains `TMarker`. |
 | `ScanCallingAssembly()` | method | — | Add the calling assembly (see note below). |
@@ -107,27 +110,31 @@ Resolves the assembly at the call site. Works in `Program.cs` but can be unrelia
 A type is registered if all of the following are true:
 
 1. It is concrete (not abstract), not an interface, not an open generic, and not compiler-generated.
-2. It implements at least one closed generic of `IReadOnlyRepository<,>`, `IWriteRepository<,>`, or `IRepository<,>`.
+2. It implements at least one closed generic of `IReadOnlyRepository<,>`, `IWriteRepository<,>`, `IRepository<,>`, or a root interface of the configured provider (such as `IEfRepository<,>`).
 3. No `Exclude` predicate returns `true`.
 4. Either no `Include` predicates are configured, or at least one `Include` predicate returns `true`.
 
-**Interface registration policy**: each concrete type is registered against every public interface it implements that itself derives (directly or transitively) from one of the three root interfaces — excluding the root interfaces themselves. This targets user-defined interfaces such as `IProductRepository`.
+**Interface registration policy**: each concrete type is registered against every public interface it implements that itself derives (directly or transitively) from one of the root interfaces, excluding the root interfaces themselves. This targets user-defined interfaces such as `IProductRepository`.
+
+The root interfaces are the three core contracts plus the provider's own, for example `IEfRepository<,>` and `IEfReadOnlyRepository<,>` for EF Core. Scan provider-based repositories **with the provider configured**. Otherwise its interfaces count as user-defined, and two repositories for the same entity become ambiguous; the error message then suggests configuring the provider.
 
 ---
 
 ## Generic repositories
 
-Set `RegisterGenericRepositories = true` to register `Repository<,>` as an open-generic fallback for all three root interfaces. This lets you inject `IRepository<TEntity, TKey>`, `IReadOnlyRepository<TEntity, TKey>`, or `IWriteRepository<TEntity, TKey>` directly, without writing a custom class.
+Set `RegisterGenericRepositories = true` to have the provider register its generic repository for the root interfaces. You can then inject `IRepository<TEntity, TKey>`, `IReadOnlyRepository<TEntity, TKey>`, or `IWriteRepository<TEntity, TKey>` directly, without writing a custom class.
 
 ```csharp
 builder.Services.AddRapidRepo(options =>
 {
+    options.UseEntityFrameworkCore<AppDbContext>();
     options.RegisterGenericRepositories = true;
-    // ScanAssembliesContaining is still needed if you have custom repositories
 });
 ```
 
-**Precedence**: specific registrations from assembly scanning always win over the open-generic fallback. An application that scans a custom `ProductRepository : IProductRepository` will continue to resolve `IProductRepository → ProductRepository`; injecting `IRepository<Product, long>` in the same application resolves via the generic fallback to `Repository<Product, long>`.
+The provider decides how. EF Core registers one repository per `DbSet<>` when the call is bound to a context, and an open-generic fallback otherwise; see [EF Core and dependency injection](../RapidRepo.EntityFrameworkCore/dependency-injection.md). Without a provider, `RegisterGenericRepositories` throws, because there is no implementation to register.
+
+**Precedence**: specific registrations from assembly scanning always win. An application that scans a custom `ProductRepository : IProductRepository` resolves `IProductRepository` to `ProductRepository`, and `IRepository<Product, long>` to the provider's generic repository.
 
 ---
 
@@ -206,7 +213,7 @@ Call `UseUnitOfWork` once per unit of work interface type. Registering the same 
 
 ## Lifetime
 
-The default `ServiceLifetime.Scoped` matches the lifetime of `DbContext` in ASP.NET Core. Changing to `Transient` is safe but allocates more. `Singleton` causes captive-dependency issues — by default a warning is written to `Debug`; set `ThrowOnSingletonMisuse = true` to throw instead.
+The default `ServiceLifetime.Scoped` matches the lifetime of the data access resources repositories depend on, such as an EF Core `DbContext` in ASP.NET Core. Changing to `Transient` is safe but allocates more. `Singleton` causes captive-dependency issues: by default a warning is written to `Trace`; set `ThrowOnSingletonMisuse = true` to throw instead.
 
 ```csharp
 options.Lifetime = ServiceLifetime.Transient;
@@ -220,118 +227,17 @@ Calling `AddRapidRepo` twice with the same assembly does not duplicate descripto
 
 ---
 
-## `UseDbContext`
+## Providers
 
-`AddDbContext<AppDbContext>()` registers `AppDbContext` — it does **not** register the base `DbContext` type. Repositories and units of work that take a `DbContext` constructor parameter therefore cannot be activated by the container:
+A provider implements `IRapidRepoProvider` and is configured through an extension of its own on `RapidRepoOptions`, which calls `UseProvider`:
 
-```
-System.InvalidOperationException: Unable to resolve service for type
-'Microsoft.EntityFrameworkCore.DbContext' while attempting to activate 'ProductRepository'.
-```
+| Provider package | Extension |
+|---|---|
+| `RapidRepo.EntityFrameworkCore` | `UseEntityFrameworkCore<TContext>()`, `UseEntityFrameworkCore()`; see [EF Core and dependency injection](../RapidRepo.EntityFrameworkCore/dependency-injection.md) |
 
-`UseDbContext<TContext>()` closes that gap:
+`AddRapidRepo` scans, filters, checks for ambiguity, and registers the scanned repositories and units of work. It then hands the provider a `RapidRepoRegistrationContext`, which holds what was registered and how the call was configured, so the provider can add its own registrations. Configure one provider per call; use a separate `AddRapidRepo` call per provider or data source.
 
-```csharp
-builder.Services.AddRapidRepo(options =>
-{
-    options.UseDbContext<AppDbContext>();
-    options.ScanAssembliesContaining<ProductRepository>();
-});
-```
-
-It does two things:
-
-1. **Registers a `DbContext` → `TContext` forwarder**, but only when something registered by this call actually takes a base `DbContext` parameter. The forwarder hands out the same instance `AddDbContext` created, so repositories and the unit of work share one change tracker.
-2. **Binds generic repositories to `TContext`.** With `RegisterGenericRepositories = true`, instead of one open-generic fallback you get a closed registration per eligible `DbSet<TEntity>` on `TContext`, backed by `Repository<TEntity, TId, TContext>`.
-
-An entity is eligible when both hold:
-
-- **It derives from `BaseEntity<TId>`.** RapidRepo repositories are defined in terms of that base, so a `DbSet<T>` for a plain EF entity is skipped — no repository is registered and no error is raised.
-- **It has a `DbSet<>` of its own.** Discovery reflects over `DbSet<>` properties (public or not, matching how EF finds them) rather than building the model, so an entity EF reaches only through a navigation is not seen.
-
-For anything that falls outside those rules, register a repository for it explicitly.
-
-If you omit `UseDbContext` and nothing else registers a `DbContext`, `AddRapidRepo` writes a `Trace` warning. It does not throw by default, because an application is free to register its `DbContext` *after* calling `AddRapidRepo`, and that ordering cannot be distinguished at registration time. Set `ThrowOnMissingDbContext = true` to make it fail fast.
-
-An application that already registers its own forwarder keeps it — `UseDbContext` will not overwrite it:
-
-```csharp
-builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<AppDbContext>());
-```
-
----
-
-## Multi-DbContext applications
-
-Call `AddRapidRepo` once per bounded context, each naming its own context and scoped to its own assemblies and unit of work:
-
-```csharp
-builder.Services.AddDbContext<SalesDbContext>(/* ... */);
-builder.Services.AddDbContext<BillingDbContext>(/* ... */);
-
-builder.Services.AddRapidRepo(options =>
-{
-    options.UseDbContext<SalesDbContext>();
-    options.ScanAssembliesContaining<SalesModuleMarker>();
-    options.UseUnitOfWork<ISalesUnitOfWork, SalesUnitOfWork>();
-});
-
-builder.Services.AddRapidRepo(options =>
-{
-    options.UseDbContext<BillingDbContext>();
-    options.ScanAssembliesContaining<BillingModuleMarker>();
-    options.UseUnitOfWork<IBillingUnitOfWork, BillingUnitOfWork>();
-});
-```
-
-Generic repositories bind per context, so `IRepository<Invoice, int>` resolves against whichever context declares `DbSet<Invoice>`.
-
-### Entities mapped by more than one context
-
-If two contexts both map an entity, `IRepository<Invoice, int>` cannot say which one is meant — the service type carries no context. Rather than let the first registration win and point a later module at the wrong database, the second `AddRapidRepo` call throws:
-
-```
-Cannot register a generic repository for 'Invoice' against 'BillingDbContext':
-'IRepository<Invoice, Int32>' is already registered against 'SalesDbContext'. ...
-```
-
-Two ways forward:
-
-```csharp
-// Give each context its own interface, and let scanning register it
-public interface ISalesInvoiceRepository : IRepository<Invoice, int>;
-public class SalesInvoiceRepository(SalesDbContext db)
-    : BaseRepository<Invoice, int>(db), ISalesInvoiceRepository;
-
-// Or expose the context-qualified concrete type and inject that
-options.RegisterAsSelf = true;   // registers Repository<Invoice, int, SalesDbContext>
-```
-
-`RegisterAsSelf` is unambiguous by construction here, since the context is part of the type.
-
-### Repositories must name their own context
-
-There is only one base `DbContext` service slot, so it cannot serve two contexts. In a multi-context application, write repositories and units of work against the derived type:
-
-```csharp
-// Good — unambiguous
-public class SalesProductRepository(SalesDbContext db) : BaseRepository<Product, long>(db), IProductRepository;
-
-// Ambiguous across contexts
-public class SalesProductRepository(DbContext db) : BaseRepository<Product, long>(db), IProductRepository;
-```
-
-`BaseRepository` and `UnitOfWork` both take a `DbContext`, so passing a derived context to the base constructor needs no extra work.
-
-If two `AddRapidRepo` calls each register types needing the base `DbContext` for *different* contexts, the second call throws rather than silently handing the second module the first module's context:
-
-```
-Cannot register the DbContext forwarder for 'BillingDbContext': the base DbContext service is
-already forwarded to 'SalesDbContext'. ... Change them to take their own derived context type
-(for example 'BillingDbContext') instead.
-```
-
-When every repository names its own context, no forwarder is registered at all and the conflict cannot arise.
+To write a provider, see [Writing a provider](../RapidRepo/providers.md).
 
 ---
 
@@ -348,6 +254,7 @@ builder.Services.AddScoped<IAppUnitOfWork, AppUnitOfWork>();
 // After
 builder.Services.AddRapidRepo(options =>
 {
+    options.UseEntityFrameworkCore<AppDbContext>();
     options.ScanAssembliesContaining<ProductRepository>();
     options.UseUnitOfWork<IAppUnitOfWork, AppUnitOfWork>();
 });

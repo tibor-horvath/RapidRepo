@@ -1,5 +1,7 @@
 # Repositories
 
+The repository contracts live in the core `RapidRepo` package and do not depend on any persistence technology. A provider package, such as [RapidRepo.EntityFrameworkCore](../RapidRepo.EntityFrameworkCore/entity-framework-core.md), implements them. Code written against the contracts works with any provider.
+
 ---
 
 ## Choosing an interface
@@ -30,130 +32,102 @@ public interface IProductWriteRepository : IWriteRepository<Product, long>
 }
 ```
 
+An interface derived from these contracts is **portable**: any provider can implement it. A provider may also offer its own extended interface, for example `IEfRepository<TEntity, TKey>`, which adds EF Core's `IQueryable`. Derive from that one only when the repository really needs the provider.
+
 ---
 
 ## Choosing a base class
 
-Pick the implementation base class that matches your interface:
+Implementations come from the provider. For EF Core:
 
-| Base class | Use with | Notes |
-|---|---|---|
-| `BaseRepository<TEntity, TKey>` | user-defined `IRepository<,>` sub-interface | extend to add custom methods |
-| `ReadOnlyRepository<TEntity, TKey>` | user-defined `IReadOnlyRepository<,>` sub-interface | extend to add custom methods |
-| `WriteRepository<TEntity, TKey>` | user-defined `IWriteRepository<,>` sub-interface | extend to add custom methods |
-| `Repository<TEntity, TKey>` | `IRepository<TEntity, TKey>` directly | no customisation needed; used by `RegisterGenericRepositories` |
+| Base class | Use with |
+|---|---|
+| `EfRepository<TEntity, TKey>` | a user-defined `IRepository<,>` sub-interface, or `IRepository<,>` directly |
+| `EfReadOnlyRepository<TEntity, TKey>` | a user-defined `IReadOnlyRepository<,>` sub-interface |
+| `EfWriteRepository<TEntity, TKey>` | a user-defined `IWriteRepository<,>` sub-interface |
+
+```csharp
+public class ProductRepository(AppDbContext context) : EfRepository<Product, long>(context), IProductRepository
+{
+}
+```
+
+See [EF Core repositories](../RapidRepo.EntityFrameworkCore/entity-framework-core.md#repositories) for the constructor options, custom query methods, and the 8.x names that still compile.
+
+Providers build on two provider-neutral base classes in the core, `WriteRepositoryBase<TEntity, TKey>` and `UnitOfWorkBase<TUserKey>`. They hold the write and audit rules described below. See [Writing a provider](providers.md).
 
 ---
 
-## Implementation examples
+## How writes behave
 
-Repositories may take either the base `DbContext` or your derived context — the base classes accept both. The examples below use `AppDbContext` because it resolves with no further setup: `AddDbContext<AppDbContext>()` registers `AppDbContext` and not the base `DbContext` type.
+These rules are part of the contract, so they hold for every provider:
 
-Taking `DbContext` keeps a repository reusable across contexts, and works whenever a forwarder is registered — [`UseDbContext<TContext>()`](../RapidRepo.Extensions.DependencyInjection/dependency-injection.md#usedbcontext) does this for you. In an application with more than one context, name the derived context: only one of them can occupy the base `DbContext` slot.
-
-### Full CRUD repository
-
-```csharp
-public class ProductRepository : BaseRepository<Product, long>, IProductRepository
-{
-    public ProductRepository(AppDbContext context) : base(context)
-    {
-    }
-}
-```
-
-### Read-only repository
-
-```csharp
-public class ProductReadRepository : ReadOnlyRepository<Product, long>, IProductReadRepository
-{
-    public ProductReadRepository(AppDbContext context) : base(context)
-    {
-    }
-}
-```
-
-### Write-only repository
-
-```csharp
-public class ProductWriteRepository : WriteRepository<Product, long>, IProductWriteRepository
-{
-    public ProductWriteRepository(AppDbContext context) : base(context)
-    {
-    }
-}
-```
+1. **Writes are staged.** Nothing reaches the store until the unit of work commits.
+2. **`Delete` soft-deletes an `IDeletableEntity`** and permanently removes any other entity.
+3. **Audit fields are stamped at commit time**, with the commit's user and the unit of work's clock. See [Unit of Work](unit-of-work.md#how-auditing-works).
+4. **Generated keys are populated on the entity after the commit.**
+5. **Changing a loaded entity without calling `Update` is not portable.** EF Core persists such a change because it tracks loaded entities; other providers do not. Always call `Update`.
 
 ---
 
 ## Soft delete, restore, and permanent removal
 
-For an entity implementing `IDeletableEntity`, `Delete` sets `DeletedAt` instead of removing the row. Two methods complete the picture:
+For an entity implementing `IDeletableEntity`, `Delete` marks it as deleted instead of removing the row, and reads exclude it by default. Two more operations complete the picture:
 
 | Method | What it does |
 |---|---|
-| `Restore(entity)` / `RestoreById(id)` | Clears `DeletedAt` — and `DeletedBy` when the entity implements `IDeletableEntity<TUserKey>` — making the record visible again |
-| `HardDelete(entity)` / `HardDeleteById(id)` | Physically removes the row, bypassing soft delete |
+| `Restore(entity)` / `RestoreById(id)` | Clears `DeletedAt` (and `DeletedBy` when the entity implements `IDeletableEntity<TUserKey>`), making the record visible again |
+| `HardDelete(entity)` / `HardDeleteById(id)` | Removes the row permanently, bypassing soft delete |
 
 ```csharp
-// Soft delete — sets DeletedAt, the row stays in the table.
+// Soft delete: the row stays in the table.
 _products.Delete(product);
 await _unitOfWork.CommitAsync(currentUserId);
-```
 
-```csharp
-// Undo it, even though the query filter now hides the row.
+// Undo it. RestoreById finds deleted entities by default.
 _products.RestoreById(productId);
 await _unitOfWork.CommitAsync(currentUserId);
-```
 
-```csharp
 // Purge it for good.
 _products.HardDelete(product);
 await _unitOfWork.CommitAsync();
 
-// By identifier, ignoreQueryFilters: true is what reaches a row that
-// is already soft-deleted — see the warning below.
-_products.HardDeleteById(productId, ignoreQueryFilters: true);
+// By identifier, includeDeleted: true is what reaches a row that is already soft-deleted.
+_products.HardDeleteById(productId, includeDeleted: true);
 await _unitOfWork.CommitAsync();
 ```
 
-Both come in range forms (`RestoreRange`, `HardDeleteRange`). Like `Delete` and `Update`, they only stage a change in the change tracker, so they have no async counterparts — only the `*ById` variants, which query the store, are offered as `RestoreByIdAsync` / `HardDeleteByIdAsync`. They are declared on `IWriteRepository<TEntity, TKey>`, so every repository deriving from `WriteRepository<TEntity, TId>` or `BaseRepository<TEntity, TId>` gets them without any changes.
+Both come in range forms (`RestoreRange`, `HardDeleteRange`). Like `Delete` and `Update`, they only stage a change, so they have no async counterparts. Only the `*ById` variants look the entity up, and only those have `*Async` versions.
 
-`Restore` requires soft-delete support and throws `InvalidOperationException` without it. `HardDelete` works on any entity — for one without soft delete it is identical to `Delete`.
+- `Restore` requires soft-delete support and throws `InvalidOperationException` without it.
+- `HardDelete` works on any entity. For one without soft delete it does exactly what `Delete` does.
 
-> ⚠️ `ignoreQueryFilters: true` drops **every** global query filter on the entity, not just the soft-delete one. With a multi-tenancy filter in place, `HardDeleteById(id, ignoreQueryFilters: true)` can permanently erase another tenant's row. See [Advanced usage](advanced.md) before enabling it.
+`includeDeleted` concerns soft delete only. A provider that cannot tell its soft-delete filter apart from other filters may bypass those too; see the provider's documentation. With EF Core and `AddSoftDeleteQueryFilters()`, other named filters such as a tenant filter stay in force. See [Soft delete and query filters](../RapidRepo.EntityFrameworkCore/entity-framework-core.md#soft-delete-and-query-filters).
 
 ---
 
 ## When no custom methods are needed
 
-If a repository adds no methods beyond standard CRUD, you do not need to create a custom interface or class. Enable `RegisterGenericRepositories` in `AddRapidRepo` and inject the root interface directly:
+If a repository adds no methods beyond standard CRUD, you do not need a custom interface or class. Enable `RegisterGenericRepositories` in `AddRapidRepo` and inject the root interface directly:
 
 ```csharp
-// Program.cs
 builder.Services.AddRapidRepo(options =>
 {
+    options.UseEntityFrameworkCore<AppDbContext>();
     options.RegisterGenericRepositories = true;
 });
 
-// Inject directly — no IUserRepository or UserRepository file needed
+// No IUserRepository or UserRepository file needed
 public class UserService(IRepository<User, Guid> users) { ... }
 ```
 
-When you later need a custom method, create the interface and class as normal — the specific registration will take precedence automatically.
-
-For manual DI registration without the extension package:
-
-```csharp
-builder.Services.AddScoped(typeof(IRepository<,>), typeof(Repository<,>));
-```
+When you later need a custom method, create the interface and class as normal. The specific registration takes precedence automatically.
 
 ---
 
 ## Adding custom methods
 
-You can call any of the inherited query methods/helpers directly from within your repository implementation, keeping the custom logic inside the data layer:
+Call the inherited query methods from your repository implementation to keep custom logic inside the data layer:
 
 ```csharp
 public interface IProductRepository : IRepository<Product, long>
@@ -162,45 +136,37 @@ public interface IProductRepository : IRepository<Product, long>
     Task<bool> ExistsByNameAsync(string name);
 }
 
-public class ProductRepository : BaseRepository<Product, long>, IProductRepository
+public class ProductRepository(AppDbContext context) : EfRepository<Product, long>(context), IProductRepository
 {
-    public ProductRepository(AppDbContext context) : base(context) { }
-
-    public async Task<IEnumerable<Product>> GetByCategoryAsync(long categoryId)
-        => await GetAllAsync(
+    public Task<IEnumerable<Product>> GetByCategoryAsync(long categoryId)
+        => GetAllAsync(
             condition: p => p.CategoryId == categoryId,
-            orderBy: q => q.OrderBy(p => p.Name));
+            orderBy: SortOrder<Product>.By(p => p.Name));
 
-    public async Task<bool> ExistsByNameAsync(string name)
-        => await AnyAsync(p => p.Name == name);
+    public Task<bool> ExistsByNameAsync(string name)
+        => AnyAsync(p => p.Name == name);
 }
 ```
+
+For queries the contract cannot express, the EF provider offers `Query()` and `BuildQuery()`. See [Custom queries](../RapidRepo.EntityFrameworkCore/entity-framework-core.md#custom-queries).
 
 ---
 
 ## DI registration
 
-### Convention-based (recommended)
-
-Install `RapidRepo.Extensions.DependencyInjection` and use `AddRapidRepo` to auto-discover all repositories in one call:
+Install `RapidRepo.Extensions.DependencyInjection` (the EF Core package already depends on it) and let `AddRapidRepo` discover your repositories:
 
 ```csharp
 builder.Services.AddRapidRepo(options =>
 {
-    options.UseDbContext<AppDbContext>();
+    options.UseEntityFrameworkCore<AppDbContext>();
     options.ScanAssembliesContaining<ProductRepository>();
-    options.UseUnitOfWork<IAppUnitOfWork, AppUnitOfWork>();
+    options.UseUnitOfWork<AppUnitOfWork>();
 });
 ```
 
-See [Dependency Injection](../RapidRepo.Extensions.DependencyInjection/dependency-injection.md) for the full reference.
-
-### Manual registration
-
-Register each repository individually with a scoped lifetime, matching the `DbContext` scope:
+See [Dependency Injection](../RapidRepo.Extensions.DependencyInjection/dependency-injection.md) for the full reference. To register by hand instead, add each repository with a scoped lifetime:
 
 ```csharp
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 ```
-
-See [Unit of Work](unit-of-work.md) for how to wire everything together.

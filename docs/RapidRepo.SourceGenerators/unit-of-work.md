@@ -8,14 +8,14 @@ For the manual approach to writing a Unit of Work, see [RapidRepo — Unit of Wo
 
 ## Installation
 
-`[GenerateUnitOfWork]`, `UnitOfWork<T>`, and the types the generator emits live in the core package. Add both:
+`[GenerateUnitOfWork]` lives in the core package, and the unit of work base class comes from your provider. For EF Core:
 
 ```bash
-dotnet add package RapidRepo
+dotnet add package RapidRepo.EntityFrameworkCore
 dotnet add package RapidRepo.SourceGenerators
 ```
 
-Reference it as an analyzer in your `.csproj` (not a regular assembly):
+Reference the generator as an analyzer in your `.csproj` (not a regular assembly):
 
 ```xml
 <PackageReference Include="RapidRepo.SourceGenerators" Version="..."
@@ -24,21 +24,23 @@ Reference it as an analyzer in your `.csproj` (not a regular assembly):
     ReferenceOutputAssembly="false" />
 ```
 
+The generator itself needs no EF Core reference; it recognises a `DbContext` by name.
+
 ---
 
 ## Usage
 
 ```csharp
-// AppUnitOfWork.cs — only file you maintain
+// AppUnitOfWork.cs — the only file you maintain
 [GenerateUnitOfWork(typeof(AppDbContext))]
-public partial class AppUnitOfWork : UnitOfWork<Guid>, IAppUnitOfWork
+public partial class AppUnitOfWork : EfUnitOfWork<Guid>, IAppUnitOfWork
 {
     public AppUnitOfWork(AppDbContext db, IServiceProvider sp)
         : base(db, Guid.Empty, sp) { }
 }
 
 // IAppUnitOfWork.cs — slim interface that inherits the generated one
-public interface IAppUnitOfWork : IUnitOfWork<Guid>, IDisposable, IAppUnitOfWorkRepositories
+public interface IAppUnitOfWork : IUnitOfWork<Guid>, IAppUnitOfWorkRepositories
 {
     // add only app-specific extras here
 }
@@ -68,6 +70,31 @@ public partial class AppUnitOfWork
 }
 ```
 
+The generated code uses only `GetRepository` and `ResolveRepository`, which every unit of work inherits from the provider-neutral `UnitOfWorkBase<TUserKey>`. It brings its own `using` directives, so it also compiles in projects without implicit usings.
+
+---
+
+## Sources: DbContexts and entity types
+
+Each type passed to the attribute is a **source** of entities:
+
+| Source | Entities |
+|---|---|
+| A type deriving from `Microsoft.EntityFrameworkCore.DbContext` | Every public `DbSet<TEntity>` property whose entity derives from `BaseEntity<TKey>` |
+| A type deriving from `BaseEntity<TKey>` | That entity |
+
+Entity sources are how providers without a `DbContext`, such as Dapper, use the generator. The two kinds can be mixed:
+
+```csharp
+[GenerateUnitOfWork(typeof(Product), typeof(Order), typeof(Category))]
+public partial class CatalogUnitOfWork : DapperUnitOfWork<Guid>, ICatalogUnitOfWork { ... }
+
+[GenerateUnitOfWork(typeof(AppDbContext), typeof(AuditEntry))]
+public partial class AppUnitOfWork : EfUnitOfWork<Guid>, IAppUnitOfWork { ... }
+```
+
+When two sources supply the same entity, the first one wins.
+
 ---
 
 ## Property naming
@@ -75,31 +102,34 @@ public partial class AppUnitOfWork
 | Source | Name derivation |
 |---|---|
 | `DbSet<T> Users` | Member name as-is (`Users`) |
+| Entity type `Category` | Entity name, pluralized → `Categories` |
 | `IMatchRepository` | Strip `I` + `Repository`, pluralize → `Matches` |
 | `IUserProviderRepository` | Strip `I` + `Repository`, pluralize → `UserProviders` |
 | `[UnitOfWorkProperty("People")]` on interface | Override to `People` |
 
-Pluralization rules: consonant + `y` → `ies`; ends in `s/sh/ch/x/z` → `es`; otherwise → `s`.
-For irregular plurals (`Person` → `People`), apply `[UnitOfWorkProperty("People")]` on the interface.
+Pluralization rules: consonant + `y` → `ies`; ends in `s/sh/ch/x/z` → `es`; otherwise → `s`. Only interface names lose a leading `I`, so an entity named `Item` becomes `Items`.
+For irregular plurals (`Person` → `People`), declare a custom repository interface with `[UnitOfWorkProperty("People")]`.
 
 ---
 
 ## Deduplication and capability narrowing
 
-When a custom repo interface covers the same entity as a DbSet property, **the custom repo wins**. The generated property name is derived from the custom repo name, not the DbSet member name. If you relied on the DbSet name, apply `[UnitOfWorkProperty("DbSetName")]` on the interface.
+When a custom repo interface covers the same entity as a DbSet property or an entity source, **the custom repo wins**. The generated property name then comes from the custom repo name, not the DbSet member name. If you relied on the DbSet name, apply `[UnitOfWorkProperty("DbSetName")]` on the interface.
 
-If the custom repo extends `IReadOnlyRepository<,>` or `IWriteRepository<,>` instead of `IRepository<,>`, the generated property type reflects that narrower contract. Write or read methods will not be accessible through the UoW property — this is intentional.
+If the custom repo extends `IReadOnlyRepository<,>` or `IWriteRepository<,>` instead of `IRepository<,>`, the generated property type reflects that narrower contract. Write or read methods are then not accessible through the UoW property; this is intentional.
 
 ---
 
 ## Attribute reference
 
-| Property | Type | Default | Description |
+| Member | Type | Default | Description |
 |---|---|---|---|
-| Constructor arg | `params Type[]` | — | One or more `DbContext` types to scan for `DbSet<T>` properties |
+| Constructor arg `sources` | `params Type[]` | — | DbContext types and entity types; exposed as the `Sources` property |
 | `RepositoriesInterfaceName` | `string?` | `I{ClassName}Repositories` | Override the generated interface name |
 | `IncludeNamespaces` | `string[]` | `[]` (all) | Only include custom repo interfaces from these namespace prefixes |
 | `ExcludeNamespaces` | `string[]` | `[]` (none) | Exclude custom repo interfaces from these namespace prefixes |
+
+`IncludeNamespaces` and `ExcludeNamespaces` filter custom repository interfaces only; entities from the sources are always included.
 
 ---
 
@@ -107,10 +137,10 @@ If the custom repo extends `IReadOnlyRepository<,>` or `IWriteRepository<,>` ins
 
 | Code | Severity | Cause |
 |---|---|---|
-| `RRUOW001` | Warning | DbSet entity does not inherit `BaseEntity<TKey>` — property skipped |
-| `RRUOW002` | Error | Two custom repos resolve to the same property name |
-| `RRUOW003` | Error | Attributed class is not `partial` |
-| `RRUOW004` | Error | Type passed to the attribute does not inherit `DbContext` |
+| `RRUOW001` | Warning | A `DbSet` entity does not inherit `BaseEntity<TKey>`; the property is skipped |
+| `RRUOW002` | Error | Two repositories resolve to the same property name |
+| `RRUOW003` | Error | The attributed class is not `partial` |
+| `RRUOW004` | Error | A type passed to the attribute is neither a `DbContext` nor a `BaseEntity<TKey>` (open generic types included) |
 
 ---
 
@@ -124,12 +154,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddRapidRepo(options =>
 {
+    options.UseEntityFrameworkCore<AppDbContext>();
     options.ScanAssembliesContaining<ProductRepository>();
     options.UseUnitOfWork<IAppUnitOfWork, AppUnitOfWork>();
 });
 ```
 
-DbSet-backed properties (`GetRepository<TEntity, TKey>()`) are zero-DI — they never touch the container.
-Custom repo properties (`ResolveRepository<TRepo>()`) are resolved from the `IServiceProvider` passed to the constructor.
+Generic properties (`GetRepository<TEntity, TKey>()`) never touch the container; the provider creates the repository. Custom repo properties (`ResolveRepository<TRepo>()`) are resolved from the `IServiceProvider` passed to the constructor.
 
 See [Dependency Injection](../RapidRepo.Extensions.DependencyInjection/dependency-injection.md) for the full `AddRapidRepo` reference.

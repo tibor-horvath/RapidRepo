@@ -1,13 +1,13 @@
 # RapidRepo.SourceGenerators
 
-A source generator for [RapidRepo](https://www.nuget.org/packages/RapidRepo) that writes your Unit of Work's repository properties for you. Mark a `partial` class with `[GenerateUnitOfWork]` and get a typed property for every `DbSet<T>` and custom repository, plus a matching interface, at build time.
+A source generator for [RapidRepo](https://www.nuget.org/packages/RapidRepo) that writes your Unit of Work's repository properties for you. Mark a `partial` class with `[GenerateUnitOfWork]` and get a typed property for every `DbSet<T>`, entity type and custom repository, plus a matching interface, at build time.
 
 ## Installation
 
-The attribute and the base types live in the core package, so add both:
+The attribute lives in the core package, and the unit of work base class comes from your provider. For EF Core:
 
 ```bash
-dotnet add package RapidRepo
+dotnet add package RapidRepo.EntityFrameworkCore
 dotnet add package RapidRepo.SourceGenerators
 ```
 
@@ -24,13 +24,13 @@ Reference the generator as an analyzer:
 
 ```csharp
 [GenerateUnitOfWork(typeof(AppDbContext))]
-public partial class AppUnitOfWork : UnitOfWork<Guid>, IAppUnitOfWork
+public partial class AppUnitOfWork : EfUnitOfWork<Guid>, IAppUnitOfWork
 {
     public AppUnitOfWork(AppDbContext db, IServiceProvider sp)
         : base(db, Guid.Empty, sp) { }
 }
 
-public interface IAppUnitOfWork : IUnitOfWork<Guid>, IDisposable, IAppUnitOfWorkRepositories
+public interface IAppUnitOfWork : IUnitOfWork<Guid>, IAppUnitOfWorkRepositories
 {
 }
 ```
@@ -45,8 +45,9 @@ public partial class AppUnitOfWork
 }
 ```
 
-- Property names come from the `DbSet<T>` member, or from the repository interface (`IMatchRepository` becomes `Matches`).
-- A custom repository wins over a `DbSet<T>` of the same entity.
+- Sources can be `DbContext` types or entity types: `[GenerateUnitOfWork(typeof(Product), typeof(Order))]` works without a `DbContext`, for example with a Dapper provider.
+- Property names come from the `DbSet<T>` member, the entity name in plural (`Category` becomes `Categories`), or the repository interface (`IMatchRepository` becomes `Matches`).
+- A custom repository wins over a `DbSet<T>` or entity source of the same entity.
 - `[UnitOfWorkProperty("People")]` on an interface overrides the generated name.
 
 ## Documentation
