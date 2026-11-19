@@ -115,8 +115,17 @@ The generated code calls only `GetRepository` and `ResolveRepository` on `UnitOf
 
 `RapidRepo.Testing.Conformance` (in this repository; not published) holds provider-neutral xUnit tests for the contract: CRUD, staged changes, soft delete and restore, audit stamping, querying, and the condition expressions every provider must translate. To run them against a provider:
 
-1. Implement `IConformanceStore`: a parameterless constructor that creates an empty store holding the conformance entities `Widget` and `Note`, with soft-deleted `Note`s excluded from reads; and `OpenSession(TimeProvider clock)`.
-2. Implement `IConformanceSession`: a unit of work whose default user is `ConformanceDefaults.DefaultUser` and which stamps with `clock`, plus `Repository<TEntity, TKey>()` returning repositories that stage changes in it.
+1. Implement `IConformanceStore`: a parameterless constructor that creates an empty store holding the conformance entities `Widget` and `Note`, with soft-deleted `Note`s excluded from reads; and `OpenSession(TimeProvider clock, ICurrentUserProvider<Guid>? currentUserProvider = null)`.
+2. Implement `IConformanceSession`: a unit of work whose default user is `ConformanceDefaults.DefaultUser` and which stamps with `clock`, plus `Repository<TEntity, TKey>()` returning repositories that stage changes in it. Pass `currentUserProvider` to the `UnitOfWorkBase` constructor, which resolves the audit user. The audit tests check that order: explicit user, then the provider, then the default user.
+
+```csharp
+public IConformanceSession OpenSession(TimeProvider clock, ICurrentUserProvider<Guid>? currentUserProvider = null)
+{
+    var unitOfWork = new MyOrmUnitOfWork(
+        connection, ConformanceDefaults.DefaultUser, serviceProvider: null, clock, currentUserProvider);
+    return new MyOrmConformanceSession(unitOfWork);
+}
+```
 3. Add one class per test area to the provider's test project:
 
 ```csharp
