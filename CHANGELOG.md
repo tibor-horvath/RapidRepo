@@ -1,5 +1,16 @@
 # Changelog
 
+## [9.0.0](https://github.com/tibor-horvath/RapidRepo/compare/8.0.0...9.0.0) (2026-11-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* EF Core types moved to the RapidRepo.EntityFrameworkCore package and namespace
+
+### Features
+
+* separate the provider-neutral core from EF Core ([#137](https://github.com/tibor-horvath/RapidRepo/issues/137)) ([8443f90](https://github.com/tibor-horvath/RapidRepo/commit/8443f90cfa3572b5b2fd0d26260c8e5f3f12eeb6))
+
 ## [8.0.0](https://github.com/tibor-horvath/RapidRepo/compare/7.0.1...8.0.0) (2026-11-13)
 
 
