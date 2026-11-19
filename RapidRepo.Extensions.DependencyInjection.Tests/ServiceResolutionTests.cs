@@ -2,7 +2,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RapidRepo.Extensions.DependencyInjection.Tests.TestData;
-using RapidRepo.Repositories;
+using RapidRepo.EntityFrameworkCore;
 using RapidRepo.Repositories.Interfaces;
 
 namespace RapidRepo.Extensions.DependencyInjection.Tests;
@@ -176,7 +176,7 @@ public class ServiceResolutionTests
         services.Should().NotContain(d => d.ServiceType == typeof(IRepository<,>));
         services.Should().Contain(d =>
             d.ServiceType == typeof(IRepository<Widget, int>) &&
-            d.ImplementationType == typeof(Repository<Widget, int, TestDbContext>));
+            d.ImplementationType == typeof(EfRepository<Widget, int, TestDbContext>));
     }
 
     /// <summary>
@@ -249,7 +249,7 @@ public class ServiceResolutionTests
         using var scope = provider.CreateScope();
 
         scope.ServiceProvider
-            .GetRequiredService<Repository<SharedLookup, int, SharedLeftDbContext>>()
+            .GetRequiredService<EfRepository<SharedLookup, int, SharedLeftDbContext>>()
             .Should().NotBeNull();
     }
 
@@ -331,8 +331,8 @@ public class ServiceResolutionTests
         var widgets = scope.ServiceProvider.GetRequiredService<IRepository<Widget, int>>();
         var gadgets = scope.ServiceProvider.GetRequiredService<IRepository<Gadget, Guid>>();
 
-        widgets.Should().BeOfType<Repository<Widget, int, SalesDbContext>>();
-        gadgets.Should().BeOfType<Repository<Gadget, Guid, BillingDbContext>>();
+        widgets.Should().BeOfType<EfRepository<Widget, int, SalesDbContext>>();
+        gadgets.Should().BeOfType<EfRepository<Gadget, Guid, BillingDbContext>>();
 
         var sales = scope.ServiceProvider.GetRequiredService<SalesDbContext>();
         var billing = scope.ServiceProvider.GetRequiredService<BillingDbContext>();

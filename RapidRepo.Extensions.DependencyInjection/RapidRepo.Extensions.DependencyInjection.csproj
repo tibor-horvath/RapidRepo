@@ -15,7 +15,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RapidRepo\RapidRepo.csproj" />
+    <!--
+      Temporary (#111, Phase 1): DbContext registration and the generic repository fallback still live here.
+      Phase 5 moves them into RapidRepo.EntityFrameworkCore behind a provider extension point, and this
+      package then references only the RapidRepo core.
+    -->
+    <ProjectReference Include="..\RapidRepo.EntityFrameworkCore\RapidRepo.EntityFrameworkCore.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -43,8 +43,12 @@ public class UnitOfWorkGeneratorTests
         var systemRuntime = Assembly.Load("System.Runtime");
         yield return MetadataReference.CreateFromFile(systemRuntime.Location);
 
-        // RapidRepo (attributes + base types)
-        yield return MetadataReference.CreateFromFile(typeof(RapidRepo.UnitOfWork.UnitOfWork<>).Assembly.Location);
+        // RapidRepo core (attributes, entities, contracts)
+        yield return MetadataReference.CreateFromFile(typeof(RapidRepo.Entities.BaseEntity<>).Assembly.Location);
+
+        // RapidRepo.EntityFrameworkCore. The samples deliberately keep the 7.x UnitOfWork<T> name, which now lives
+        // here as an obsolete shim, so these tests also prove that existing declarations still generate.
+        yield return MetadataReference.CreateFromFile(typeof(RapidRepo.EntityFrameworkCore.EfUnitOfWork<>).Assembly.Location);
 
         // EF Core
         yield return MetadataReference.CreateFromFile(typeof(Microsoft.EntityFrameworkCore.DbContext).Assembly.Location);

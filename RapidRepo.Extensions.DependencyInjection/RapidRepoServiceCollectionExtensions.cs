@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RapidRepo.Extensions.DependencyInjection;
 using RapidRepo.Extensions.DependencyInjection.Internal;
-using RapidRepo.Repositories;
+using RapidRepo.EntityFrameworkCore;
 using RapidRepo.Repositories.Interfaces;
 using System.Diagnostics;
 
@@ -63,7 +63,7 @@ public static class RapidRepoServiceCollectionExtensions
             }
             else
             {
-                var repoType = typeof(Repository<,>);
+                var repoType = typeof(EfRepository<,>);
                 services.TryAdd(ServiceDescriptor.Describe(typeof(IRepository<,>),         repoType, options.Lifetime));
                 services.TryAdd(ServiceDescriptor.Describe(typeof(IReadOnlyRepository<,>), repoType, options.Lifetime));
                 services.TryAdd(ServiceDescriptor.Describe(typeof(IWriteRepository<,>),    repoType, options.Lifetime));
@@ -80,7 +80,7 @@ public static class RapidRepoServiceCollectionExtensions
 
     /// <summary>
     /// Types this call registers whose constructors the container has to satisfy. The open-generic
-    /// <see cref="Repository{TEntity,TId}"/> fallback counts too — it takes a base <see cref="DbContext"/>.
+    /// <see cref="EfRepository{TEntity,TId}"/> fallback counts too — it takes a base <see cref="DbContext"/>.
     /// </summary>
     private static List<Type> GetDependentTypes(
         RapidRepoOptions options,
@@ -91,7 +91,7 @@ public static class RapidRepoServiceCollectionExtensions
         types.AddRange(options.UnitOfWorkRegistrations.Select(r => r.ImplementationType));
 
         if (options.RegisterGenericRepositories && options.DbContextType is null)
-            types.Add(typeof(Repository<,>));
+            types.Add(typeof(EfRepository<,>));
 
         return types;
     }

@@ -1,0 +1,28 @@
+﻿using Microsoft.EntityFrameworkCore;
+
+namespace RapidRepo.EntityFrameworkCore.Tests.Repositories.TestData;
+
+public class TestDbContext : DbContext
+{
+    internal DbSet<Employee> Employees { get; set; }
+    internal DbSet<Company> Companies { get; set; }
+    internal DbSet<AccessToken> AccessTokens { get; set; }
+
+    public TestDbContext(
+        DbContextOptions<TestDbContext> options)
+        : base(options)
+    {
+
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Employee>().HasQueryFilter(e => e.DeletedAt == null && e.DeletedBy == null);
+        modelBuilder.Entity<Company>().HasQueryFilter(e => e.DeletedAt == null);
+        modelBuilder.Entity<AccessToken>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedNever();
+        });
+    }
+}

@@ -25,7 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RapidRepo\RapidRepo.csproj" />
+    <ProjectReference Include="..\RapidRepo.EntityFrameworkCore\RapidRepo.EntityFrameworkCore.csproj" />
     <ProjectReference Include="..\RapidRepo.SourceGenerators\RapidRepo.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
   </ItemGroup>
 

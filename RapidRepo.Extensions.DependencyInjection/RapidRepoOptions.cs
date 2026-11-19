@@ -40,7 +40,7 @@ public sealed class RapidRepoOptions
     public bool ThrowOnMissingDbContext { get; set; }
 
     /// <summary>
-    /// Register <see cref="RapidRepo.Repositories.Repository{TEntity,TId}"/> as the open-generic fallback
+    /// Register <see cref="RapidRepo.EntityFrameworkCore.EfRepository{TEntity,TId}"/> as the open-generic fallback
     /// for <see cref="RapidRepo.Repositories.Interfaces.IRepository{TEntity,TKey}"/>,
     /// <see cref="RapidRepo.Repositories.Interfaces.IReadOnlyRepository{TEntity,TKey}"/>, and
     /// <see cref="RapidRepo.Repositories.Interfaces.IWriteRepository{TEntity,TKey}"/>.

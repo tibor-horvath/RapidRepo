@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RapidRepo.Entities;
-using RapidRepo.Repositories;
+using RapidRepo.EntityFrameworkCore;
 using RapidRepo.Repositories.Interfaces;
 using System.Reflection;
 
@@ -75,7 +75,7 @@ internal static class DbContextRegistrar
 
     /// <summary>
     /// Registers a closed repository per <see cref="DbSet{TEntity}"/> on <paramref name="contextType"/>, bound to
-    /// that context via <see cref="Repository{TEntity, TId, TContext}"/>. Closed registrations win over any
+    /// that context via <see cref="EfRepository{TEntity, TId, TContext}"/>. Closed registrations win over any
     /// open-generic fallback, which is what keeps each context serving its own entities.
     /// </summary>
     /// <exception cref="InvalidOperationException">
@@ -89,7 +89,7 @@ internal static class DbContextRegistrar
     {
         foreach (var (entityType, keyType) in DiscoverEntities(contextType))
         {
-            var implementationType = typeof(Repository<,,>).MakeGenericType(entityType, keyType, contextType);
+            var implementationType = typeof(EfRepository<,,>).MakeGenericType(entityType, keyType, contextType);
 
             foreach (var rootInterface in RootInterfaces)
             {
@@ -122,7 +122,7 @@ internal static class DbContextRegistrar
         // Anything not registered by this code path — an application's own registration — is left alone.
         if (existing is null
             || !existing.IsGenericType
-            || existing.GetGenericTypeDefinition() != typeof(Repository<,,>))
+            || existing.GetGenericTypeDefinition() != typeof(EfRepository<,,>))
             return;
 
         var existingContext = existing.GenericTypeArguments[2];
@@ -136,7 +136,7 @@ internal static class DbContextRegistrar
             $"'{entityType.Name}' is mapped by both contexts, and that service type cannot express which one " +
             "is meant. Give each context its own repository interface and register it by assembly scanning, " +
             "or set RegisterAsSelf = true and inject " +
-            $"'{FriendlyName(typeof(Repository<,,>).MakeGenericType(entityType, existing.GenericTypeArguments[1], contextType))}'.");
+            $"'{FriendlyName(typeof(EfRepository<,,>).MakeGenericType(entityType, existing.GenericTypeArguments[1], contextType))}'.");
     }
 
     private static string FriendlyName(Type type)

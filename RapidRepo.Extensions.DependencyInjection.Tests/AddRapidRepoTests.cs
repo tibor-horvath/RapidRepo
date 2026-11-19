@@ -2,7 +2,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using RapidRepo.Extensions.DependencyInjection.Tests.TestData;
 using RapidRepo.Extensions.DependencyInjection.Tests.TestData.Ambiguous;
-using RapidRepo.Repositories;
+using RapidRepo.EntityFrameworkCore;
 using RapidRepo.Repositories.Interfaces;
 using RapidRepo.UnitOfWork;
 
@@ -695,7 +695,7 @@ public class AddRapidRepoTests
 
         services.Should().Contain(d =>
             d.ServiceType == typeof(IRepository<,>) &&
-            d.ImplementationType == typeof(Repository<,>));
+            d.ImplementationType == typeof(EfRepository<,>));
     }
 
     [Fact]
@@ -707,7 +707,7 @@ public class AddRapidRepoTests
 
         services.Should().Contain(d =>
             d.ServiceType == typeof(IReadOnlyRepository<,>) &&
-            d.ImplementationType == typeof(Repository<,>));
+            d.ImplementationType == typeof(EfRepository<,>));
     }
 
     [Fact]
@@ -719,7 +719,7 @@ public class AddRapidRepoTests
 
         services.Should().Contain(d =>
             d.ServiceType == typeof(IWriteRepository<,>) &&
-            d.ImplementationType == typeof(Repository<,>));
+            d.ImplementationType == typeof(EfRepository<,>));
     }
 
     [Fact]
@@ -771,7 +771,7 @@ public class AddRapidRepoTests
         // Open-generic fallback is also present as a separate descriptor
         services.Should().Contain(d =>
             d.ServiceType == typeof(IRepository<,>) &&
-            d.ImplementationType == typeof(Repository<,>));
+            d.ImplementationType == typeof(EfRepository<,>));
     }
 
     // ── ExcludeNamespace / IncludeNamespace ────────────────────────────────────
