@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using RapidRepo.Auditing;
 using RapidRepo.Entities;
 using RapidRepo.Extensions;
 using RapidRepo.Repositories.Interfaces;
@@ -31,10 +32,10 @@ public sealed class EfConformanceSession : IConformanceSession
 {
     private readonly ConformanceDbContext _dbContext;
 
-    public EfConformanceSession(ConformanceDbContext dbContext, TimeProvider clock)
+    public EfConformanceSession(ConformanceDbContext dbContext, TimeProvider clock, ICurrentUserProvider<Guid>? currentUserProvider)
     {
         _dbContext = dbContext;
-        UnitOfWork = new ConformanceUnitOfWork(dbContext, clock);
+        UnitOfWork = new ConformanceUnitOfWork(dbContext, clock, currentUserProvider);
     }
 
     public IUnitOfWork<Guid> UnitOfWork { get; }
@@ -46,8 +47,8 @@ public sealed class EfConformanceSession : IConformanceSession
 
     public void Dispose() => _dbContext.Dispose();
 
-    private sealed class ConformanceUnitOfWork(DbContext dbContext, TimeProvider clock)
-        : EfUnitOfWork<Guid>(dbContext, ConformanceDefaults.DefaultUser, serviceProvider: null, clock);
+    private sealed class ConformanceUnitOfWork(DbContext dbContext, TimeProvider clock, ICurrentUserProvider<Guid>? currentUserProvider)
+        : EfUnitOfWork<Guid>(dbContext, ConformanceDefaults.DefaultUser, serviceProvider: null, clock, currentUserProvider);
 }
 
 /// <summary>EF Core InMemory: one named in-memory database per store.</summary>
@@ -57,7 +58,8 @@ public sealed class EfInMemoryConformanceStore : IConformanceStore
         .UseInMemoryDatabase($"Conformance-{Guid.NewGuid()}")
         .Options;
 
-    public IConformanceSession OpenSession(TimeProvider clock) => new EfConformanceSession(new ConformanceDbContext(_options), clock);
+    public IConformanceSession OpenSession(TimeProvider clock, ICurrentUserProvider<Guid>? currentUserProvider = null) =>
+        new EfConformanceSession(new ConformanceDbContext(_options), clock, currentUserProvider);
 
     public void Dispose()
     {
@@ -84,7 +86,8 @@ public sealed class EfSqliteConformanceStore : IConformanceStore
         dbContext.Database.EnsureCreated();
     }
 
-    public IConformanceSession OpenSession(TimeProvider clock) => new EfConformanceSession(new ConformanceDbContext(_options), clock);
+    public IConformanceSession OpenSession(TimeProvider clock, ICurrentUserProvider<Guid>? currentUserProvider = null) =>
+        new EfConformanceSession(new ConformanceDbContext(_options), clock, currentUserProvider);
 
     public void Dispose() => _connection.Dispose();
 }

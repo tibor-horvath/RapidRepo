@@ -71,7 +71,9 @@ Derive from `UnitOfWorkBase<TUserKey>` and implement:
 | Member | Responsibility |
 |---|---|
 | `CreateRepository<TEntity, TKey>()` | Your generic repository, bound to this unit of work. Generated code reaches it through `GetRepository` |
-| `CommitCore` / `CommitCoreAsync` | Map each staged change to an `EntityChangeKind` (inserts are `Added`; for updates call `EntityChangeClassifier.ClassifyUpdate(entity, originalDeletedAt)`), call `Auditor.Stamp(entity, kind, userId, utcNow)` with one `Auditor.UtcNow` for the whole commit, then persist everything, ideally in one transaction |
+| `CommitCore` / `CommitCoreAsync` | Map each staged change to an `EntityChangeKind` (inserts are `Added`; for updates call `EntityChangeClassifier.ClassifyUpdate(entity, originalDeletedAt)`), call `Auditor.Stamp(entity, kind, userId, utcNow)` with one `Auditor.UtcNow` for the whole commit, then persist everything, ideally in one transaction. `userId` arrives already resolved from the commit's argument and the current-user provider, so a provider needs no code for either |
+
+Offer a constructor that takes an `ICurrentUserProvider<TUserKey>?` and passes it to the `UnitOfWorkBase` constructor, as `EfUnitOfWork` does, so applications that don't pass an `IServiceProvider` can still supply one.
 
 Report a soft delete as `SoftDeleted` only on the transition from not deleted to deleted, so an edit to an already deleted entity keeps its deletion stamp. `EntityChangeClassifier` applies this rule; it needs the `DeletedAt` the entity had before the change. A change-tracking provider reads its original value. A command-based provider records it the first time it stages the entity, before `StageDeletionChange` calls `applyChange`.
 
@@ -113,8 +115,17 @@ The generated code calls only `GetRepository` and `ResolveRepository` on `UnitOf
 
 `RapidRepo.Testing.Conformance` (in this repository; not published) holds provider-neutral xUnit tests for the contract: CRUD, staged changes, soft delete and restore, audit stamping, querying, and the condition expressions every provider must translate. To run them against a provider:
 
-1. Implement `IConformanceStore`: a parameterless constructor that creates an empty store holding the conformance entities `Widget` and `Note`, with soft-deleted `Note`s excluded from reads; and `OpenSession(TimeProvider clock)`.
-2. Implement `IConformanceSession`: a unit of work whose default user is `ConformanceDefaults.DefaultUser` and which stamps with `clock`, plus `Repository<TEntity, TKey>()` returning repositories that stage changes in it.
+1. Implement `IConformanceStore`: a parameterless constructor that creates an empty store holding the conformance entities `Widget` and `Note`, with soft-deleted `Note`s excluded from reads; and `OpenSession(TimeProvider clock, ICurrentUserProvider<Guid>? currentUserProvider = null)`.
+2. Implement `IConformanceSession`: a unit of work whose default user is `ConformanceDefaults.DefaultUser` and which stamps with `clock`, plus `Repository<TEntity, TKey>()` returning repositories that stage changes in it. Pass `currentUserProvider` to the `UnitOfWorkBase` constructor, which resolves the audit user. The audit tests check that order: explicit user, then the provider, then the default user.
+
+```csharp
+public IConformanceSession OpenSession(TimeProvider clock, ICurrentUserProvider<Guid>? currentUserProvider = null)
+{
+    var unitOfWork = new MyOrmUnitOfWork(
+        connection, ConformanceDefaults.DefaultUser, serviceProvider: null, clock, currentUserProvider);
+    return new MyOrmConformanceSession(unitOfWork);
+}
+```
 3. Add one class per test area to the provider's test project:
 
 ```csharp

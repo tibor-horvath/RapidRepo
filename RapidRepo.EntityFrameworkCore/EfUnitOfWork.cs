@@ -38,7 +38,25 @@ public abstract class EfUnitOfWork<TUserKey> : UnitOfWorkBase<TUserKey>
         TUserKey defaultUserKey,
         IServiceProvider? serviceProvider,
         TimeProvider? timeProvider)
-        : base(defaultUserKey, serviceProvider, timeProvider)
+        : this(dbContext, defaultUserKey, serviceProvider, timeProvider, currentUserProvider: null)
+    {
+    }
+
+    /// <param name="dbContext">The context whose changes this unit of work commits.</param>
+    /// <param name="defaultUserKey">The user recorded in audit fields when neither the commit nor <paramref name="currentUserProvider"/> names one.</param>
+    /// <param name="serviceProvider">The service provider custom repositories are resolved from, if any.</param>
+    /// <param name="timeProvider">The clock for audit timestamps, or <see langword="null"/> for the system clock.</param>
+    /// <param name="currentUserProvider">
+    /// Supplies the audit user when a commit names none, or <see langword="null"/> to resolve one from
+    /// <paramref name="serviceProvider"/>, if any.
+    /// </param>
+    protected EfUnitOfWork(
+        DbContext dbContext,
+        TUserKey defaultUserKey,
+        IServiceProvider? serviceProvider,
+        TimeProvider? timeProvider,
+        ICurrentUserProvider<TUserKey>? currentUserProvider)
+        : base(defaultUserKey, serviceProvider, timeProvider, currentUserProvider)
     {
         DbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }

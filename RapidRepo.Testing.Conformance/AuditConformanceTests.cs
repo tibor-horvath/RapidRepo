@@ -147,4 +147,96 @@ public abstract class AuditConformanceTests<TStore> : ConformanceTests<TStore>
 
         InNewSession(s => s.Notes().GetAll().Select(n => n.CreatedAt).Distinct()).Should().Equal(T1);
     }
+
+    // ── Current-user provider: explicit userId > provider > default user ─────
+
+    [Fact]
+    public void CurrentUser_StampsCreatedBy_WhenTheCommitNamesNone()
+    {
+        var note = new Note();
+        var session = OpenSession(new ConformanceCurrentUser(Alice));
+        session.Notes().Add(note);
+
+        session.UnitOfWork.Commit();
+
+        InNewSession(s => s.Notes().GetById(note.Id))!.CreatedBy.Should().Be(Alice);
+    }
+
+    [Fact]
+    public async Task CurrentUser_StampsModifiedByAndDeletedBy_OnAsyncCommits()
+    {
+        var edited = new Note { Title = "Draft" };
+        var deleted = new Note();
+        SeedNotes(edited, deleted);
+        Clock.UtcNow = T2;
+
+        var session = OpenSession(new ConformanceCurrentUser(Bob));
+        var loaded = session.Notes().GetById(edited.Id)!;
+        loaded.Title = "Final";
+        session.Notes().Update(loaded);
+        session.Notes().DeleteById(deleted.Id);
+        await session.UnitOfWork.CommitAsync();
+
+        InNewSession(s => s.Notes().GetById(edited.Id))!.ModifiedBy.Should().Be(Bob);
+        var read = InNewSession(s => s.Notes().GetById(deleted.Id, IncludeDeleted))!;
+        read.DeletedBy.Should().Be(Bob);
+        read.ModifiedBy.Should().Be(Bob);
+    }
+
+    [Fact]
+    public void CurrentUser_StampsModifiedBy_OnRestore_AndClearsDeletedBy()
+    {
+        var id = SeedNotes(new Note())[0].Id;
+        Commit(s => s.Notes().DeleteById(id), Alice);
+        Clock.UtcNow = T2;
+
+        var session = OpenSession(new ConformanceCurrentUser(Bob));
+        session.Notes().RestoreById(id);
+        session.UnitOfWork.Commit();
+
+        var read = InNewSession(s => s.Notes().GetById(id))!;
+        read.DeletedAt.Should().BeNull();
+        read.DeletedBy.Should().BeNull();
+        read.ModifiedAt.Should().Be(T2);
+        read.ModifiedBy.Should().Be(Bob);
+    }
+
+    [Fact]
+    public void CurrentUser_IsOverriddenByAnExplicitUser()
+    {
+        var note = new Note();
+        var currentUser = new ConformanceCurrentUser(Alice);
+        var session = OpenSession(currentUser);
+        session.Notes().Add(note);
+
+        session.UnitOfWork.Commit(Bob);
+
+        InNewSession(s => s.Notes().GetById(note.Id))!.CreatedBy.Should().Be(Bob);
+        currentUser.Calls.Should().Be(0, "an explicit user means the provider is not asked");
+    }
+
+    [Fact]
+    public void CurrentUser_ReturningNull_StampsTheDefaultUser()
+    {
+        var note = new Note();
+        var session = OpenSession(new ConformanceCurrentUser(null));
+        session.Notes().Add(note);
+
+        session.UnitOfWork.Commit();
+
+        InNewSession(s => s.Notes().GetById(note.Id))!.CreatedBy.Should().Be(DefaultUser);
+    }
+
+    [Fact]
+    public void CurrentUser_IsAskedOnce_ForACommitOfSeveralEntities()
+    {
+        var currentUser = new ConformanceCurrentUser(Alice);
+        var session = OpenSession(currentUser);
+        session.Notes().AddRange([new Note(), new Note(), new Note()]);
+
+        session.UnitOfWork.Commit();
+
+        currentUser.Calls.Should().Be(1);
+        InNewSession(s => s.Notes().GetAll().Select(n => n.CreatedBy).Distinct()).Should().Equal(Alice);
+    }
 }

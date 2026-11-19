@@ -190,4 +190,4 @@ The projection overloads that also take a condition (`GetAll`, `GetAllPaged`, `G
 | `CommitAsync(userId?, cancellationToken)` | Stamps audit fields and persists every staged change |
 | `Commit(userId?)` | Synchronous version of `CommitAsync` |
 
-See [Unit of Work](unit-of-work.md) for the audit rules.
+Without a `userId`, the audit user comes from the `ICurrentUserProvider<TUserKey>`, if any, and otherwise is the default user key. See [Unit of Work](unit-of-work.md) for the audit rules and [The current user](unit-of-work.md#the-current-user).

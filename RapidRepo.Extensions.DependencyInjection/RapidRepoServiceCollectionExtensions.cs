@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using RapidRepo.Auditing;
 using RapidRepo.Extensions.DependencyInjection;
 using RapidRepo.Extensions.DependencyInjection.Internal;
 using System.Diagnostics;
@@ -73,6 +74,13 @@ public static class RapidRepoServiceCollectionExtensions
         foreach (var (iface, impl) in options.UnitOfWorkRegistrations)
             UnitOfWorkRegistrar.Register(services, iface, impl, options.Lifetime);
 
+        // Same lifetime as the units of work, so a per-request provider is never captured by a longer-lived one.
+        foreach (var registration in options.CurrentUserProviderRegistrations)
+            services.TryAdd(registration.CreateDescriptor(options.Lifetime));
+
+        if (options.RequireCurrentUser)
+            services.TryAddSingleton(new CurrentUserOptions { RequireCurrentUser = true });
+
         if (provider is null)
             WarnOnMissingProvider(candidates.Count, options.UnitOfWorkRegistrations.Count);
 
@@ -103,11 +111,16 @@ public static class RapidRepoServiceCollectionExtensions
         if (options.Lifetime != ServiceLifetime.Singleton)
             return;
 
-        const string message =
+        var message =
             "RapidRepo repositories are being registered as Singleton. " +
             "Repositories depend on scoped data access resources, such as an EF Core DbContext or a database " +
             "connection. A Singleton repository captures one of them for the application lifetime, " +
             "causing thread-safety issues and stale data. Use ServiceLifetime.Scoped instead.";
+
+        if (options.CurrentUserProviderRegistrations.Count > 0)
+            message +=
+                " The current-user provider is registered as Singleton too, so it cannot depend on per-request " +
+                "services, and a unit of work shared across requests stamps every request's changes through it.";
 
         if (options.ThrowOnSingletonMisuse)
             throw new InvalidOperationException(message);

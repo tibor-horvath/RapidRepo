@@ -1,3 +1,4 @@
+using RapidRepo.Auditing;
 using RapidRepo.Repositories.Interfaces;
 
 namespace RapidRepo.Testing.Conformance;
@@ -38,9 +39,10 @@ public abstract class ConformanceTests<TStore> : IDisposable
     protected ConformanceClock Clock { get; } = new(T1);
 
     /// <summary>Opens a session, disposed with the test.</summary>
-    protected IConformanceSession OpenSession()
+    /// <param name="currentUserProvider">The current-user provider of the session's unit of work, if any.</param>
+    protected IConformanceSession OpenSession(ICurrentUserProvider<Guid>? currentUserProvider = null)
     {
-        var session = Store.OpenSession(Clock);
+        var session = Store.OpenSession(Clock, currentUserProvider);
         _sessions.Add(session);
         return session;
     }
@@ -93,6 +95,21 @@ public static class ConformanceSessionExtensions
     public static IRepository<Note, int> Notes(this IConformanceSession session) => session.Repository<Note, int>();
 
     public static IRepository<Widget, int> Widgets(this IConformanceSession session) => session.Repository<Widget, int>();
+}
+
+/// <summary>A current-user provider that returns a fixed user and counts how often it is asked.</summary>
+/// <param name="userId">The user to return, or <see langword="null"/> for none.</param>
+public sealed class ConformanceCurrentUser(Guid? userId) : ICurrentUserProvider<Guid>
+{
+    /// <summary>Gets how many times the unit of work asked for the current user.</summary>
+    public int Calls { get; private set; }
+
+    /// <inheritdoc />
+    public Guid? GetCurrentUserId()
+    {
+        Calls++;
+        return userId;
+    }
 }
 
 /// <summary>A clock the tests move by hand.</summary>

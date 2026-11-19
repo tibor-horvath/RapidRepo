@@ -89,6 +89,7 @@ public class AppUnitOfWork(AppDbContext db, IProductRepository products)
 | `(DbContext, TUserKey defaultUserKey)` | Repositories are injected or come from `GetRepository` |
 | `(DbContext, TUserKey, IServiceProvider)` | The source generator's `ResolveRepository<TRepo>()` resolves custom repositories |
 | `(DbContext, TUserKey, IServiceProvider?, TimeProvider?)` | You also want to control the audit clock |
+| `(DbContext, TUserKey, IServiceProvider?, TimeProvider?, ICurrentUserProvider<TUserKey>?)` | You pass the [current-user provider](../RapidRepo/unit-of-work.md#the-current-user) directly instead of through the service provider |
 
 At commit, `EfUnitOfWork` reads each change from the change tracker, stamps the audit fields, and calls `SaveChanges`. A soft delete or restore is recognised by comparing the original and current `DeletedAt`, so only the transition stamps `DeletedAt` / `DeletedBy`. See [How auditing works](../RapidRepo/unit-of-work.md#how-auditing-works).
 

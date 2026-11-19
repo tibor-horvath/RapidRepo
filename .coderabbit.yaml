@@ -1,0 +1,159 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+tone_instructions: "Be concise. Focus on correctness, API compatibility and thread-safety; skip style nits the compiler or analyzers already catch."
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  collapse_walkthrough: true
+  sequence_diagrams: false
+
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches: ["master"]
+    ignore_usernames: ["dependabot[bot]", "release-please[bot]"]
+    ignore_title_keywords: ["chore(deps)", "chore(release)"]
+
+  path_filters:
+    - "!**/node_modules/**"
+    - "!**/.vs/**"
+    - "!**/bin/**"
+    - "!**/obj/**"
+    - "!CHANGELOG.md"
+    - "!.release-please-manifest.json"
+
+  path_instructions:
+    # ---- Shipped libraries (all published to NuGet, net10.0 + net11.0, nullable enabled) ----
+    - path: "{RapidRepo,RapidRepo.EntityFrameworkCore,RapidRepo.Extensions.DependencyInjection,RapidRepo.SourceGenerators}/**/*.cs"
+      instructions: |
+        Published NuGet library; versioning is SemVer via release-please and Conventional Commits.
+        - Any change to a public or protected signature is a breaking change: flag it and check the PR
+          title uses `!` / a BREAKING CHANGE footer.
+        - Every public and protected member needs XML docs (<summary>, <param>, <returns>, <typeparam>).
+        - Public async methods take a CancellationToken; no sync-over-async (.Result, .Wait()).
+        - Validate public arguments with ArgumentNullException.ThrowIfNull and friends.
+
+    - path: "RapidRepo/**/*.cs"
+      instructions: |
+        Provider-neutral core (entities, repository and unit-of-work contracts, auditing).
+        - Must not reference Microsoft.EntityFrameworkCore or mention EF Core types in any public
+          signature (guarded by CoreAssemblyDependencyTests). Anything EF-specific belongs in
+          RapidRepo.EntityFrameworkCore; every abstraction here must be implementable by a non-EF
+          provider such as Dapper.
+        - Audit user resolution order is: Commit/CommitAsync userId argument, then
+          ICurrentUserProvider, then the unit of work's default user key. The provider is called at
+          most once per commit. CurrentUserOptions.RequireCurrentUser throws only when a user audit
+          field would actually be stamped. Flag changes that break any of these rules.
+        - Soft delete: entities implementing IDeletableEntity are marked deleted, not removed.
+          EntityTraits<T> caches per-type facts in static fields; keep it free of per-call reflection.
+        - Audit timestamps come from an injected TimeProvider, never DateTime.Now/UtcNow.
+
+    - path: "RapidRepo.EntityFrameworkCore/**/*.cs"
+      instructions: |
+        EF Core provider. Builds against EF Core 10 for net10.0 and EF Core 11 for net11.0, so APIs
+        used must exist in both (or be #if-guarded).
+        - Queries must stay translatable to SQL: flag client-side evaluation, AsEnumerable() before
+          filtering, and N+1 patterns. New read paths must go through the shared helpers in
+          Internal/IQueryableExtensions so EfReadOptions (Track, IgnoreAllQueryFilters) and
+          ReadOptions.IncludeDeleted apply consistently.
+        - Soft delete uses a named query filter (ModelBuilderExtensions.SoftDeleteFilterKey).
+          Bypassing it must remove only that filter, not the user's own filters; a bare
+          IgnoreQueryFilters() is only correct for IgnoreAllQueryFilters or anonymous filters.
+        - Compatibility/ holds 8.x shims marked [Obsolete] with Obsoletions messages and diagnostic
+          ID RRMIG001. They are removed in 10.0; do not add features to them, only keep them working.
+        - Internal/ is not public API; keep it internal.
+
+    - path: "RapidRepo.Extensions.DependencyInjection/**/*.cs"
+      instructions: |
+        Provider-agnostic DI package (AddRapidRepo). Must not reference EF Core or any provider
+        assembly (guarded by DependencyInjectionAssemblyTests); provider-specific registration goes
+        through IRapidRepoProvider.
+        - Repository lifetime comes from RapidRepoOptions.Lifetime (default Scoped; Singleton warns,
+          or throws in strict mode). Never let a singleton capture a scoped service such as a
+          DbContext. Use TryAdd* so user registrations win.
+        - Assembly scanning (RepositoryScanner) must be deterministic and skip abstract/open
+          generic types correctly.
+
+    - path: "RapidRepo.SourceGenerators/**/*.cs"
+      instructions: |
+        Roslyn incremental source generator for [GenerateUnitOfWork].
+        - Must target netstandard2.0: no APIs or language features that need a newer runtime
+          (e.g. no ranges on strings, no newer BCL methods without polyfills).
+        - Microsoft.CodeAnalysis must not be bumped past 4.13.0: that raises the minimum SDK of every
+          consumer (guarded by RoslynCompatibilityTests). Flag any version change as breaking.
+        - Use IIncrementalGenerator; pipeline models must be equatable and must not hold
+          Compilation, ISymbol or SyntaxNode, or caching breaks.
+        - EF types are matched by metadata name (DbContext, DbSet`1), never referenced directly.
+        - Never throw: report problems through Diagnostics.cs. Diagnostic IDs (RRUOW001...) are
+          public contract; never reuse or renumber them, only add new ones.
+        - Emitted code must keep the auto-generated header and #nullable enable, use fully qualified
+          type names so it cannot clash with consumer namespaces, and compile without warnings in the
+          consumer's project.
+
+    # ---- Tests ----
+    - path: "RapidRepo.Testing.Conformance/**/*.cs"
+      instructions: |
+        Provider conformance suite (xUnit + FluentAssertions) that every provider's test project
+        runs through IConformanceStore. Tests here must only use the provider-neutral contracts,
+        never EF Core. A behaviour asserted here becomes a requirement for every provider, so check
+        that it matches the documented contract rather than one provider's quirks.
+
+    - path: "**/*.Tests/**/*.cs"
+      instructions: |
+        xUnit + FluentAssertions + Moq.
+        - Tests should assert observable behaviour, not implementation details, and cover edge cases
+          (null, empty, soft-deleted, concurrent commits).
+        - No dependence on test order, wall-clock time (use a fake TimeProvider), or shared static
+          state.
+        - EF tests: prefer SQLite in-memory over the EF InMemory provider when the behaviour depends
+          on relational semantics (query filters, constraints, transactions).
+        - New provider behaviour belongs in RapidRepo.Testing.Conformance when it applies to every
+          provider.
+
+    - path: "RapidRepo.SourceGenerators.Tests/**/*.cs"
+      instructions: |
+        Generator output is checked with Verify snapshots (Snapshots/*.verified.txt). A changed
+        snapshot is a change in generated code that consumers will see; make sure the PR explains it.
+
+    # ---- Repo infrastructure ----
+    - path: "**/*.csproj"
+      instructions: |
+        Library TFMs come from $(RapidRepoLibraryTargetFrameworks) in Directory.Build.props; do not
+        hardcode them. Package references must stay split per TFM (EF Core 10 for net10.0, 11 for
+        net11.0). The source generator stays on netstandard2.0.
+
+    - path: "Directory.Build.props"
+      instructions: "The <Version> line is managed by release-please (x-release-please-version); it must not be edited by hand."
+
+    - path: ".github/workflows/**"
+      instructions: |
+        Every action and reusable workflow must be pinned to a full commit SHA with a version comment.
+        Permissions must be least-privilege per job. pull_request_target workflows must never check
+        out or run PR code.
+
+    - path: "docs/**/*.md"
+      instructions: |
+        User-facing docs, one folder per package. Check code samples compile against the current
+        public API and use current type names (e.g. EfRepository, not the obsolete 8.x names).
+        docs/nuget/*.md are the NuGet package READMEs; keep them short.
+        docs/migration/ must cover every breaking change in the release.
+
+  tools:
+    actionlint:
+      enabled: true
+    gitleaks:
+      enabled: true
+    markdownlint:
+      enabled: true
+    yamllint:
+      enabled: true
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  learnings:
+    scope: local
