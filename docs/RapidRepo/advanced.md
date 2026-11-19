@@ -128,6 +128,7 @@ _unitOfWork.Products.HardDeleteById(id, includeDeleted: true);
 await _unitOfWork.CommitAsync();
 ```
 
+- Deleting an entity that is already soft-deleted keeps its original `DeletedAt` and `DeletedBy`.
 - A restore is an ordinary modification, so `ModifiedAt` and `ModifiedBy` are stamped on commit.
 - An entity already staged for removal by `HardDelete` is revived by `Restore`, so the restore is not silently discarded.
 - `Restore` throws `InvalidOperationException` for an entity that does not implement `IDeletableEntity`; a hard-deleted row is gone.

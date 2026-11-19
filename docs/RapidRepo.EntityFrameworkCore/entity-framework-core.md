@@ -12,7 +12,7 @@ The package depends on `RapidRepo` (entities and contracts) and `RapidRepo.Exten
 
 ## Setting up the `DbContext`
 
-Map your entities as usual, and let RapidRepo add the soft-delete filter to every entity that implements `IDeletableEntity`:
+Map your entities as usual, and let RapidRepo add the soft-delete filter to every entity that implements `IDeletableEntity`. In an inheritance hierarchy the filter goes on the root type and covers the types below it (see [Inheritance](#inheritance)):
 
 ```csharp
 using RapidRepo.Extensions;
