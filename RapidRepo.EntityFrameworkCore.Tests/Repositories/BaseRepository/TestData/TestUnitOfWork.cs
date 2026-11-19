@@ -1,0 +1,20 @@
+﻿using RapidRepo.EntityFrameworkCore.Tests.Repositories.TestData;
+using RapidRepo.UnitOfWork;
+
+namespace RapidRepo.EntityFrameworkCore.Tests.Repositories.BaseRepository.TestData;
+
+internal class TestUnitOfWork : EfUnitOfWork<Guid>
+{
+    public IEmployeeRepository Employees { get; set; }
+    public ICompanyRepository Companies { get; set; }
+
+    public TestUnitOfWork(
+        TestDbContext dbContext,
+        IEmployeeRepository employeeRepository,
+        ICompanyRepository companies)
+        : base(dbContext, default)
+    {
+        Employees = employeeRepository;
+        Companies = companies;
+    }
+}

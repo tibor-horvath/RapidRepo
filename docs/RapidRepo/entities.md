@@ -118,7 +118,19 @@ public class Product : BaseAuditableEntity<long, Guid>, IDeletableEntity<Guid>
 }
 ```
 
-> To hide soft-deleted records automatically, configure a global EF Core query filter on `DeletedAt == null` in your `DbContext`. Use `ignoreQueryFilters: true` on any query to bypass it.
+> Reads exclude soft-deleted records by default, and `new ReadOptions { IncludeDeleted = true }` brings them back. How the exclusion is set up is up to the provider. With EF Core, call `modelBuilder.AddSoftDeleteQueryFilters()`; see [Soft delete and query filters](../RapidRepo.EntityFrameworkCore/entity-framework-core.md#soft-delete-and-query-filters).
+
+In an inheritance hierarchy, implement the interface on the root type, so that every type below it is soft-deletable too. EF Core only allows query filters on the root, so with EF Core a deletable type under a root that is not deletable cannot be filtered, and `AddSoftDeleteQueryFilters()` throws; see [Inheritance](../RapidRepo.EntityFrameworkCore/entity-framework-core.md#inheritance).
+
+```csharp
+public abstract class Document : BaseEntity<int>, IDeletableEntity
+{
+    public DateTime? DeletedAt { get; set; }
+}
+
+public class Invoice : Document { }   // soft-deletable through Document
+public class Contract : Document { }  // soft-deletable through Document
+```
 
 ---
 
@@ -131,7 +143,7 @@ public class Product : BaseAuditableEntity<long, Guid>, IDeletableEntity<Guid>
 | Track who created/modified the record | `BaseAuditableEntity<TId, TUserKey>` |
 | Track timestamps + soft delete | `BaseAuditableDeletableEntity<TId>` |
 | Track who created/modified + soft delete | `BaseAuditableDeletableEntity<TId, TUserKey>` |
-| Add soft delete to an existing hierarchy | Add `IDeletableEntity` or `IDeletableEntity<TUserKey>` |
+| Add soft delete to an existing hierarchy | Add `IDeletableEntity` or `IDeletableEntity<TUserKey>` to the hierarchy's root type |
 
 ---
 
@@ -166,5 +178,5 @@ public class Product  : AppAuditableEntity<long> { }
 public class AuditLog : AppAuditableDeletableEntity<int> { }
 ```
 
-Combined with `class AppUnitOfWork : UnitOfWork<Guid>` (or `UnitOfWork<long>`), the user-key
+Combined with `class AppUnitOfWork : EfUnitOfWork<Guid>` (or `EfUnitOfWork<long>`), the user-key
 type is declared in exactly two places across the whole application.

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 
 namespace RapidRepo.SourceGenerators;
 
@@ -26,7 +27,7 @@ internal static class PropertyDiscoverer
         Compilation compilation,
         SourceProductionContext ctx,
         INamedTypeSymbol classSymbol,
-        IReadOnlyList<INamedTypeSymbol> dbContextTypes,
+        IReadOnlyList<UnitOfWorkSource> sources,
         ImmutableArray<string> includeNamespaces,
         ImmutableArray<string> excludeNamespaces)
     {
@@ -41,12 +42,20 @@ internal static class PropertyDiscoverer
         // property name → entity (for RRUOW002 detection)
         var nameToEntity = new Dictionary<string, ITypeSymbol>(StringComparer.Ordinal);
 
-        // ── 1. DbSet-backed properties ────────────────────────────────────────
-        if (dbSetDef is not null && baseEntityDef is not null && iRepositoryDef is not null)
+        // ── 1. Generic repository properties: DbSet-backed and entity sources ─
+        if (baseEntityDef is not null && iRepositoryDef is not null)
         {
-            foreach (var dbCtx in dbContextTypes)
+            foreach (var source in sources)
             {
-                foreach (var member in GetAllMembers(dbCtx))
+                if (source.IsEntity)
+                {
+                    AddGenericRepository(Pluralizer.PluralizeNoun(source.Type.Name), source.Type, source.EntityKeyType!);
+                    continue;
+                }
+
+                if (dbSetDef is null) continue;
+
+                foreach (var member in GetAllMembers(source.Type))
                 {
                     if (member is not IPropertySymbol prop) continue;
                     if (prop.IsStatic || prop.DeclaredAccessibility != Accessibility.Public) continue;
@@ -67,38 +76,48 @@ internal static class PropertyDiscoverer
                         continue;
                     }
 
-                    var entityNs   = entityType.ContainingNamespace.ToDisplayString();
-                    var keyNs      = keyType.ContainingNamespace?.ToDisplayString();
-                    var namespaces = new List<string> { "RapidRepo.Repositories.Interfaces", entityNs };
-                    if (keyNs is not null && !keyNs.StartsWith("System", StringComparison.Ordinal))
-                        namespaces.Add(keyNs);
-
-                    var entityTypeDisplay = entityType.ToDisplayString(RepositoryTypeArgumentFormat);
-                    var keyTypeDisplay    = keyType.ToDisplayString(RepositoryTypeArgumentFormat);
-                    var typeDisplay       = $"IRepository<{entityTypeDisplay}, {keyTypeDisplay}>";
-                    var impl              = $"GetRepository<{entityTypeDisplay}, {keyTypeDisplay}>()";
-
-                    var model = new PropertyModel(prop.Name, typeDisplay, impl, namespaces);
-
-                    if (byEntity.ContainsKey(entityType))
-                        continue;
-
-                    if (nameToEntity.TryGetValue(prop.Name, out var existingEntity)
-                        && !SymbolEqualityComparer.Default.Equals(existingEntity, entityType))
-                    {
-                        ctx.ReportDiagnostic(Diagnostic.Create(
-                            Diagnostics.DuplicatePropertyName,
-                            classSymbol.Locations.FirstOrDefault(),
-                            prop.Name,
-                            byEntity[existingEntity].TypeDisplay,
-                            typeDisplay));
-                        continue;
-                    }
-
-                    byEntity[entityType]     = model;
-                    nameToEntity[prop.Name]  = entityType;
+                    AddGenericRepository(prop.Name, entityType, keyType);
                 }
             }
+        }
+
+        // Adds an IRepository<TEntity, TKey> property backed by GetRepository<TEntity, TKey>(). The first source to
+        // supply an entity wins; a different entity under an existing property name is RRUOW002.
+        void AddGenericRepository(string propertyName, INamedTypeSymbol entityType, ITypeSymbol keyType)
+        {
+            var entityTypeDisplay = entityType.ToDisplayString(RepositoryTypeArgumentFormat);
+            var keyTypeDisplay    = keyType.ToDisplayString(RepositoryTypeArgumentFormat);
+
+            var entityNs   = entityType.ContainingNamespace.ToDisplayString();
+            var keyNs      = keyType.ContainingNamespace?.ToDisplayString();
+            var namespaces = new List<string> { "RapidRepo.Repositories.Interfaces", entityNs };
+
+            // A key printed as a C# keyword (int, long, string) needs no using; anything printed by name does, also
+            // System types such as Guid, or the generated code only compiles with implicit usings.
+            if (keyNs is not null && SyntaxFacts.GetKeywordKind(keyTypeDisplay) == SyntaxKind.None)
+                namespaces.Add(keyNs);
+            var typeDisplay       = $"IRepository<{entityTypeDisplay}, {keyTypeDisplay}>";
+            var impl              = $"GetRepository<{entityTypeDisplay}, {keyTypeDisplay}>()";
+
+            var model = new PropertyModel(propertyName, typeDisplay, impl, namespaces);
+
+            if (byEntity.ContainsKey(entityType))
+                return;
+
+            if (nameToEntity.TryGetValue(propertyName, out var existingEntity)
+                && !SymbolEqualityComparer.Default.Equals(existingEntity, entityType))
+            {
+                ctx.ReportDiagnostic(Diagnostic.Create(
+                    Diagnostics.DuplicatePropertyName,
+                    classSymbol.Locations.FirstOrDefault(),
+                    propertyName,
+                    byEntity[existingEntity].TypeDisplay,
+                    typeDisplay));
+                return;
+            }
+
+            byEntity[entityType]        = model;
+            nameToEntity[propertyName]  = entityType;
         }
 
         // ── 2. Custom repository interfaces (consumer assembly only) ──────────
@@ -183,7 +202,7 @@ internal static class PropertyDiscoverer
         return byEntity.Values.OrderBy(p => p.Name).ToList();
     }
 
-    private static ITypeSymbol? FindBaseEntityKeyType(INamedTypeSymbol entity, INamedTypeSymbol baseEntityDef)
+    internal static ITypeSymbol? FindBaseEntityKeyType(INamedTypeSymbol entity, INamedTypeSymbol baseEntityDef)
     {
         var current = entity.BaseType;
         while (current is not null)

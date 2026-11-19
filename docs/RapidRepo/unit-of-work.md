@@ -1,32 +1,32 @@
 # Unit of Work
 
-The Unit of Work groups one or more repositories under a single `DbContext`, coordinates commits, and automatically applies audit fields.
+The Unit of Work groups repositories that share one set of staged changes, commits them together, and stamps audit fields. The contract, `IUnitOfWork<TUserKey>`, and the audit rules are provider-neutral; a provider supplies the implementation, for example `EfUnitOfWork<TUserKey>` in [RapidRepo.EntityFrameworkCore](../RapidRepo.EntityFrameworkCore/entity-framework-core.md#unit-of-work).
 
 ---
 
 ## Define the interface
 
 ```csharp
-public interface IAppUnitOfWork : IUnitOfWork<Guid>, IDisposable
+public interface IAppUnitOfWork : IUnitOfWork<Guid>
 {
     IProductRepository Products { get; }
 }
 ```
 
+`TUserKey` is the type of the user recorded in audit fields, and must be a value type (`Guid`, `long`, `int`, …).
+
 ---
 
 ## Implement the class
 
-Inherit from `UnitOfWork<TUserKey>` and pass the default user key to the base constructor. This value is used for audit fields when no `userId` is passed to `Commit`/`CommitAsync`.
+Derive from your provider's unit of work and pass the default user key, which is recorded when a commit names no user. With EF Core:
 
 ```csharp
-public class AppUnitOfWork : UnitOfWork<Guid>, IAppUnitOfWork
+public class AppUnitOfWork : EfUnitOfWork<Guid>, IAppUnitOfWork
 {
     public IProductRepository Products { get; }
 
-    public AppUnitOfWork(
-        AppDbContext dbContext,
-        IProductRepository productRepository)
+    public AppUnitOfWork(AppDbContext dbContext, IProductRepository productRepository)
         : base(dbContext, Guid.Empty)
     {
         Products = productRepository ?? throw new ArgumentNullException(nameof(productRepository));
@@ -34,85 +34,44 @@ public class AppUnitOfWork : UnitOfWork<Guid>, IAppUnitOfWork
 }
 ```
 
+The repositories must share the unit of work's changes. With EF Core, that means they use the same `DbContext` instance, which is what a scoped DI registration gives you.
+
 ---
 
 ## Repository factory (GetRepository)
 
-Instead of injecting each repository through the constructor, you can use the built-in
-`GetRepository<TEntity, TKey>()` factory method. This is especially useful when combined with
-application-level entity base classes, because the user-key type is already encoded in the
-entity and in the UoW — no extra type parameters are needed anywhere else.
-
-The pattern works with any value type for the user ID (`Guid`, `long`, `int`, etc.):
+Instead of injecting each repository through the constructor, use the `GetRepository<TEntity, TKey>()` factory method that every unit of work inherits from `UnitOfWorkBase<TUserKey>`. It returns the provider's generic repository, bound to the unit of work:
 
 ```csharp
-// Guid user keys
-public class GuidUnitOfWork : UnitOfWork<Guid>
+public class AppUnitOfWork : EfUnitOfWork<Guid>
 {
-    public GuidUnitOfWork(AppDbContext dbContext) : base(dbContext, Guid.Empty) { }
+    public AppUnitOfWork(AppDbContext dbContext) : base(dbContext, Guid.Empty) { }
 
-    public IRepository<Employee, int>  Employees => GetRepository<Employee, int>();
-    public IRepository<Product, long>  Products  => GetRepository<Product, long>();
-}
-
-// long user keys
-public class LongUnitOfWork : UnitOfWork<long>
-{
-    public LongUnitOfWork(AppDbContext dbContext) : base(dbContext, 0L) { }
-
-    public IRepository<Employee, int>  Employees => GetRepository<Employee, int>();
-    public IRepository<Product, long>  Products  => GetRepository<Product, long>();
+    public IRepository<Employee, int> Employees => GetRepository<Employee, int>();
+    public IRepository<Product, long> Products  => GetRepository<Product, long>();
 }
 ```
 
-> The existing constructor-injection pattern continues to work — `GetRepository` is an opt-in
-> convenience.
+`ResolveRepository<TRepo>()` does the same for custom repository interfaces, resolving them from the `IServiceProvider` passed to the constructor.
 
 ---
 
 ## Source generator (zero-boilerplate)
 
-`RapidRepo.SourceGenerators` eliminates all repository property boilerplate. Add
-`[GenerateUnitOfWork(typeof(AppDbContext))]` to a `partial` class and the generator emits the
-properties and their interface automatically.
-
-See [RapidRepo.SourceGenerators — Unit of Work](../RapidRepo.SourceGenerators/unit-of-work.md).
-
----
-
-## DI registration
-
-Register the `DbContext`, repositories, and Unit of Work with a scoped lifetime (matching `DbContext`):
-
-```csharp
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
-
-builder.Services.AddScoped<IProductRepository, ProductRepository>();
-builder.Services.AddScoped<IAppUnitOfWork, AppUnitOfWork>();
-```
-
-For automatic repository discovery via `AddRapidRepo`, see [Dependency Injection](../RapidRepo.Extensions.DependencyInjection/dependency-injection.md).
-
-When using the [source generator](../RapidRepo.SourceGenerators/unit-of-work.md), pass `IServiceProvider` to the base constructor so `ResolveRepository<>()` can resolve custom repos.
+`RapidRepo.SourceGenerators` writes those properties for you. Add `[GenerateUnitOfWork(typeof(AppDbContext))]`, or pass entity types, to a `partial` class. See [RapidRepo.SourceGenerators — Unit of Work](../RapidRepo.SourceGenerators/unit-of-work.md).
 
 ---
 
 ## Committing changes
 
-Stage changes via repository methods, then persist them in a single call:
+Stage changes through the repositories, then persist them in a single call:
 
 ```csharp
-// Async (preferred)
-await _unitOfWork.CommitAsync();
-
-// Sync
-_unitOfWork.Commit();
+await _unitOfWork.CommitAsync();   // async (preferred)
+_unitOfWork.Commit();              // sync
 ```
 
-### Passing a user ID for auditing
-
-Pass the current user's ID to override the default user key for `CreatedBy`/`ModifiedBy`:
+Pass the current user to record them in the audit fields instead of the default user:
 
 ```csharp
 await _unitOfWork.CommitAsync(userId: currentUserId);
@@ -122,15 +81,33 @@ await _unitOfWork.CommitAsync(userId: currentUserId);
 
 ## How auditing works
 
-When `Commit`/`CommitAsync` is called, the Unit of Work inspects the EF change tracker and:
+At commit, the unit of work works out what happened to each entity and stamps the audit fields, using one timestamp for the whole commit:
 
-| Entity state | Action |
+| Change | Fields set |
 |---|---|
-| `Added` + `IAuditableEntity` | Sets `CreatedAt = UtcNow` |
-| `Added` + `IAuditableEntity<TUserKey>` | Sets `CreatedAt = UtcNow`, `CreatedBy = userId ?? defaultUserKey` |
-| `Modified` + `IAuditableEntity` | Sets `ModifiedAt = UtcNow` |
-| `Modified` + `IAuditableEntity<TUserKey>` | Sets `ModifiedAt = UtcNow`, `ModifiedBy = userId ?? defaultUserKey` |
-| `IDeletableEntity` with `DeletedAt != null` | Sets `DeletedAt = UtcNow` |
-| `IDeletableEntity<TUserKey>` with `DeletedAt != null` | Sets `DeletedAt = UtcNow`, `DeletedBy = userId ?? defaultUserKey` |
+| Added | `CreatedAt`; `CreatedBy` for `IAuditableEntity<TUserKey>` |
+| Added and soft-deleted before the commit | As Added, plus `DeletedAt`; `DeletedBy` for `IDeletableEntity<TUserKey>`. The row is inserted as deleted |
+| Modified | `ModifiedAt`; `ModifiedBy` for `IAuditableEntity<TUserKey>` |
+| Soft-deleted (not deleted → deleted) | `ModifiedAt` / `ModifiedBy`, plus `DeletedAt`; `DeletedBy` for `IDeletableEntity<TUserKey>` |
+| Restored (deleted → not deleted) | `ModifiedAt` / `ModifiedBy`; `DeletedAt` and `DeletedBy` cleared |
 
-No manual timestamp management is needed in your application code.
+- The user is the one passed to `Commit`, or the unit of work's default user.
+- User fields are stamped only on entities whose user key type matches the unit of work's `TUserKey`.
+- Only the soft-delete *transition* stamps `DeletedAt` / `DeletedBy`. Editing an entity that is already deleted keeps who deleted it and when.
+
+These rules live in the core as `AuditStamper<TUserKey>`, so every provider applies them the same way.
+
+### Controlling the clock
+
+Audit times come from a `TimeProvider`, `TimeProvider.System` by default. Pass your own to make audit times deterministic, for example in tests:
+
+```csharp
+public class AppUnitOfWork(AppDbContext db, TimeProvider clock)
+    : EfUnitOfWork<Guid>(db, Guid.Empty, serviceProvider: null, timeProvider: clock), IAppUnitOfWork;
+```
+
+---
+
+## Disposal
+
+A unit of work does not own the provider's resources it was given. `EfUnitOfWork` never disposes its `DbContext`; the DI container, or whoever created the context, does.

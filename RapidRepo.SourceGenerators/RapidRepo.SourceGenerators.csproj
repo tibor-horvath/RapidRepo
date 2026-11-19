@@ -1,13 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Authors>Tibor Horváth</Authors>
     <TargetFramework>netstandard2.0</TargetFramework>
     <PackageReadmeFile>RapidRepo.SourceGenerators.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
     <LangVersion>latest</LangVersion>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <IsRoslynComponent>true</IsRoslynComponent>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <!-- RS2008: release-tracking metadata is not required for non-published analyzers -->

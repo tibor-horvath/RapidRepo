@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RapidRepo.UnitOfWork;
 using System.Diagnostics;
@@ -29,28 +28,15 @@ public sealed class RapidRepoOptions
     public bool ThrowOnSingletonMisuse { get; set; }
 
     /// <summary>
-    /// Throw instead of warn when registered types depend on the base <see cref="DbContext"/> but no context
-    /// is available to satisfy it — neither <see cref="UseDbContext{TContext}"/> nor an existing
-    /// <see cref="DbContext"/> registration. Default: <c>false</c>.
-    /// </summary>
-    /// <remarks>
-    /// Off by default because the check runs during <c>AddRapidRepo</c>: an application that registers its
-    /// <see cref="DbContext"/> afterwards is correct but cannot be seen as such at that point.
-    /// </remarks>
-    public bool ThrowOnMissingDbContext { get; set; }
-
-    /// <summary>
-    /// Register <see cref="RapidRepo.Repositories.Repository{TEntity,TId}"/> as the open-generic fallback
-    /// for <see cref="RapidRepo.Repositories.Interfaces.IRepository{TEntity,TKey}"/>,
-    /// <see cref="RapidRepo.Repositories.Interfaces.IReadOnlyRepository{TEntity,TKey}"/>, and
-    /// <see cref="RapidRepo.Repositories.Interfaces.IWriteRepository{TEntity,TKey}"/>.
-    /// Allows injecting root interfaces directly without creating a custom repository class.
+    /// Have the provider register its generic repository implementation for the root repository interfaces
+    /// (<see cref="RapidRepoRegistrationContext.RootInterfaces"/>), so they can be injected without writing a
+    /// repository class.
     /// Specific registrations from assembly scanning always take precedence.
-    /// Default: <c>false</c>.
+    /// Requires a provider (see <see cref="UseProvider"/>). Default: <c>false</c>.
     /// </summary>
     public bool RegisterGenericRepositories { get; set; }
 
-    internal Type? DbContextType { get; private set; }
+    internal IRapidRepoProvider? Provider { get; private set; }
 
     internal IReadOnlyList<Assembly> Assemblies => _assemblies;
     internal IReadOnlyList<Func<Type, bool>> Includes => _includes;
@@ -95,33 +81,23 @@ public sealed class RapidRepoOptions
     }
 
     /// <summary>
-    /// Bind this <c>AddRapidRepo</c> call to <typeparamref name="TContext"/>.
+    /// Use <paramref name="provider"/> for the provider-specific registrations of this <c>AddRapidRepo</c> call.
+    /// Provider packages wrap this in their own extension, for example <c>UseEntityFrameworkCore&lt;TContext&gt;()</c>.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <c>AddDbContext&lt;TContext&gt;()</c> registers <typeparamref name="TContext"/> but not the base
-    /// <see cref="DbContext"/> type, so repositories and units of work that take a <see cref="DbContext"/>
-    /// constructor parameter cannot be activated by the container on their own. Naming the context here
-    /// registers the missing <see cref="DbContext"/> → <typeparamref name="TContext"/> forwarder, and only
-    /// when something registered by this call actually needs it.
-    /// </para>
-    /// <para>
-    /// It also changes what <see cref="RegisterGenericRepositories"/> emits: instead of one open-generic
-    /// fallback, a closed registration per <see cref="DbSet{TEntity}"/> on <typeparamref name="TContext"/>,
-    /// each bound to <typeparamref name="TContext"/>. That is what lets several contexts coexist — see the
-    /// multi-context section of the documentation.
-    /// </para>
-    /// </remarks>
-    /// <exception cref="InvalidOperationException">A context has already been configured for this call.</exception>
-    public RapidRepoOptions UseDbContext<TContext>()
-        where TContext : DbContext
+    /// <param name="provider">The persistence provider.</param>
+    /// <returns>The same options, for chaining.</returns>
+    /// <exception cref="InvalidOperationException">A provider has already been configured for this call.</exception>
+    public RapidRepoOptions UseProvider(IRapidRepoProvider provider)
     {
-        if (DbContextType is not null)
-            throw new InvalidOperationException(
-                $"A DbContext has already been configured for this AddRapidRepo call ('{DbContextType.Name}'). " +
-                "Call UseDbContext once per AddRapidRepo call, and use a separate AddRapidRepo call per context.");
+        ArgumentNullException.ThrowIfNull(provider);
 
-        DbContextType = typeof(TContext);
+        if (Provider is not null)
+            throw new InvalidOperationException(
+                $"A provider has already been configured for this AddRapidRepo call ('{Provider.Name}'). " +
+                "Configure one provider per AddRapidRepo call, and use a separate AddRapidRepo call per provider " +
+                "or data source.");
+
+        Provider = provider;
         return this;
     }
 
@@ -129,7 +105,9 @@ public sealed class RapidRepoOptions
     /// Register a unit of work. Registers <typeparamref name="TInterface"/> → <typeparamref name="TImpl"/>
     /// and also forwards any closed <c>IUnitOfWork&lt;TKey&gt;</c> that <typeparamref name="TImpl"/> implements.
     /// </summary>
-    /// <exception cref="ArgumentException"><typeparamref name="TInterface"/> is not an interface type.</exception>
+    /// <exception cref="ArgumentException">
+    /// <typeparamref name="TInterface"/> is not an interface type, or <typeparamref name="TImpl"/> is abstract.
+    /// </exception>
     /// <exception cref="InvalidOperationException"><typeparamref name="TInterface"/> has already been registered.</exception>
     public RapidRepoOptions UseUnitOfWork<TInterface, TImpl>()
         where TInterface : class
@@ -140,15 +118,8 @@ public sealed class RapidRepoOptions
                 $"'{typeof(TInterface).Name}' is not an interface type. TInterface must be an interface.",
                 nameof(TInterface));
 
-        var interfaceType = typeof(TInterface);
-
-        if (_unitOfWorkRegistrations.Any(r => r.InterfaceType == interfaceType))
-            throw new InvalidOperationException(
-                $"A unit of work has already been registered for interface '{interfaceType.Name}'. " +
-                "Call UseUnitOfWork once per interface type.");
-
-        _unitOfWorkRegistrations.Add((interfaceType, typeof(TImpl)));
-        return this;
+        EnsureConcrete(typeof(TImpl), nameof(TImpl));
+        return AddUnitOfWork(typeof(TInterface), typeof(TImpl));
     }
 
     /// <summary>
@@ -157,6 +128,7 @@ public sealed class RapidRepoOptions
     /// Use the two-type overload <see cref="UseUnitOfWork{TInterface,TImpl}"/> when
     /// <typeparamref name="TImpl"/> has zero or more than one such interface.
     /// </summary>
+    /// <exception cref="ArgumentException"><typeparamref name="TImpl"/> is abstract.</exception>
     /// <exception cref="InvalidOperationException">
     /// <typeparamref name="TImpl"/> implements no user-defined <see cref="IUnitOfWork{TUserKey}"/> interface,
     /// implements more than one, or the detected interface has already been registered.
@@ -166,11 +138,7 @@ public sealed class RapidRepoOptions
     {
         var implType = typeof(TImpl);
 
-        if (implType.IsAbstract)
-            throw new ArgumentException(
-                $"'{implType.Name}' is abstract and cannot be used as a unit-of-work implementation. " +
-                "Provide a concrete class.",
-                nameof(TImpl));
+        EnsureConcrete(implType, nameof(TImpl));
 
         // Collect user-defined interfaces that extend IUnitOfWork<TKey> but are not the root itself.
         var candidateInterfaces = implType.GetInterfaces()
@@ -192,15 +160,7 @@ public sealed class RapidRepoOptions
                 $"[{string.Join(", ", candidateInterfaces.Select(i => i.Name))}]. " +
                 $"Use UseUnitOfWork<TInterface, TImpl>() to specify the interface explicitly.");
 
-        var interfaceType = candidateInterfaces[0];
-
-        if (_unitOfWorkRegistrations.Any(r => r.InterfaceType == interfaceType))
-            throw new InvalidOperationException(
-                $"A unit of work has already been registered for interface '{interfaceType.Name}'. " +
-                "Call UseUnitOfWork once per interface type.");
-
-        _unitOfWorkRegistrations.Add((interfaceType, implType));
-        return this;
+        return AddUnitOfWork(candidateInterfaces[0], implType);
     }
 
     /// <summary>
@@ -264,4 +224,24 @@ public sealed class RapidRepoOptions
     /// Equivalent to <c>Exclude(t =&gt; t == typeof(T))</c>.
     /// </summary>
     public RapidRepoOptions ExcludeType<T>() => Exclude(t => t == typeof(T));
+
+    private RapidRepoOptions AddUnitOfWork(Type interfaceType, Type implementationType)
+    {
+        if (_unitOfWorkRegistrations.Any(r => r.InterfaceType == interfaceType))
+            throw new InvalidOperationException(
+                $"A unit of work has already been registered for interface '{interfaceType.Name}'. " +
+                "Call UseUnitOfWork once per interface type.");
+
+        _unitOfWorkRegistrations.Add((interfaceType, implementationType));
+        return this;
+    }
+
+    private static void EnsureConcrete(Type implementationType, string paramName)
+    {
+        if (implementationType.IsAbstract)
+            throw new ArgumentException(
+                $"'{implementationType.Name}' is abstract and cannot be used as a unit-of-work implementation. " +
+                "Provide a concrete class.",
+                paramName);
+    }
 }

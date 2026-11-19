@@ -1,0 +1,70 @@
+﻿using FluentAssertions;
+using RapidRepo.EntityFrameworkCore.Tests.Repositories.TestData;
+
+namespace RapidRepo.EntityFrameworkCore.Tests.Repositories.WriteRepository;
+public class AddAsyncTests : BaseWriteRepositoryTest
+{
+    [Fact]
+    public async Task AddAsync_ShouldAddEntityToDbContext()
+    {
+        // Arrange       
+        var employee = new Employee
+        {
+            FirstName = "John",
+            LastName = "Doe",
+            DateOfBirth = new DateTime(1990, 1, 1),
+        };
+
+        // Act
+        await _sut.AddAsync(employee);
+        await _dbContext.SaveChangesAsync();
+
+        // Assert
+        var addedEmployee = _dbContext.Employees.SingleOrDefault();
+        addedEmployee.Should().NotBeNull();
+        addedEmployee.Should().BeEquivalentTo(employee);
+    }
+
+    [Fact]
+    public async Task AddAsync_ShouldAddEntitiesToDbContext()
+    {
+        // Arrange
+        var numberOfEmployeesToAdd = 5;
+
+        var employees = new List<Employee>();
+
+        for (var i = 0; i < numberOfEmployeesToAdd; i++)
+        {
+            employees.Add(new Employee
+            {
+                FirstName = "John",
+                LastName = "Doe",
+                DateOfBirth = new DateTime(1990, 1, 1)
+            });
+        }
+
+        // Act
+        await _sut.AddRangeAsync(employees);
+        await _dbContext.SaveChangesAsync();
+
+        // Assert
+        _dbContext.Employees.Count().Should().Be(numberOfEmployeesToAdd);
+        _dbContext.Employees.Select(e => e.Id).Should().OnlyHaveUniqueItems();
+    }
+
+    [Fact]
+    public async Task AddAsync_ShouldThrowArgumentNullException_WhenEntityIsNull()
+    {
+        var act = async () => await _sut.AddAsync((Employee)null!);
+
+        await act.Should().ThrowAsync<ArgumentNullException>();
+    }
+
+    [Fact]
+    public async Task AddAsync_ShouldThrowArgumentNullException_WhenEntitiesIsNull()
+    {
+        var act = async () => await _sut.AddRangeAsync((IEnumerable<Employee>)null!);
+
+        await act.Should().ThrowAsync<ArgumentNullException>();
+    }
+}

@@ -52,8 +52,16 @@ internal static class RepositoryDescriptorBuilder
         var details = string.Join("; ", ambiguous.Select(kv =>
             $"{kv.Key.Name} is implemented by [{string.Join(", ", kv.Value.Select(t => t.Name))}]"));
 
+        // A generic interface shared by several repositories is usually a persistence provider's own interface,
+        // which scanning only treats as a root when that provider is configured.
+        var providerHint = ambiguous.Any(kv => kv.Key.IsGenericType)
+            ? " If a generic interface listed here belongs to a persistence provider, configure that provider " +
+              "(for example UseEntityFrameworkCore()) so scanning treats it as a root interface."
+            : "";
+
         throw new InvalidOperationException(
             $"Ambiguous repository registrations detected. {details}. " +
-            $"Set {nameof(RapidRepoOptions.ThrowOnAmbiguousRegistration)} = false to suppress this error.");
+            $"Set {nameof(RapidRepoOptions.ThrowOnAmbiguousRegistration)} = false to suppress this error." +
+            providerHint);
     }
 }

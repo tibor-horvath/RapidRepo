@@ -3,7 +3,7 @@
 
 "area: core":
   - changed-files:
-      - any-glob-to-any-file: ["RapidRepo/**", "RapidRepo.Tests/**"]
+      - any-glob-to-any-file: ["RapidRepo/**", "RapidRepo.Tests/**", "RapidRepo.Testing.Conformance/**"]
 
 "area: ef-core":
   - changed-files:
