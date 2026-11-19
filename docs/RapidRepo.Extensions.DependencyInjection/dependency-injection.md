@@ -237,6 +237,8 @@ A provider implements `IRapidRepoProvider` and is configured through an extensio
 
 `AddRapidRepo` scans, filters, checks for ambiguity, and registers the scanned repositories and units of work. It then hands the provider a `RapidRepoRegistrationContext`, which holds what was registered and how the call was configured, so the provider can add its own registrations. Configure one provider per call; use a separate `AddRapidRepo` call per provider or data source.
 
+A call that registers repositories or units of work without a provider writes a warning to `Trace`: nothing then registers the data source they depend on, so unless the application registers it itself they fail on first resolve.
+
 To write a provider, see [Writing a provider](../RapidRepo/providers.md).
 
 ---

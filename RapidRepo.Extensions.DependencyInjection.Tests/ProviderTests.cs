@@ -42,6 +42,20 @@ public class ProviderTests
     }
 
     [Fact]
+    public void Register_ReceivesTheCoreRootInterfaces_FollowedByTheProvidersOwn()
+    {
+        var provider = new FakeProvider();
+
+        new ServiceCollection().AddRapidRepo(o => o.UseProvider(provider));
+
+        provider.Calls.Should().ContainSingle().Which.RootInterfaces.Should().Equal(
+            typeof(RapidRepo.Repositories.Interfaces.IReadOnlyRepository<,>),
+            typeof(RapidRepo.Repositories.Interfaces.IWriteRepository<,>),
+            typeof(RapidRepo.Repositories.Interfaces.IRepository<,>),
+            typeof(IFakeProviderRepository<,>));
+    }
+
+    [Fact]
     public void WithoutProvider_RegistersScannedRepositoriesAndUnitsOfWork()
     {
         var services = new ServiceCollection();

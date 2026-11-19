@@ -74,7 +74,7 @@ public static RapidRepoOptions UseDapper(this RapidRepoOptions options, Action<D
 |---|---|
 | `Name` | Shown in diagnostics |
 | `AdditionalRootInterfaces` | Your own open generic repository interfaces, for example `IDapperRepository<,>`. Scanning registers repositories against interfaces derived from them, never against them |
-| `Register(services, context)` | Your registrations: the generic repository when `context.RegisterGenericRepositories` is set, and your data source. `context` lists the scanned repositories and units of work |
+| `Register(services, context)` | Your registrations: the generic repository when `context.RegisterGenericRepositories` is set, against `context.RootInterfaces` (the core interfaces followed by yours), and your data source. `context` lists the scanned repositories and units of work |
 
 See [Dependency Injection — providers](../RapidRepo.Extensions.DependencyInjection/dependency-injection.md#providers).
 

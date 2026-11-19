@@ -30,12 +30,12 @@ internal sealed class EntityFrameworkCoreProvider(Type? contextType, EntityFrame
             {
                 // Closed per entity and bound to the context, so several contexts can coexist.
                 DbContextRegistrar.RegisterClosedGenericRepositories(
-                    services, contextType, context.Lifetime, context.RegisterAsSelf);
+                    services, contextType, context.RootInterfaces, context.Lifetime, context.RegisterAsSelf);
             }
             else
             {
                 var repoType = typeof(EfRepository<,>);
-                foreach (var serviceType in DbContextRegistrar.RootInterfaces)
+                foreach (var serviceType in context.RootInterfaces)
                     services.TryAdd(ServiceDescriptor.Describe(serviceType, repoType, context.Lifetime));
 
                 // The open-generic fallback takes a base DbContext, so it needs one as much as scanned types do.

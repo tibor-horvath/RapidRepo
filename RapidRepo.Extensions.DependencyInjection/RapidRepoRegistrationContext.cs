@@ -9,18 +9,27 @@ namespace RapidRepo.Extensions.DependencyInjection;
 public sealed class RapidRepoRegistrationContext
 {
     internal RapidRepoRegistrationContext(
+        IReadOnlyList<Type> rootInterfaces,
         IReadOnlyList<RepositoryRegistration> repositories,
         IReadOnlyList<UnitOfWorkRegistration> unitsOfWork,
         ServiceLifetime lifetime,
         bool registerAsSelf,
         bool registerGenericRepositories)
     {
+        RootInterfaces = rootInterfaces;
         Repositories = repositories;
         UnitsOfWork = unitsOfWork;
         Lifetime = lifetime;
         RegisterAsSelf = registerAsSelf;
         RegisterGenericRepositories = registerGenericRepositories;
     }
+
+    /// <summary>
+    /// Gets the open generic repository interfaces: the core's (<c>IRepository&lt;,&gt;</c>,
+    /// <c>IReadOnlyRepository&lt;,&gt;</c>, <c>IWriteRepository&lt;,&gt;</c>) followed by the provider's
+    /// <see cref="IRapidRepoProvider.AdditionalRootInterfaces"/>. Register the generic repository against these.
+    /// </summary>
+    public IReadOnlyList<Type> RootInterfaces { get; }
 
     /// <summary>
     /// Gets the scanned repositories that passed the filters, with the interfaces each was registered against.

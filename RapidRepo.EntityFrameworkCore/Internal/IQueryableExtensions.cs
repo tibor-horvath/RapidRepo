@@ -79,24 +79,41 @@ internal static class IQueryableExtensions
     }
 
     /// <summary>
-    /// Bypasses the soft-delete filter. When the entity has the named filter that
-    /// <see cref="ModelBuilderExtensions.AddSoftDeleteQueryFilters"/> registers, only that filter is bypassed and
-    /// other filters, such as a tenant filter, stay in force. Otherwise the soft-delete filter cannot be told apart
-    /// from the rest, so every filter is bypassed, as in RapidRepo 8.x.
+    /// Bypasses the soft-delete filter, and only as much else as it must:
+    /// <list type="bullet">
+    /// <item>
+    /// The entity has the named filter that <see cref="ModelBuilderExtensions.AddSoftDeleteQueryFilters"/>
+    /// registers: only that filter is bypassed, and other filters, such as a tenant filter, stay in force.
+    /// </item>
+    /// <item>
+    /// The entity has an anonymous filter: it may hold the soft-delete condition, and EF Core cannot bypass part of
+    /// it, so every filter is bypassed, as in RapidRepo 8.x.
+    /// </item>
+    /// <item>
+    /// The entity has only other named filters, or none: there is no soft-delete filter to bypass, so the query is
+    /// returned unchanged. Bypassing everything here would lift a tenant filter for nothing.
+    /// </item>
+    /// </list>
     /// </summary>
     /// <param name="query">The query.</param>
-    /// <param name="model">The model the query runs against, if known.</param>
+    /// <param name="model">
+    /// The model the query runs against. Without it the filters cannot be inspected, so every filter is bypassed.
+    /// </param>
     /// <returns>The query without the soft-delete filter.</returns>
     public static IQueryable<TEntity> IgnoreSoftDeleteFilter<TEntity>(this IQueryable<TEntity> query, IModel? model)
         where TEntity : class
     {
         var rootType = model?.FindEntityType(typeof(TEntity))?.GetRootType();
-        if (rootType?.FindDeclaredQueryFilter(ModelBuilderExtensions.SoftDeleteFilterKey) is not null)
-        {
-            return query.IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilterKey]);
-        }
+        if (rootType is null)
+            return query.IgnoreQueryFilters();
 
-        return query.IgnoreQueryFilters();
+        if (rootType.FindDeclaredQueryFilter(ModelBuilderExtensions.SoftDeleteFilterKey) is not null)
+            return query.IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilterKey]);
+
+        if (rootType.GetDeclaredQueryFilters().Any(f => f.IsAnonymous))
+            return query.IgnoreQueryFilters();
+
+        return query;
     }
 
     /// <summary>

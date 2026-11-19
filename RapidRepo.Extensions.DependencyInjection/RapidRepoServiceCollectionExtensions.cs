@@ -46,8 +46,11 @@ public static class RapidRepoServiceCollectionExtensions
 
         HandleSingletonWarning(options);
 
+        IReadOnlyList<Type> rootInterfaces =
+            [.. RepositoryScanner.CoreRootInterfaces.Concat(provider?.AdditionalRootInterfaces ?? []).Distinct()];
+
         var candidates = RepositoryScanner
-            .GetCandidates(options.Assemblies, provider?.AdditionalRootInterfaces ?? [])
+            .GetCandidates(options.Assemblies, rootInterfaces)
             .Where(c => PassesFilters(c.ConcreteType, options))
             .ToList();
 
@@ -70,7 +73,11 @@ public static class RapidRepoServiceCollectionExtensions
         foreach (var (iface, impl) in options.UnitOfWorkRegistrations)
             UnitOfWorkRegistrar.Register(services, iface, impl, options.Lifetime);
 
+        if (provider is null)
+            WarnOnMissingProvider(candidates.Count, options.UnitOfWorkRegistrations.Count);
+
         provider?.Register(services, new RapidRepoRegistrationContext(
+            rootInterfaces,
             candidates.Select(c => new RepositoryRegistration(c.ConcreteType, c.RegistrationInterfaces)).ToList(),
             options.UnitOfWorkRegistrations.Select(u => new UnitOfWorkRegistration(u.InterfaceType, u.ImplementationType)).ToList(),
             options.Lifetime,
@@ -105,6 +112,25 @@ public static class RapidRepoServiceCollectionExtensions
         if (options.ThrowOnSingletonMisuse)
             throw new InvalidOperationException(message);
 
-        Trace.TraceWarning($"[RapidRepo] {message}");
+        Warn(message);
     }
+
+    /// <summary>
+    /// Without a provider nothing registers the data source the repositories and units of work depend on, such
+    /// as the <c>DbContext</c> forwarder of <c>UseEntityFrameworkCore&lt;TContext&gt;()</c>. That is legitimate
+    /// when the application registers the data source itself, so it is a warning, not an error.
+    /// </summary>
+    internal const string MissingProviderMessage =
+        "AddRapidRepo registered repositories or units of work, but no persistence provider is configured, so " +
+        "nothing registers the data source they depend on. Unless the application registers it itself, they " +
+        "will fail on first resolve. Configure a provider in AddRapidRepo, for example UseEntityFrameworkCore() " +
+        "or UseEntityFrameworkCore<TContext>() from RapidRepo.EntityFrameworkCore.";
+
+    private static void WarnOnMissingProvider(int repositoryCount, int unitOfWorkCount)
+    {
+        if (repositoryCount > 0 || unitOfWorkCount > 0)
+            Warn(MissingProviderMessage);
+    }
+
+    private static void Warn(string message) => Trace.TraceWarning($"[RapidRepo] {message}");
 }

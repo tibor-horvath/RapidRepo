@@ -119,7 +119,8 @@ Which methods take which parameters:
 
 | Methods | `condition` | `orderBy` | `options` |
 |---|---|---|---|
-| `GetAll`, `GetAllPaged`, `GetFirst*`, `GetSingle*` | ✓ | ✓ | ✓ |
+| `GetAll`, `GetAllPaged`, `GetFirst*` | ✓ | ✓ | ✓ |
+| `GetSingle*` | ✓ | — | ✓ |
 | `GetById`, `GetByIds`, `ExistsById` | — | — | ✓ |
 | `Any` | required | — | ✓ |
 | `Count` | ✓ | — | ✓ |

@@ -31,18 +31,33 @@ public static class ModelBuilderExtensions
     /// has an anonymous filter gets an anonymous soft-delete filter instead, which replaces the existing one as in
     /// RapidRepo 8.x. For such an entity, <c>IncludeDeleted</c> bypasses every filter.
     /// </para>
+    /// <para>
+    /// The filter is declared on the root of each inheritance hierarchy and covers its derived types, so the root
+    /// must implement <see cref="IDeletableEntity"/> whenever any type in the hierarchy does.
+    /// </para>
     /// </remarks>
     /// <param name="modelBuilder">The model builder.</param>
     /// <returns>The same model builder, for chaining.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// A type implements <see cref="IDeletableEntity"/> but the root of its inheritance hierarchy does not.
+    /// </exception>
     public static ModelBuilder AddSoftDeleteQueryFilters(this ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
 
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
-            // Query filters may only be declared on the root of an inheritance hierarchy.
-            if (entityType.BaseType is not null || !typeof(IDeletableEntity).IsAssignableFrom(entityType.ClrType))
+            if (!IsDeletable(entityType))
                 continue;
+
+            // Query filters may only be declared on the root of an inheritance hierarchy. A deletable root's
+            // filter covers its derived types; a deletable type under a root that is not deletable cannot be
+            // filtered, and skipping it would silently return its soft-deleted rows.
+            if (entityType.BaseType is not null)
+            {
+                EnsureRootIsDeletable(entityType);
+                continue;
+            }
 
             var filter = BuildIsNotDeletedFilter(entityType.ClrType);
             var entity = modelBuilder.Entity(entityType.ClrType);
@@ -63,6 +78,23 @@ public static class ModelBuilderExtensions
         var nullConstant = Expression.Constant(null, typeof(DateTime?));
         var isNotDeleted = Expression.Equal(deletedAtProperty, nullConstant);
         return Expression.Lambda(isNotDeleted, parameter);
+    }
+
+    private static bool IsDeletable(IMutableEntityType entityType) =>
+        typeof(IDeletableEntity).IsAssignableFrom(entityType.ClrType);
+
+    private static void EnsureRootIsDeletable(IMutableEntityType entityType)
+    {
+        var root = entityType.GetRootType();
+        if (IsDeletable(root))
+            return;
+
+        throw new InvalidOperationException(
+            $"'{entityType.ClrType.Name}' implements '{nameof(IDeletableEntity)}', but the root of its inheritance " +
+            $"hierarchy, '{root.ClrType.Name}', does not. EF Core only allows query filters on the root entity " +
+            $"type, so {nameof(AddSoftDeleteQueryFilters)} cannot hide soft-deleted '{entityType.ClrType.Name}' " +
+            $"rows. Implement '{nameof(IDeletableEntity)}' on '{root.ClrType.Name}', or map " +
+            $"'{entityType.ClrType.Name}' outside that hierarchy.");
     }
 
     private static bool HasAnonymousFilter(IMutableEntityType entityType) =>

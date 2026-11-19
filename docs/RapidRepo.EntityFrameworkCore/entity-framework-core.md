@@ -170,6 +170,12 @@ repo.HardDeleteById(id, includeDeleted: true);
 
 To bypass soft delete in a hand-written query, use EF Core directly: `query.IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilterKey])`.
 
+`IncludeDeleted` never lifts a filter it does not have to. On an entity without the soft-delete filter and without an anonymous filter, for example an entity that is not `IDeletableEntity` but has a named tenant filter, it bypasses nothing.
+
+### Inheritance
+
+EF Core only allows query filters on the root of an inheritance hierarchy, so the soft-delete filter is declared on the root and covers every derived type. The root must therefore implement `IDeletableEntity` whenever a type below it does; otherwise `AddSoftDeleteQueryFilters()` throws, rather than leave soft-deleted rows of that type visible.
+
 ### Entities with an anonymous filter
 
 EF Core does not allow anonymous and named filters on the same entity type. An entity that already has an anonymous filter when `AddSoftDeleteQueryFilters()` runs gets an anonymous soft-delete filter instead, which replaces the existing one, as in 8.x. A soft-delete filter you declare by hand without a name, such as `HasQueryFilter(e => e.DeletedAt == null)`, is anonymous too. For these entities RapidRepo cannot tell the soft-delete filter apart from the rest, so `IncludeDeleted` bypasses every filter on them.

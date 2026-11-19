@@ -21,6 +21,7 @@ public class SoftDeleteFilterTests : IDisposable
     private readonly FilterContext _dbContext;
     private readonly NoteRepository _notes;
     private readonly LegacyRepository _legacies;
+    private readonly InvoiceRepository _invoices;
 
     public SoftDeleteFilterTests()
     {
@@ -32,6 +33,7 @@ public class SoftDeleteFilterTests : IDisposable
         _dbContext.Database.EnsureCreated();
         _notes = new NoteRepository(_dbContext);
         _legacies = new LegacyRepository(_dbContext);
+        _invoices = new InvoiceRepository(_dbContext);
 
         _dbContext.AddRange(
             new Note { Title = "mine", TenantId = MyTenant },
@@ -40,7 +42,9 @@ public class SoftDeleteFilterTests : IDisposable
             new Note { Title = "theirs, deleted", TenantId = OtherTenant, DeletedAt = DateTime.UtcNow },
             new Legacy { Title = "visible" },
             new Legacy { Title = "hidden" },
-            new Legacy { Title = "deleted", DeletedAt = DateTime.UtcNow });
+            new Legacy { Title = "deleted", DeletedAt = DateTime.UtcNow },
+            new Invoice { Title = "mine", TenantId = MyTenant },
+            new Invoice { Title = "theirs", TenantId = OtherTenant });
         _dbContext.SaveChanges();
         _dbContext.ChangeTracker.Clear();
     }
@@ -136,6 +140,26 @@ public class SoftDeleteFilterTests : IDisposable
         _legacies.GetAll(options: IncludeDeleted).Should().HaveCount(3);
     }
 
+    [Fact]
+    public void EntityWithoutSoftDelete_IncludeDeleted_KeepsTheTenantFilter()
+    {
+        _invoices.GetAll(options: IncludeDeleted).Select(i => i.Title).Should().BeEquivalentTo(["mine"]);
+        _invoices.Count(options: IncludeDeleted).Should().Be(1);
+        _invoices.Query(new EfReadOptions<Invoice> { IncludeDeleted = true }).Count().Should().Be(1);
+    }
+
+    [Fact]
+    public async Task EntityWithoutSoftDelete_HardDeleteByIdIncludeDeleted_CannotEraseAnotherTenantsRow()
+    {
+        var theirs = _dbContext.Set<Invoice>().IgnoreQueryFilters().AsNoTracking().Single(i => i.Title == "theirs").Id;
+
+        _invoices.HardDeleteById(theirs, includeDeleted: true);
+        await _invoices.HardDeleteByIdAsync(theirs, includeDeleted: true);
+        await _dbContext.SaveChangesAsync();
+
+        _dbContext.Set<Invoice>().IgnoreQueryFilters().Any(i => i.Id == theirs).Should().BeTrue();
+    }
+
     private int IdOf(string title) =>
         _dbContext.Notes.IgnoreQueryFilters().AsNoTracking().Single(n => n.Title == title).Id;
 
@@ -152,6 +176,12 @@ public class SoftDeleteFilterTests : IDisposable
         public DateTime? DeletedAt { get; set; }
     }
 
+    private sealed class Invoice : BaseEntity<int>
+    {
+        public required string Title { get; set; }
+        public int TenantId { get; set; }
+    }
+
     private sealed class FilterContext(DbContextOptions<FilterContext> options) : DbContext(options)
     {
         public int TenantId { get; init; }
@@ -166,10 +196,13 @@ public class SoftDeleteFilterTests : IDisposable
             modelBuilder.AddSoftDeleteQueryFilters();
 
             modelBuilder.Entity<Note>().HasQueryFilter("Tenant", n => n.TenantId == TenantId);
+            modelBuilder.Entity<Invoice>().HasQueryFilter("Tenant", i => i.TenantId == TenantId);
         }
     }
 
     private sealed class NoteRepository(DbContext dbContext) : EfRepository<Note, int>(dbContext);
 
     private sealed class LegacyRepository(DbContext dbContext) : EfRepository<Legacy, int>(dbContext);
+
+    private sealed class InvoiceRepository(DbContext dbContext) : EfRepository<Invoice, int>(dbContext);
 }

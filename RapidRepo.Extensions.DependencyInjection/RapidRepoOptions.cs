@@ -28,11 +28,9 @@ public sealed class RapidRepoOptions
     public bool ThrowOnSingletonMisuse { get; set; }
 
     /// <summary>
-    /// Have the provider register its generic repository implementation for
-    /// <see cref="RapidRepo.Repositories.Interfaces.IRepository{TEntity,TKey}"/>,
-    /// <see cref="RapidRepo.Repositories.Interfaces.IReadOnlyRepository{TEntity,TKey}"/>, and
-    /// <see cref="RapidRepo.Repositories.Interfaces.IWriteRepository{TEntity,TKey}"/>,
-    /// so root interfaces can be injected without writing a repository class.
+    /// Have the provider register its generic repository implementation for the root repository interfaces
+    /// (<see cref="RapidRepoRegistrationContext.RootInterfaces"/>), so they can be injected without writing a
+    /// repository class.
     /// Specific registrations from assembly scanning always take precedence.
     /// Requires a provider (see <see cref="UseProvider"/>). Default: <c>false</c>.
     /// </summary>

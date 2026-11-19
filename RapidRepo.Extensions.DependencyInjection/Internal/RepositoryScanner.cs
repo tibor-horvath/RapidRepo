@@ -6,7 +6,11 @@ namespace RapidRepo.Extensions.DependencyInjection.Internal;
 
 internal static class RepositoryScanner
 {
-    private static readonly Type[] CoreRootInterfaces =
+    /// <summary>
+    /// The core's open generic repository interfaces. A provider adds its own through
+    /// <see cref="IRapidRepoProvider.AdditionalRootInterfaces"/>.
+    /// </summary>
+    internal static readonly IReadOnlyList<Type> CoreRootInterfaces =
     [
         typeof(IReadOnlyRepository<,>),
         typeof(IWriteRepository<,>),
@@ -18,18 +22,18 @@ internal static class RepositoryScanner
     /// be registered against.
     /// </summary>
     /// <param name="assemblies">The assemblies to scan.</param>
-    /// <param name="additionalRootInterfaces">
-    /// A provider's own open generic repository interfaces, treated like the core ones: never registered against,
-    /// only the interfaces derived from them are.
+    /// <param name="rootInterfaces">
+    /// The open generic repository interfaces, the core's and the provider's: never registered against, only the
+    /// interfaces derived from them are.
     /// </param>
     internal static IEnumerable<(Type ConcreteType, IReadOnlyList<Type> RegistrationInterfaces)> GetCandidates(
         IEnumerable<Assembly> assemblies,
-        IEnumerable<Type> additionalRootInterfaces)
+        IEnumerable<Type> rootInterfaces)
     {
-        var rootInterfaces = new HashSet<Type>(CoreRootInterfaces.Concat(additionalRootInterfaces));
+        var roots = new HashSet<Type>(rootInterfaces);
 
         bool IsRootInterface(Type iface)
-            => iface.IsGenericType && rootInterfaces.Contains(iface.GetGenericTypeDefinition());
+            => iface.IsGenericType && roots.Contains(iface.GetGenericTypeDefinition());
 
         bool DerivesFromAnyRootInterface(Type iface)
             => IsRootInterface(iface) || iface.GetInterfaces().Any(IsRootInterface);

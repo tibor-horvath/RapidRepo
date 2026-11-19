@@ -248,78 +248,70 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
 
     public virtual TEntity? GetSingleOrDefault(
         Expression<Func<TEntity, bool>>? condition = null,
-        SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null) =>
-        BuildQuery(condition, orderBy, options).SingleOrDefault();
+        BuildQuery(condition, options: options).SingleOrDefault();
 
     public virtual TResult? GetSingleOrDefault<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
-        SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null)
         where TResult : class
     {
         ArgumentNullException.ThrowIfNull(selector);
 
-        return Untracked(condition, orderBy, options).Select(selector).SingleOrDefault();
+        return Untracked(condition, options: options).Select(selector).SingleOrDefault();
     }
 
     public virtual Task<TEntity?> GetSingleOrDefaultAsync(
         Expression<Func<TEntity, bool>>? condition = null,
-        SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null,
         CancellationToken cancellationToken = default) =>
-        BuildQuery(condition, orderBy, options).SingleOrDefaultAsync(cancellationToken);
+        BuildQuery(condition, options: options).SingleOrDefaultAsync(cancellationToken);
 
     public virtual Task<TResult?> GetSingleOrDefaultAsync<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
-        SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null,
         CancellationToken cancellationToken = default)
         where TResult : class
     {
         ArgumentNullException.ThrowIfNull(selector);
 
-        return Untracked(condition, orderBy, options).Select(selector).SingleOrDefaultAsync(cancellationToken);
+        return Untracked(condition, options: options).Select(selector).SingleOrDefaultAsync(cancellationToken);
     }
 
     public virtual TEntity GetSingle(
         Expression<Func<TEntity, bool>>? condition = null,
-        SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null) =>
-        BuildQuery(condition, orderBy, options).Single();
+        BuildQuery(condition, options: options).Single();
 
     public virtual TResult GetSingle<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
-        SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null)
         where TResult : class
     {
         ArgumentNullException.ThrowIfNull(selector);
 
-        return Untracked(condition, orderBy, options).Select(selector).Single();
+        return Untracked(condition, options: options).Select(selector).Single();
     }
 
     public virtual Task<TEntity> GetSingleAsync(
         Expression<Func<TEntity, bool>>? condition = null,
-        SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null,
         CancellationToken cancellationToken = default) =>
-        BuildQuery(condition, orderBy, options).SingleAsync(cancellationToken);
+        BuildQuery(condition, options: options).SingleAsync(cancellationToken);
 
     public virtual Task<TResult> GetSingleAsync<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
-        SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null,
         CancellationToken cancellationToken = default)
         where TResult : class
     {
         ArgumentNullException.ThrowIfNull(selector);
 
-        return Untracked(condition, orderBy, options).Select(selector).SingleAsync(cancellationToken);
+        return Untracked(condition, options: options).Select(selector).SingleAsync(cancellationToken);
     }
 
     public virtual IEnumerable<TEntity> GetAll(

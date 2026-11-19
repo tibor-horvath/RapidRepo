@@ -310,13 +310,11 @@ public interface IReadOnlyRepository<TEntity, in TKey>
     /// Gets the only entity that matches the condition, or null if there is none.
     /// </summary>
     /// <param name="condition">The condition to filter entities, or <see langword="null"/> for all entities.</param>
-    /// <param name="orderBy">The sort order, or <see langword="null"/>.</param>
     /// <param name="options">The read options, or <see langword="null"/> for <see cref="ReadOptions.Default"/>.</param>
     /// <returns>The only matching entity, or null.</returns>
     /// <exception cref="InvalidOperationException">Thrown when more than one entity matches.</exception>
     TEntity? GetSingleOrDefault(
         Expression<Func<TEntity, bool>>? condition = null,
-        SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null);
 
     /// <summary>
@@ -325,14 +323,12 @@ public interface IReadOnlyRepository<TEntity, in TKey>
     /// <typeparam name="TResult">The type of the projection.</typeparam>
     /// <param name="selector">The projection to apply.</param>
     /// <param name="condition">The condition to filter entities, or <see langword="null"/> for all entities.</param>
-    /// <param name="orderBy">The sort order, or <see langword="null"/>.</param>
     /// <param name="options">The read options, or <see langword="null"/> for <see cref="ReadOptions.Default"/>.</param>
     /// <returns>The projection of the only matching entity, or the default value.</returns>
     /// <exception cref="InvalidOperationException">Thrown when more than one entity matches.</exception>
     TResult? GetSingleOrDefault<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
-        SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null)
         where TResult : class;
 
@@ -340,14 +336,12 @@ public interface IReadOnlyRepository<TEntity, in TKey>
     /// Asynchronously gets the only entity that matches the condition, or null if there is none.
     /// </summary>
     /// <param name="condition">The condition to filter entities, or <see langword="null"/> for all entities.</param>
-    /// <param name="orderBy">The sort order, or <see langword="null"/>.</param>
     /// <param name="options">The read options, or <see langword="null"/> for <see cref="ReadOptions.Default"/>.</param>
     /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
     /// <returns>The only matching entity, or null.</returns>
     /// <exception cref="InvalidOperationException">Thrown when more than one entity matches.</exception>
     Task<TEntity?> GetSingleOrDefaultAsync(
         Expression<Func<TEntity, bool>>? condition = null,
-        SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null,
         CancellationToken cancellationToken = default);
 
@@ -358,7 +352,6 @@ public interface IReadOnlyRepository<TEntity, in TKey>
     /// <typeparam name="TResult">The type of the projection.</typeparam>
     /// <param name="selector">The projection to apply.</param>
     /// <param name="condition">The condition to filter entities, or <see langword="null"/> for all entities.</param>
-    /// <param name="orderBy">The sort order, or <see langword="null"/>.</param>
     /// <param name="options">The read options, or <see langword="null"/> for <see cref="ReadOptions.Default"/>.</param>
     /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
     /// <returns>The projection of the only matching entity, or the default value.</returns>
@@ -366,7 +359,6 @@ public interface IReadOnlyRepository<TEntity, in TKey>
     Task<TResult?> GetSingleOrDefaultAsync<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
-        SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null,
         CancellationToken cancellationToken = default)
         where TResult : class;
@@ -375,13 +367,11 @@ public interface IReadOnlyRepository<TEntity, in TKey>
     /// Gets the only entity that matches the condition.
     /// </summary>
     /// <param name="condition">The condition to filter entities, or <see langword="null"/> for all entities.</param>
-    /// <param name="orderBy">The sort order, or <see langword="null"/>.</param>
     /// <param name="options">The read options, or <see langword="null"/> for <see cref="ReadOptions.Default"/>.</param>
     /// <returns>The only matching entity.</returns>
     /// <exception cref="InvalidOperationException">Thrown when no entity, or more than one, matches.</exception>
     TEntity GetSingle(
         Expression<Func<TEntity, bool>>? condition = null,
-        SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null);
 
     /// <summary>
@@ -390,14 +380,12 @@ public interface IReadOnlyRepository<TEntity, in TKey>
     /// <typeparam name="TResult">The type of the projection.</typeparam>
     /// <param name="selector">The projection to apply.</param>
     /// <param name="condition">The condition to filter entities, or <see langword="null"/> for all entities.</param>
-    /// <param name="orderBy">The sort order, or <see langword="null"/>.</param>
     /// <param name="options">The read options, or <see langword="null"/> for <see cref="ReadOptions.Default"/>.</param>
     /// <returns>The projection of the only matching entity.</returns>
     /// <exception cref="InvalidOperationException">Thrown when no entity, or more than one, matches.</exception>
     TResult GetSingle<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
-        SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null)
         where TResult : class;
 
@@ -405,14 +393,12 @@ public interface IReadOnlyRepository<TEntity, in TKey>
     /// Asynchronously gets the only entity that matches the condition.
     /// </summary>
     /// <param name="condition">The condition to filter entities, or <see langword="null"/> for all entities.</param>
-    /// <param name="orderBy">The sort order, or <see langword="null"/>.</param>
     /// <param name="options">The read options, or <see langword="null"/> for <see cref="ReadOptions.Default"/>.</param>
     /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
     /// <returns>The only matching entity.</returns>
     /// <exception cref="InvalidOperationException">Thrown when no entity, or more than one, matches.</exception>
     Task<TEntity> GetSingleAsync(
         Expression<Func<TEntity, bool>>? condition = null,
-        SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null,
         CancellationToken cancellationToken = default);
 
@@ -422,7 +408,6 @@ public interface IReadOnlyRepository<TEntity, in TKey>
     /// <typeparam name="TResult">The type of the projection.</typeparam>
     /// <param name="selector">The projection to apply.</param>
     /// <param name="condition">The condition to filter entities, or <see langword="null"/> for all entities.</param>
-    /// <param name="orderBy">The sort order, or <see langword="null"/>.</param>
     /// <param name="options">The read options, or <see langword="null"/> for <see cref="ReadOptions.Default"/>.</param>
     /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
     /// <returns>The projection of the only matching entity.</returns>
@@ -430,7 +415,6 @@ public interface IReadOnlyRepository<TEntity, in TKey>
     Task<TResult> GetSingleAsync<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
-        SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null,
         CancellationToken cancellationToken = default)
         where TResult : class;

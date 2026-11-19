@@ -59,21 +59,21 @@ public abstract class StubRepository<TEntity, TKey> : IRepository<TEntity, TKey>
 
     public virtual Task<TResult> GetFirstAsync<TResult>(Expression<Func<TEntity, TResult>> selector, Expression<Func<TEntity, bool>>? condition = null, SortOrder<TEntity>? orderBy = null, ReadOptions? options = null, CancellationToken cancellationToken = default) where TResult : class => throw new NotSupportedException();
 
-    public virtual TEntity? GetSingleOrDefault(Expression<Func<TEntity, bool>>? condition = null, SortOrder<TEntity>? orderBy = null, ReadOptions? options = null) => throw new NotSupportedException();
+    public virtual TEntity? GetSingleOrDefault(Expression<Func<TEntity, bool>>? condition = null, ReadOptions? options = null) => throw new NotSupportedException();
 
-    public virtual TResult? GetSingleOrDefault<TResult>(Expression<Func<TEntity, TResult>> selector, Expression<Func<TEntity, bool>>? condition = null, SortOrder<TEntity>? orderBy = null, ReadOptions? options = null) where TResult : class => throw new NotSupportedException();
+    public virtual TResult? GetSingleOrDefault<TResult>(Expression<Func<TEntity, TResult>> selector, Expression<Func<TEntity, bool>>? condition = null, ReadOptions? options = null) where TResult : class => throw new NotSupportedException();
 
-    public virtual Task<TEntity?> GetSingleOrDefaultAsync(Expression<Func<TEntity, bool>>? condition = null, SortOrder<TEntity>? orderBy = null, ReadOptions? options = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    public virtual Task<TEntity?> GetSingleOrDefaultAsync(Expression<Func<TEntity, bool>>? condition = null, ReadOptions? options = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
-    public virtual Task<TResult?> GetSingleOrDefaultAsync<TResult>(Expression<Func<TEntity, TResult>> selector, Expression<Func<TEntity, bool>>? condition = null, SortOrder<TEntity>? orderBy = null, ReadOptions? options = null, CancellationToken cancellationToken = default) where TResult : class => throw new NotSupportedException();
+    public virtual Task<TResult?> GetSingleOrDefaultAsync<TResult>(Expression<Func<TEntity, TResult>> selector, Expression<Func<TEntity, bool>>? condition = null, ReadOptions? options = null, CancellationToken cancellationToken = default) where TResult : class => throw new NotSupportedException();
 
-    public virtual TEntity GetSingle(Expression<Func<TEntity, bool>>? condition = null, SortOrder<TEntity>? orderBy = null, ReadOptions? options = null) => throw new NotSupportedException();
+    public virtual TEntity GetSingle(Expression<Func<TEntity, bool>>? condition = null, ReadOptions? options = null) => throw new NotSupportedException();
 
-    public virtual TResult GetSingle<TResult>(Expression<Func<TEntity, TResult>> selector, Expression<Func<TEntity, bool>>? condition = null, SortOrder<TEntity>? orderBy = null, ReadOptions? options = null) where TResult : class => throw new NotSupportedException();
+    public virtual TResult GetSingle<TResult>(Expression<Func<TEntity, TResult>> selector, Expression<Func<TEntity, bool>>? condition = null, ReadOptions? options = null) where TResult : class => throw new NotSupportedException();
 
-    public virtual Task<TEntity> GetSingleAsync(Expression<Func<TEntity, bool>>? condition = null, SortOrder<TEntity>? orderBy = null, ReadOptions? options = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    public virtual Task<TEntity> GetSingleAsync(Expression<Func<TEntity, bool>>? condition = null, ReadOptions? options = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
-    public virtual Task<TResult> GetSingleAsync<TResult>(Expression<Func<TEntity, TResult>> selector, Expression<Func<TEntity, bool>>? condition = null, SortOrder<TEntity>? orderBy = null, ReadOptions? options = null, CancellationToken cancellationToken = default) where TResult : class => throw new NotSupportedException();
+    public virtual Task<TResult> GetSingleAsync<TResult>(Expression<Func<TEntity, TResult>> selector, Expression<Func<TEntity, bool>>? condition = null, ReadOptions? options = null, CancellationToken cancellationToken = default) where TResult : class => throw new NotSupportedException();
 
     public virtual IEnumerable<TEntity> GetAll(Expression<Func<TEntity, bool>>? condition = null, SortOrder<TEntity>? orderBy = null, ReadOptions? options = null) => throw new NotSupportedException();
 

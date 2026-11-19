@@ -3,7 +3,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RapidRepo.Entities;
 using RapidRepo.EntityFrameworkCore;
-using RapidRepo.Repositories.Interfaces;
 using System.Reflection;
 
 namespace RapidRepo.EntityFrameworkCore.Internal;
@@ -11,20 +10,10 @@ namespace RapidRepo.EntityFrameworkCore.Internal;
 internal static class DbContextRegistrar
 {
     /// <summary>
-    /// EF Core's own open generic repository interfaces.
+    /// EF Core's own open generic repository interfaces. <c>AddRapidRepo</c> adds them to the core ones in
+    /// <see cref="Extensions.DependencyInjection.RapidRepoRegistrationContext.RootInterfaces"/>.
     /// </summary>
     internal static readonly Type[] EfRootInterfaces = [typeof(IEfRepository<,>), typeof(IEfReadOnlyRepository<,>)];
-
-    /// <summary>
-    /// The service types a generic repository is registered against: the core contracts and EF's own.
-    /// </summary>
-    internal static readonly Type[] RootInterfaces =
-    [
-        typeof(IRepository<,>),
-        typeof(IReadOnlyRepository<,>),
-        typeof(IWriteRepository<,>),
-        .. EfRootInterfaces
-    ];
 
     /// <summary>
     /// Registers the <see cref="DbContext"/> → <paramref name="contextType"/> forwarder, but only when a type
@@ -93,6 +82,7 @@ internal static class DbContextRegistrar
     internal static void RegisterClosedGenericRepositories(
         IServiceCollection services,
         Type contextType,
+        IEnumerable<Type> rootInterfaces,
         ServiceLifetime lifetime,
         bool registerAsSelf)
     {
@@ -100,7 +90,7 @@ internal static class DbContextRegistrar
         {
             var implementationType = typeof(EfRepository<,,>).MakeGenericType(entityType, keyType, contextType);
 
-            foreach (var rootInterface in RootInterfaces)
+            foreach (var rootInterface in rootInterfaces)
             {
                 var serviceType = rootInterface.MakeGenericType(entityType, keyType);
 
