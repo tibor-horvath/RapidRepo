@@ -11,6 +11,8 @@ namespace RapidRepo.SourceGenerators;
 public sealed class UnitOfWorkGenerator : IIncrementalGenerator
 {
     private const string AttributeFqn = "RapidRepo.Attributes.GenerateUnitOfWorkAttribute";
+    private const string DbContextFqn = "Microsoft.EntityFrameworkCore.DbContext";
+    private const string BaseEntityFqn = "RapidRepo.Entities.BaseEntity`1";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -52,9 +54,9 @@ public sealed class UnitOfWorkGenerator : IIncrementalGenerator
             .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == AttributeFqn);
         if (attr is null) return;
 
-        // Parse DbContext types — RRUOW004 if any type is not a DbContext
-        var dbContextTypes = ParseDbContextTypes(attr, compilation, ctx, classSymbol);
-        if (dbContextTypes is null) return;
+        // Parse sources — RRUOW004 if any type is neither a DbContext nor an entity
+        var sources = ParseSources(attr, compilation, ctx, classSymbol);
+        if (sources is null) return;
 
         // Parse optional settings
         var interfaceName = attr.NamedArguments
@@ -66,7 +68,7 @@ public sealed class UnitOfWorkGenerator : IIncrementalGenerator
 
         // Discover properties
         var properties = PropertyDiscoverer.Discover(
-            compilation, ctx, classSymbol, dbContextTypes, includeNamespaces, excludeNamespaces);
+            compilation, ctx, classSymbol, sources, includeNamespaces, excludeNamespaces);
 
         if (properties.Count == 0) return;
 
@@ -102,33 +104,47 @@ public sealed class UnitOfWorkGenerator : IIncrementalGenerator
         return new string(chars);
     }
 
-    private static List<INamedTypeSymbol>? ParseDbContextTypes(
+    /// <summary>
+    /// Classifies each type passed to the attribute as a DbContext or an entity. DbContext is matched by metadata
+    /// name, so the generator needs no EF Core reference and works for consumers that do not use EF Core.
+    /// </summary>
+    private static List<UnitOfWorkSource>? ParseSources(
         AttributeData attr,
         Compilation compilation,
         SourceProductionContext ctx,
         INamedTypeSymbol classSymbol)
     {
-        var dbContextBase = compilation.GetTypeByMetadataName("Microsoft.EntityFrameworkCore.DbContext");
+        var dbContextBase = compilation.GetTypeByMetadataName(DbContextFqn);
+        var baseEntityDef = compilation.GetTypeByMetadataName(BaseEntityFqn);
 
         if (attr.ConstructorArguments.Length == 0 || attr.ConstructorArguments[0].Values.IsEmpty)
-            return new List<INamedTypeSymbol>();
+            return new List<UnitOfWorkSource>();
 
-        var result = new List<INamedTypeSymbol>();
+        var result = new List<UnitOfWorkSource>();
 
         foreach (var arg in attr.ConstructorArguments[0].Values)
         {
             if (arg.Value is not INamedTypeSymbol typeSymbol) continue;
 
-            if (dbContextBase is not null && !InheritsFrom(typeSymbol, dbContextBase))
+            if (dbContextBase is not null && InheritsFrom(typeSymbol, dbContextBase))
             {
-                ctx.ReportDiagnostic(Diagnostic.Create(
-                    Diagnostics.NotDbContext,
-                    classSymbol.Locations.FirstOrDefault(),
-                    typeSymbol.Name));
-                return null;
+                result.Add(UnitOfWorkSource.DbContext(typeSymbol));
+                continue;
             }
 
-            result.Add(typeSymbol);
+            if (baseEntityDef is not null
+                && !typeSymbol.IsUnboundGenericType
+                && PropertyDiscoverer.FindBaseEntityKeyType(typeSymbol, baseEntityDef) is { } keyType)
+            {
+                result.Add(UnitOfWorkSource.Entity(typeSymbol, keyType));
+                continue;
+            }
+
+            ctx.ReportDiagnostic(Diagnostic.Create(
+                Diagnostics.InvalidSource,
+                classSymbol.Locations.FirstOrDefault(),
+                typeSymbol.Name));
+            return null;
         }
 
         return result;

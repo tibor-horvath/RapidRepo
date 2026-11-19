@@ -30,10 +30,10 @@ internal static class Diagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
-    internal static readonly DiagnosticDescriptor NotDbContext = new(
+    internal static readonly DiagnosticDescriptor InvalidSource = new(
         id: "RRUOW004",
-        title: "Type passed to [GenerateUnitOfWork] is not a DbContext",
-        messageFormat: "'{0}' does not inherit 'Microsoft.EntityFrameworkCore.DbContext'. Only DbContext-derived types can be passed to [GenerateUnitOfWork].",
+        title: "Type passed to [GenerateUnitOfWork] is neither a DbContext nor an entity",
+        messageFormat: "'{0}' neither inherits 'Microsoft.EntityFrameworkCore.DbContext' nor 'RapidRepo.Entities.BaseEntity<TKey>'. Pass DbContext types or entity types to [GenerateUnitOfWork].",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);

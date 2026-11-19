@@ -254,7 +254,7 @@ public class UnitOfWorkGeneratorTests
     }
 
     [Fact]
-    public void NonDbContext_Type_Emits_RRUOW004_Error()
+    public void Type_That_Is_Neither_DbContext_Nor_Entity_Emits_RRUOW004_Error()
     {
         var source = """
             using RapidRepo.Attributes;

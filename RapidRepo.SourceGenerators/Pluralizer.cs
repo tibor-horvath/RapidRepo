@@ -23,7 +23,16 @@ internal static class Pluralizer
 
         if (stem.Length == 0) return interfaceName;
 
-        // Pluralize
+        return PluralizeNoun(stem);
+    }
+
+    /// <summary>
+    /// Pluralizes a type name as it stands, for example an entity name: <c>Product</c> → <c>Products</c>,
+    /// <c>Category</c> → <c>Categories</c>. Unlike <see cref="Pluralize"/>, no prefix or suffix is stripped,
+    /// so <c>Item</c> becomes <c>Items</c>.
+    /// </summary>
+    internal static string PluralizeNoun(string stem)
+    {
         if (stem.EndsWith("y", StringComparison.Ordinal) && stem.Length >= 2)
         {
             var penultimate = stem[stem.Length - 2];
