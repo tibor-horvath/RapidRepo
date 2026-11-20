@@ -10,7 +10,7 @@ jobs:
     name: Auto-merge
     # Approves and auto-merges patch and minor bumps (all ecosystems, grouped PRs only
     # when every member qualifies). Majors are left for review; CODEOWNERS requests it.
-    uses: tibor-horvath/ci-toolkit/.github/workflows/dependabot-automerge.yml@1f0f04e17c088357078474aa58c4dfb3851b0d8c # v1
+    uses: tibor-horvath/ci-toolkit/.github/workflows/dependabot-automerge.yml@11a36a951031ecef7f20f3e1206014dd2c5ddac8 # v2.1.0
     permissions:
       contents: write
       pull-requests: write
