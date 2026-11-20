@@ -1,5 +1,12 @@
 # Changelog
 
+## [9.1.1](https://github.com/tibor-horvath/RapidRepo/compare/9.1.0...9.1.1) (2026-11-20)
+
+
+### Performance Improvements
+
+* speed up by-id writes and make generator output cacheable ([#150](https://github.com/tibor-horvath/RapidRepo/issues/150)) ([8853dd1](https://github.com/tibor-horvath/RapidRepo/commit/8853dd1a93517e2f821684a7c8ad8543ae05641f))
+
 ## [9.1.0](https://github.com/tibor-horvath/RapidRepo/compare/9.0.0...9.1.0) (2026-11-19)
 
 
