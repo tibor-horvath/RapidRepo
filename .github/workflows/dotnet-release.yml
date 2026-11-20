@@ -14,36 +14,29 @@ permissions:
   pull-requests: write
 
 jobs:
-  release-please-stable:
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'master'
+  release-please:
+    # `event == 'push'`: Build also runs for pull requests, and `branches` above
+    # matches the run's head branch, so a PR from `beta` into `master` (or a fork's
+    # branch named `master`) would otherwise start a release run with GH_TOKEN.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
+      # One release channel per branch. The prerelease settings live in the config
+      # file (release-please-action has no prerelease inputs), and `target-branch`
+      # is required: without it the action always releases the default branch.
+      # Each branch keeps its own copy of the manifest, so the path is shared.
+      #   master      -> release-please-config.json       9.2.0
+      #   beta        -> release-please-config.beta.json  9.2.0-beta.1, -beta.2, ...
+      #   pre-release -> release-please-config.rc.json    9.2.0-rc.1, -rc.2, ...
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           token: ${{ secrets.GH_TOKEN }}
-          config-file: release-please-config.json
+          target-branch: ${{ github.event.workflow_run.head_branch }}
+          config-file: >-
+            ${{ github.event.workflow_run.head_branch == 'beta' && 'release-please-config.beta.json'
+            || github.event.workflow_run.head_branch == 'pre-release' && 'release-please-config.rc.json'
+            || 'release-please-config.json' }}
           manifest-file: .release-please-manifest.json
-
-  release-please-beta:
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'beta'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
-        with:
-          token: ${{ secrets.GH_TOKEN }}
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
-          prerelease: true
-          prerelease-type: beta
-
-  release-please-rc:
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'pre-release'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
-        with:
-          token: ${{ secrets.GH_TOKEN }}
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
-          prerelease: true
-          prerelease-type: rc

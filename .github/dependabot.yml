@@ -13,6 +13,23 @@ updates:
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
+    # One PR per family instead of one per package and project: every PR runs the
+    # full CI set. Minor/patch only, so a major still arrives alone for review.
+    groups:
+      ef-core:
+        patterns: ["Microsoft.EntityFrameworkCore*"]
+        update-types: ["minor", "patch"]
+      microsoft-extensions:
+        patterns: ["Microsoft.Extensions.*"]
+        update-types: ["minor", "patch"]
+      test-tooling:
+        patterns:
+          - "xunit*"
+          - "Microsoft.NET.Test.Sdk"
+          - "coverlet.*"
+          - "FluentAssertions"
+          - "Moq"
+        update-types: ["minor", "patch"]
     ignore:
       # The Roslyn version RapidRepo.SourceGenerators references is our minimum supported
       # consumer SDK, not a dependency to keep current. Bumping it makes the generator
@@ -46,3 +63,12 @@ updates:
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
+    groups:
+      # Every ci-toolkit workflow/action is released together; bumping them one
+      # file at a time leaves the repo on mixed versions (and 5+ PRs per release).
+      ci-toolkit:
+        patterns: ["tibor-horvath/ci-toolkit*"]
+      actions:
+        patterns: ["*"]
+        exclude-patterns: ["tibor-horvath/ci-toolkit*"]
+        update-types: ["minor", "patch"]

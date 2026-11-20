@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "simple",
+  "versioning": "prerelease",
+  "prerelease-type": "beta.1",
+  "prerelease": true,
+  "include-v-in-tag": false,
+  "include-component-in-tag": false,
+  "changelog-path": "CHANGELOG.md",
+  "extra-files": [
+    {
+      "type": "generic",
+      "path": "Directory.Build.props"
+    }
+  ],
+  "packages": {
+    ".": {}
+  }
+}
