@@ -11,6 +11,12 @@ on:
 permissions:
   contents: read
 
+# A newer push or title edit supersedes the older run for the same PR. The event
+# name keeps pull_request and pull_request_target runs in separate groups.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
+
 jobs:
   title:
     name: PR title
