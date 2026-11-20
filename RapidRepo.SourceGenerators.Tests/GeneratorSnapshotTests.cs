@@ -1,9 +1,7 @@
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using FluentAssertions;
 using FluentAssertions.Execution;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 
 namespace RapidRepo.SourceGenerators.Tests;
 
@@ -106,28 +104,11 @@ public class GeneratorSnapshotTests
 
     private static IReadOnlyList<(string HintName, string Source)> RunGenerator(string source)
     {
-        var compilation = CSharpCompilation.Create(
-            "SnapshotAssembly",
-            [CSharpSyntaxTree.ParseText(source)],
-            [
-                MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
-                MetadataReference.CreateFromFile(Assembly.Load("System.Runtime").Location),
-                MetadataReference.CreateFromFile(typeof(RapidRepo.Entities.BaseEntity<>).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(RapidRepo.EntityFrameworkCore.EfUnitOfWork<>).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(Microsoft.EntityFrameworkCore.DbContext).Assembly.Location),
-            ],
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
-                .WithNullableContextOptions(NullableContextOptions.Enable));
+        var (diagnostics, sources) = GeneratorHarness.Run(GeneratorHarness.Compile(source));
 
-        var driver = CSharpGeneratorDriver.Create(new UnitOfWorkGenerator()).RunGenerators(compilation);
-        var result = driver.GetRunResult().Results[0];
+        diagnostics.Should().BeEmpty();
 
-        result.Diagnostics.Should().BeEmpty();
-
-        return result.GeneratedSources
-            .Select(s => (s.HintName, s.SourceText.ToString()))
-            .OrderBy(s => s.HintName, StringComparer.Ordinal)
-            .ToList();
+        return sources.OrderBy(s => s.HintName, StringComparer.Ordinal).ToList();
     }
 
     private static void MatchSnapshot(string hintName, string actual, [CallerFilePath] string testFile = "")

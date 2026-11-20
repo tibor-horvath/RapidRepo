@@ -25,7 +25,7 @@ internal static class PropertyDiscoverer
 
     internal static IReadOnlyList<PropertyModel> Discover(
         Compilation compilation,
-        SourceProductionContext ctx,
+        List<DiagnosticInfo> diagnostics,
         INamedTypeSymbol classSymbol,
         IReadOnlyList<UnitOfWorkSource> sources,
         ImmutableArray<string> includeNamespaces,
@@ -69,7 +69,7 @@ internal static class PropertyDiscoverer
                     var keyType = FindBaseEntityKeyType(entityType, baseEntityDef);
                     if (keyType is null)
                     {
-                        ctx.ReportDiagnostic(Diagnostic.Create(
+                        diagnostics.Add(DiagnosticInfo.Create(
                             Diagnostics.EntityNotBaseEntity,
                             classSymbol.Locations.FirstOrDefault(),
                             entityType.Name));
@@ -107,7 +107,7 @@ internal static class PropertyDiscoverer
             if (nameToEntity.TryGetValue(propertyName, out var existingEntity)
                 && !SymbolEqualityComparer.Default.Equals(existingEntity, entityType))
             {
-                ctx.ReportDiagnostic(Diagnostic.Create(
+                diagnostics.Add(DiagnosticInfo.Create(
                     Diagnostics.DuplicatePropertyName,
                     classSymbol.Locations.FirstOrDefault(),
                     propertyName,
@@ -176,7 +176,7 @@ internal static class PropertyDiscoverer
                     && !SymbolEqualityComparer.Default.Equals(existingEntity, entityType)
                     && !byEntity.ContainsKey(entityType))
                 {
-                    ctx.ReportDiagnostic(Diagnostic.Create(
+                    diagnostics.Add(DiagnosticInfo.Create(
                         Diagnostics.DuplicatePropertyName,
                         classSymbol.Locations.FirstOrDefault(),
                         propertyName,

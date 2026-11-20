@@ -1,63 +1,14 @@
 using System.Collections.Immutable;
-using System.Reflection;
 using FluentAssertions;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using RapidRepo.SourceGenerators;
+using static RapidRepo.SourceGenerators.Tests.GeneratorHarness;
 
 namespace RapidRepo.SourceGenerators.Tests;
 
 public class UnitOfWorkGeneratorTests
 {
-    // ── helpers ───────────────────────────────────────────────────────────────
-
     private static (ImmutableArray<Diagnostic> Diagnostics, IReadOnlyList<(string HintName, string Source)> Sources)
-        RunGenerator(string source)
-    {
-        var compilation = CSharpCompilation.Create(
-            "TestAssembly",
-            [CSharpSyntaxTree.ParseText(source)],
-            GetMetadataReferences(),
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
-                .WithNullableContextOptions(NullableContextOptions.Enable));
-
-        var generator = new UnitOfWorkGenerator();
-        var driver    = CSharpGeneratorDriver.Create(generator);
-        driver        = (CSharpGeneratorDriver)driver.RunGenerators(compilation);
-
-        var result  = driver.GetRunResult().Results[0];
-        var sources = result.GeneratedSources
-            .Select(s => (s.HintName, s.SourceText.ToString()))
-            .ToList();
-
-        return (result.Diagnostics, sources);
-    }
-
-    private static IEnumerable<MetadataReference> GetMetadataReferences()
-    {
-        // Core runtime
-        yield return MetadataReference.CreateFromFile(typeof(object).Assembly.Location);
-        yield return MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location);
-
-        // System assemblies (needed for full type resolution)
-        var systemRuntime = Assembly.Load("System.Runtime");
-        yield return MetadataReference.CreateFromFile(systemRuntime.Location);
-
-        // RapidRepo core (attributes, entities, contracts)
-        yield return MetadataReference.CreateFromFile(typeof(RapidRepo.Entities.BaseEntity<>).Assembly.Location);
-
-        // RapidRepo.EntityFrameworkCore. The samples deliberately keep the 8.x UnitOfWork<T> name, which now lives
-        // here as an obsolete shim, so these tests also prove that existing declarations still generate.
-        yield return MetadataReference.CreateFromFile(typeof(RapidRepo.EntityFrameworkCore.EfUnitOfWork<>).Assembly.Location);
-
-        // EF Core
-        yield return MetadataReference.CreateFromFile(typeof(Microsoft.EntityFrameworkCore.DbContext).Assembly.Location);
-    }
-
-    private static string FindSource(IReadOnlyList<(string HintName, string Source)> sources, string hintNameContains)
-        => sources.First(s => s.HintName.Contains(hintNameContains)).Source;
-
-    // ── tests ─────────────────────────────────────────────────────────────────
+        RunGenerator(string source) => Run(Compile(source));
 
     [Fact]
     public void DbSet_Properties_Generate_Generic_Repository_Properties()

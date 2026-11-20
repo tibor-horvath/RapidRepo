@@ -82,15 +82,39 @@ public abstract class EfWriteRepository<TEntity, TId>(DbContext dbContext) : Wri
     /// Finds an entity staged for insertion but not yet committed, which no store query can reach.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Only additions whose key is already final are matched. A store-generated key is unset or temporary until
     /// the commit, so matching on it would let <c>DeleteById(default)</c> discard an arbitrary pending insert.
+    /// </para>
+    /// <para>
+    /// The tracker is read without detecting changes, as <c>DbSet.Find</c> does. Otherwise every call would scan
+    /// every tracked entity of every type, which makes a loop of <c>DeleteById</c> calls quadratic. An entity
+    /// becomes <see cref="EntityState.Added"/> through <c>Add</c>, which tracks it at once; only one reached
+    /// solely through a navigation of a tracked entity, and not yet seen by the tracker, is missed.
+    /// </para>
     /// </remarks>
-    private TEntity? FindPendingAddition(TId id) =>
-        DbContext.ChangeTracker
-            .Entries<TEntity>()
-            .Where(e => e.State == EntityState.Added && HasFinalKey(e))
-            .Select(e => e.Entity)
-            .FirstOrDefault(e => id.Equals(e.Id));
+    private TEntity? FindPendingAddition(TId id)
+    {
+        var changeTracker = DbContext.ChangeTracker;
+        var autoDetectChanges = changeTracker.AutoDetectChangesEnabled;
+        changeTracker.AutoDetectChangesEnabled = false;
+
+        try
+        {
+            foreach (var entry in changeTracker.Entries<TEntity>())
+            {
+                // The cheap key comparison first: HasFinalKey reads key metadata and property state.
+                if (entry.State == EntityState.Added && id.Equals(entry.Entity.Id) && HasFinalKey(entry))
+                    return entry.Entity;
+            }
+
+            return null;
+        }
+        finally
+        {
+            changeTracker.AutoDetectChangesEnabled = autoDetectChanges;
+        }
+    }
 
     private static bool HasFinalKey(EntityEntry<TEntity> entry) =>
         entry.IsKeySet && !entry.Metadata.FindPrimaryKey()!.Properties.Any(p => entry.Property(p.Name).IsTemporary);
