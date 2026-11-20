@@ -189,6 +189,8 @@ Combine soft delete with tenant isolation through named filters, as above, rathe
 
 EF Core tracks loaded entities, so changing one and committing persists the change even without `Update`. Other providers do not, so call `Update` to keep the code portable. Reads track by default; pass `new EfReadOptions<T> { Track = false }` for read-only paths.
 
+`DeleteById`, `RestoreById` and `HardDeleteById` also find an entity that was added but not yet committed, as long as its key is already final. Like `DbSet.Find`, they check the change tracker without running `DetectChanges` first, so their cost doesn't grow with the number of tracked entities. An entity that is reachable only through a navigation of a tracked entity, and that the tracker has not detected yet, is not found. Add it with `Add` to make it findable.
+
 ---
 
 ## 8.x names

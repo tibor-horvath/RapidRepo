@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -14,26 +15,76 @@ public sealed class UnitOfWorkGenerator : IIncrementalGenerator
     private const string DbContextFqn = "Microsoft.EntityFrameworkCore.DbContext";
     private const string BaseEntityFqn = "RapidRepo.Entities.BaseEntity`1";
 
+    /// <summary>The tracking name of the step that builds each class's <see cref="GenerationResult"/>.</summary>
+    internal const string ResultStepName = "UnitOfWorkResult";
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        var classProvider = context.SyntaxProvider
+        // Only the class's metadata name leaves the attribute step. A symbol would pin the compilation it came from,
+        // and be reused, stale, after edits to other files that the attribute step does not re-run for.
+        var classNames = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 AttributeFqn,
                 predicate: static (node, _) => node is ClassDeclarationSyntax,
-                transform: static (ctx, _) => ctx.TargetSymbol as INamedTypeSymbol)
-            .Where(static s => s is not null)
-            .Select(static (s, _) => s!);
+                transform: static (ctx, _) => ctx.TargetSymbol is INamedTypeSymbol type ? GetMetadataName(type) : null)
+            .Where(static name => name is not null)
+            .Select(static (name, _) => name!);
 
-        context.RegisterSourceOutput(
-            classProvider.Combine(context.CompilationProvider),
-            static (ctx, pair) => Execute(ctx, pair.Left, pair.Right));
+        // The discovery reads the whole compilation (DbSets, custom repository interfaces in any file), so it runs on
+        // every compilation change. Its result is value-equal, so the output step below runs only when it differs.
+        var results = classNames
+            .Combine(context.CompilationProvider)
+            .Select(static (pair, cancellationToken) => BuildResult(pair.Left, pair.Right, cancellationToken))
+            .WithTrackingName(ResultStepName);
+
+        context.RegisterSourceOutput(results, static (ctx, result) => AddOutput(ctx, result));
     }
 
-    private static void Execute(
-        SourceProductionContext ctx,
+    private static void AddOutput(SourceProductionContext context, GenerationResult result)
+    {
+        foreach (var diagnostic in result.Diagnostics)
+            context.ReportDiagnostic(diagnostic.ToDiagnostic());
+
+        foreach (var file in result.Files)
+            context.AddSource(file.HintName, file.Source);
+    }
+
+    private static GenerationResult BuildResult(string metadataName, Compilation compilation, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var classSymbol = compilation.Assembly.GetTypeByMetadataName(metadataName);
+        if (classSymbol is null)
+            return GenerationResult.Empty;
+
+        var diagnostics = new List<DiagnosticInfo>();
+        var files = BuildFiles(diagnostics, classSymbol, compilation);
+
+        return new GenerationResult(
+            new EquatableArray<GeneratedFile>(files.ToImmutableArray()),
+            new EquatableArray<DiagnosticInfo>(diagnostics.ToImmutableArray()));
+    }
+
+    private static string GetMetadataName(INamedTypeSymbol type)
+    {
+        var name = type.MetadataName;
+        for (var containing = type.ContainingType; containing is not null; containing = containing.ContainingType)
+            name = $"{containing.MetadataName}+{name}";
+
+        return type.ContainingNamespace is { IsGlobalNamespace: false } ns ? $"{ns.ToDisplayString()}.{name}" : name;
+    }
+
+    /// <summary>
+    /// Builds the generated files for <paramref name="classSymbol"/>, adding any problem found to
+    /// <paramref name="diagnostics"/>. Returns no files when a problem stops generation.
+    /// </summary>
+    private static List<GeneratedFile> BuildFiles(
+        List<DiagnosticInfo> diagnostics,
         INamedTypeSymbol classSymbol,
         Compilation compilation)
     {
+        var files = new List<GeneratedFile>();
+
         // RRUOW003: class must be partial
         var isPartial = classSymbol.DeclaringSyntaxReferences
             .Select(r => r.GetSyntax())
@@ -42,21 +93,21 @@ public sealed class UnitOfWorkGenerator : IIncrementalGenerator
 
         if (!isPartial)
         {
-            ctx.ReportDiagnostic(Diagnostic.Create(
+            diagnostics.Add(DiagnosticInfo.Create(
                 Diagnostics.NotPartial,
                 classSymbol.Locations.FirstOrDefault(),
                 classSymbol.Name));
-            return;
+            return files;
         }
 
         // Get attribute
         var attr = classSymbol.GetAttributes()
             .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == AttributeFqn);
-        if (attr is null) return;
+        if (attr is null) return files;
 
         // Parse sources — RRUOW004 if any type is neither a DbContext nor an entity
-        var sources = ParseSources(attr, compilation, ctx, classSymbol);
-        if (sources is null) return;
+        var sources = ParseSources(attr, compilation, diagnostics, classSymbol);
+        if (sources is null) return files;
 
         // Parse optional settings
         var interfaceName = attr.NamedArguments
@@ -68,22 +119,24 @@ public sealed class UnitOfWorkGenerator : IIncrementalGenerator
 
         // Discover properties
         var properties = PropertyDiscoverer.Discover(
-            compilation, ctx, classSymbol, sources, includeNamespaces, excludeNamespaces);
+            compilation, diagnostics, classSymbol, sources, includeNamespaces, excludeNamespaces);
 
-        if (properties.Count == 0) return;
+        if (properties.Count == 0) return files;
 
         // Emit
         var ns = classSymbol.ContainingNamespace.IsGlobalNamespace
             ? null
             : classSymbol.ContainingNamespace.ToDisplayString();
 
-        ctx.AddSource(
+        files.Add(new GeneratedFile(
             BuildHintName(ns, interfaceName),
-            SourceEmitter.EmitInterface(ns, interfaceName, properties));
+            SourceEmitter.EmitInterface(ns, interfaceName, properties)));
 
-        ctx.AddSource(
+        files.Add(new GeneratedFile(
             BuildHintName(ns, $"{classSymbol.Name}.Repositories"),
-            SourceEmitter.EmitPartialClass(ns, classSymbol.Name, properties));
+            SourceEmitter.EmitPartialClass(ns, classSymbol.Name, properties)));
+
+        return files;
     }
 
     private static string BuildHintName(string? namespaceName, string baseName)
@@ -111,7 +164,7 @@ public sealed class UnitOfWorkGenerator : IIncrementalGenerator
     private static List<UnitOfWorkSource>? ParseSources(
         AttributeData attr,
         Compilation compilation,
-        SourceProductionContext ctx,
+        List<DiagnosticInfo> diagnostics,
         INamedTypeSymbol classSymbol)
     {
         var dbContextBase = compilation.GetTypeByMetadataName(DbContextFqn);
@@ -140,7 +193,7 @@ public sealed class UnitOfWorkGenerator : IIncrementalGenerator
                 continue;
             }
 
-            ctx.ReportDiagnostic(Diagnostic.Create(
+            diagnostics.Add(DiagnosticInfo.Create(
                 Diagnostics.InvalidSource,
                 classSymbol.Locations.FirstOrDefault(),
                 typeSymbol.Name));

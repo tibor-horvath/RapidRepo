@@ -61,24 +61,12 @@ public class GeneratedCodeCompilationTests
 
     private static (Compilation Output, IReadOnlyList<(string HintName, string Source)> Generated) Generate(string source)
     {
-        // The full runtime reference set and no global usings, like a project with implicit usings turned off.
-        var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
-            .Split(Path.PathSeparator)
-            .Where(path => Path.GetFileName(path).StartsWith("System.", StringComparison.Ordinal)
-                || Path.GetFileName(path) is "mscorlib.dll" or "netstandard.dll")
-            .Select(path => (MetadataReference)MetadataReference.CreateFromFile(path))
-            .ToList();
-
-        references.Add(MetadataReference.CreateFromFile(typeof(RapidRepo.Entities.BaseEntity<>).Assembly.Location));
-        references.Add(MetadataReference.CreateFromFile(typeof(RapidRepo.EntityFrameworkCore.EfUnitOfWork<>).Assembly.Location));
-        references.Add(MetadataReference.CreateFromFile(typeof(Microsoft.EntityFrameworkCore.DbContext).Assembly.Location));
-
-        var compilation = CSharpCompilation.Create(
-            "CompilationTestAssembly",
-            [CSharpSyntaxTree.ParseText(source)],
-            references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
-                .WithNullableContextOptions(NullableContextOptions.Enable));
+        var compilation = GeneratorHarness.Compile(
+            source,
+            [.. GeneratorHarness.FullRuntime,
+                GeneratorHarness.CoreReference,
+                GeneratorHarness.EfProviderReference,
+                GeneratorHarness.EfCoreReference]);
 
         var driver = CSharpGeneratorDriver.Create(new UnitOfWorkGenerator())
             .RunGeneratorsAndUpdateCompilation(compilation, out var output, out _);

@@ -1,4 +1,5 @@
-﻿using RapidRepo.EntityFrameworkCore.Tests.Repositories.TestData;
+﻿using Microsoft.EntityFrameworkCore;
+using RapidRepo.EntityFrameworkCore.Tests.Repositories.TestData;
 using RapidRepo.EntityFrameworkCore.Tests.Repositories.WriteRepository.TestData;
 
 namespace RapidRepo.EntityFrameworkCore.Tests.Repositories.WriteRepository;
@@ -62,6 +63,56 @@ public class DeleteByIdTests : BaseWriteRepositoryTest
         // Assert
         var deletedToken = await _dbContext.AccessTokens.FindAsync(token.Id);
         Assert.Null(deletedToken);
+    }
+
+    [Fact]
+    public void DeleteById_ShouldDiscardPendingAddition_WhenKeyIsFinal()
+    {
+        // Arrange
+        var repository = new WriteAccessTokenRepository(_dbContext);
+        var token = new AccessToken { Id = "pending", Value = "abc123" };
+        _dbContext.AccessTokens.Add(token);
+
+        // Act
+        repository.DeleteById(token.Id);
+
+        // Assert
+        Assert.Equal(EntityState.Detached, _dbContext.Entry(token).State);
+    }
+
+    [Fact]
+    public async Task DeleteById_ShouldNotDetectChangesOnOtherTrackedEntities()
+    {
+        // Arrange
+        var employee = new Employee { FirstName = "John", LastName = "Doe", DateOfBirth = new DateTime(1990, 1, 1) };
+        _dbContext.Employees.Add(employee);
+        await _dbContext.SaveChangesAsync();
+        employee.FirstName = "Changed";
+
+        var repository = new WriteAccessTokenRepository(_dbContext);
+
+        // Act
+        repository.DeleteById("missing");
+
+        // Assert: the edit is still undetected, so the lookup did not scan the whole tracker.
+        _dbContext.ChangeTracker.AutoDetectChangesEnabled = false;
+        Assert.Equal(EntityState.Unchanged, _dbContext.Entry(employee).State);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void DeleteById_ShouldRestoreAutoDetectChangesSetting(bool autoDetectChanges)
+    {
+        // Arrange
+        _dbContext.ChangeTracker.AutoDetectChangesEnabled = autoDetectChanges;
+        var repository = new WriteAccessTokenRepository(_dbContext);
+
+        // Act
+        repository.DeleteById("missing");
+
+        // Assert
+        Assert.Equal(autoDetectChanges, _dbContext.ChangeTracker.AutoDetectChangesEnabled);
     }
 
     [Fact]

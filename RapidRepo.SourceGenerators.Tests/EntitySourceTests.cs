@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using FluentAssertions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using static RapidRepo.SourceGenerators.Tests.GeneratorHarness;
 
 namespace RapidRepo.SourceGenerators.Tests;
 
@@ -310,42 +311,9 @@ public class EntitySourceTests
     }
 
     private static (ImmutableArray<Diagnostic> Diagnostics, IReadOnlyList<(string HintName, string Source)> Sources)
-        RunGenerator(string source, bool includeEfCore = true)
-    {
-        var compilation = CreateCompilation(source, includeEfCore);
+        RunGenerator(string source, bool includeEfCore = true) => Run(CreateCompilation(source, includeEfCore));
 
-        var result = CSharpGeneratorDriver.Create(new UnitOfWorkGenerator())
-            .RunGenerators(compilation)
-            .GetRunResult()
-            .Results[0];
-
-        return (result.Diagnostics, result.GeneratedSources.Select(s => (s.HintName, s.SourceText.ToString())).ToList());
-    }
-
-    private static CSharpCompilation CreateCompilation(string source, bool includeEfCore)
-    {
-        // The full runtime reference set and no global usings: the generated code must compile on its own, also in
-        // projects without <ImplicitUsings>enable</ImplicitUsings>.
-        var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
-            .Split(Path.PathSeparator)
-            .Where(path => Path.GetFileName(path).StartsWith("System.", StringComparison.Ordinal)
-                || Path.GetFileName(path) is "mscorlib.dll" or "netstandard.dll")
-            .Select(path => (MetadataReference)MetadataReference.CreateFromFile(path))
-            .ToList();
-
-        references.Add(MetadataReference.CreateFromFile(typeof(RapidRepo.Entities.BaseEntity<>).Assembly.Location));
-
-        if (includeEfCore)
-            references.Add(MetadataReference.CreateFromFile(typeof(Microsoft.EntityFrameworkCore.DbContext).Assembly.Location));
-
-        return CSharpCompilation.Create(
-            "EntitySourceAssembly",
-            [CSharpSyntaxTree.ParseText(source)],
-            references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
-                .WithNullableContextOptions(NullableContextOptions.Enable));
-    }
-
-    private static string FindSource(IReadOnlyList<(string HintName, string Source)> sources, string hintNameContains)
-        => sources.First(s => s.HintName.Contains(hintNameContains)).Source;
+    // RapidRepo core without its EF Core provider: entity sources must not need it.
+    private static CSharpCompilation CreateCompilation(string source, bool includeEfCore) =>
+        Compile(source, includeEfCore ? [.. FullRuntime, CoreReference, EfCoreReference] : [.. FullRuntime, CoreReference]);
 }
