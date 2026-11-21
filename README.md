@@ -72,6 +72,89 @@ Upgrading from 8.x? See the [migration guide](docs/migration/8.x-to-9.0.md).
 
 ## Quick Start
 
+### Minimal setup
+
+If standard CRUD is all you need, you don't need repository classes or assembly scanning. `UseEntityFrameworkCore<AppDbContext>()` registers a generic repository for every `DbSet` on the context, so the only class you write is a one-line Unit of Work:
+
+```csharp
+// 1. Define an entity
+public class Product : BaseAuditableDeletableEntity<long, Guid>
+{
+    public string Name { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+}
+
+// 2. Map it, with soft-deleted rows filtered out by default
+public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
+{
+    public DbSet<Product> Products => Set<Product>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+        => modelBuilder.AddSoftDeleteQueryFilters();
+}
+
+// 3. A Unit of Work only needs a constructor
+public class AppUnitOfWork(AppDbContext dbContext) : EfUnitOfWork<Guid>(dbContext, Guid.Empty);
+
+// 4. Register in DI (Program.cs): nothing is scanned
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+
+builder.Services.AddRapidRepo(options =>
+{
+    options.UseEntityFrameworkCore<AppDbContext>();
+    options.RegisterGenericRepositories = true;                 // IRepository<Product, long> from DbSet<Product>
+    options.UseUnitOfWork<IUnitOfWork<Guid>, AppUnitOfWork>();
+});
+
+// 5. Inject the repository and the Unit of Work; both share the scoped AppDbContext
+public class ProductService(IRepository<Product, long> products, IUnitOfWork<Guid> unitOfWork)
+{
+    public async Task CreateAsync(Product product, Guid currentUser)
+    {
+        await products.AddAsync(product);
+        await unitOfWork.CommitAsync(currentUser);
+    }
+}
+```
+
+### Generated Unit of Work
+
+With [`RapidRepo.SourceGenerators`](docs/RapidRepo.SourceGenerators/unit-of-work.md), `[GenerateUnitOfWork]` reads the `DbSet`s of your context and generates a repository property for each one, plus an interface that declares them. The entity and `AppDbContext` stay the same as above:
+
+```csharp
+// 1. Declare the Unit of Work; the generator fills in the repository properties
+[GenerateUnitOfWork(typeof(AppDbContext))]
+public partial class AppUnitOfWork(AppDbContext dbContext, IServiceProvider serviceProvider)
+    : EfUnitOfWork<Guid>(dbContext, Guid.Empty, serviceProvider), IAppUnitOfWork;
+
+// 2. IAppUnitOfWorkRepositories is generated: it declares IRepository<Product, long> Products { get; }
+public interface IAppUnitOfWork : IUnitOfWork<Guid>, IAppUnitOfWorkRepositories;
+
+// 3. Register in DI (Program.cs): nothing is scanned
+builder.Services.AddRapidRepo(options =>
+{
+    options.UseEntityFrameworkCore<AppDbContext>();
+    options.UseUnitOfWork<AppUnitOfWork>();        // registered as IAppUnitOfWork and IUnitOfWork<Guid>
+});
+
+// 4. Use in a service
+public class ProductService(IAppUnitOfWork unitOfWork)
+{
+    public async Task CreateAsync(Product product, Guid currentUser)
+    {
+        await unitOfWork.Products.AddAsync(product);
+        await unitOfWork.CommitAsync(currentUser);
+    }
+}
+```
+
+When you add a custom repository interface for an entity, the generated property uses it instead; scan the assembly that contains it so it can be resolved.
+
+### Custom repositories and a typed Unit of Work
+
+When you need query methods beyond standard CRUD, write a repository for that entity and let `AddRapidRepo` find it by scanning. Entities without a custom repository still use the generic one.
+
 ```csharp
 // 1. Define an entity
 public class Product : BaseAuditableDeletableEntity<long, Guid>
