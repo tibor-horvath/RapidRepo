@@ -28,7 +28,7 @@ public sealed class GenerateUnitOfWorkAttribute(params Type[] sources) : Attribu
 
     /// <summary>
     /// Namespace prefixes to include when scanning for custom repository interfaces (empty = all).
-    /// Mirrors <see cref="RapidRepo.Extensions.DependencyInjection.RapidRepoOptions"/> include filters.
+    /// Mirrors the <c>RapidRepoOptions</c> include filters in RapidRepo.Extensions.DependencyInjection.
     /// </summary>
     public string[] IncludeNamespaces { get; set; } = [];
 
