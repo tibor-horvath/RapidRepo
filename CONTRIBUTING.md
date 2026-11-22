@@ -48,6 +48,17 @@ feat(repo)!: rename GetAllPagedAsync pageIndex to page
 
 Keep PRs focused on one change, and make sure `dotnet test` passes before you request a review.
 
+CI checks the rules above so the PR template doesn't have to:
+
+| Check | Fails when |
+|---|---|
+| PR title | The title is not a Conventional Commit. |
+| Public API | The PR breaks the public API of a shipped package compared with the base branch, and the title has no `!`. Prefer a non-breaking change: add an overload, or mark the old member `[Obsolete]`. |
+| Migration note | The title has `!`, but nothing under `docs/migration/` changed. |
+| Build | A public or protected member of a shipped package has no XML doc comment (CS1591). Use `/// <inheritdoc />` on members that implement or override a documented one. |
+
+CodeRabbit reviews the parts a check can't decide, such as whether a behaviour change needs a conformance test or a docs update.
+
 ## Code of conduct
 
 This project follows its [Code of Conduct](CODE_OF_CONDUCT.md). By taking part, you agree to follow it.

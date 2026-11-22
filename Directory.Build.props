@@ -13,6 +13,10 @@
     <RapidRepoLibraryTargetFrameworks>net10.0;net11.0</RapidRepoLibraryTargetFrameworks>
     <!-- Target framework for the test projects. -->
     <RapidRepoTestTargetFramework>net11.0</RapidRepoTestTargetFramework>
+
+    <!-- Every public and protected member of a shipped package needs XML docs; use <inheritdoc /> on members that
+         implement or override a documented one. Only fires in projects with GenerateDocumentationFile. -->
+    <WarningsAsErrors>$(WarningsAsErrors);CS1591</WarningsAsErrors>
   </PropertyGroup>
 
   <!-- NuGet package metadata shared by every published package. Each project sets its own Description and adds to
@@ -35,6 +39,15 @@
     <!-- Package validation baseline: the first release of the current major. Pack fails on any breaking change
          against it, so bump this only when releasing a new major version. Opted into per library project. -->
     <RapidRepoPackageValidationBaselineVersion>9.0.0</RapidRepoPackageValidationBaselineVersion>
+  </PropertyGroup>
+
+  <!-- Per-PR API check (.github/workflows/api-compat.yml): CI packs the base branch into RapidRepoApiBaselineDir
+       and validates this branch's packages against those instead of the released baseline, so the check answers
+       "does this PR break the public API?". A package missing from the base branch has nothing to compare with. -->
+  <PropertyGroup Condition="'$(RapidRepoApiBaselineDir)' != ''">
+    <RapidRepoApiBaselinePackage>$([MSBuild]::NormalizePath('$(RapidRepoApiBaselineDir)', '$(MSBuildProjectName).0.0.0-baseline.nupkg'))</RapidRepoApiBaselinePackage>
+    <PackageValidationBaselinePath Condition="Exists('$(RapidRepoApiBaselinePackage)')">$(RapidRepoApiBaselinePackage)</PackageValidationBaselinePath>
+    <DisablePackageBaselineValidation Condition="!Exists('$(RapidRepoApiBaselinePackage)')">true</DisablePackageBaselineValidation>
   </PropertyGroup>
 
 </Project>

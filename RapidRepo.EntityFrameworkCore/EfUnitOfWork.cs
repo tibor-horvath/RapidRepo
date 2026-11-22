@@ -33,11 +33,18 @@ public abstract class EfUnitOfWork<TUserKey> : UnitOfWorkBase<TUserKey>
     /// </summary>
     private bool _strategyIsOpeningTransaction;
 
+    /// <summary>Creates a unit of work that commits the changes tracked by <paramref name="dbContext"/>.</summary>
+    /// <param name="dbContext">The context whose changes this unit of work commits.</param>
+    /// <param name="defaultUserKey">The user recorded in audit fields when a commit names none.</param>
     protected EfUnitOfWork(DbContext dbContext, TUserKey defaultUserKey)
         : this(dbContext, defaultUserKey, serviceProvider: null, timeProvider: null)
     {
     }
 
+    /// <summary>Creates a unit of work that commits the changes tracked by <paramref name="dbContext"/>.</summary>
+    /// <param name="dbContext">The context whose changes this unit of work commits.</param>
+    /// <param name="defaultUserKey">The user recorded in audit fields when a commit names none.</param>
+    /// <param name="serviceProvider">The service provider custom repositories are resolved from.</param>
     protected EfUnitOfWork(DbContext dbContext, TUserKey defaultUserKey, IServiceProvider serviceProvider)
         : this(dbContext, defaultUserKey, serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider)), timeProvider: null)
     {
@@ -75,11 +82,14 @@ public abstract class EfUnitOfWork<TUserKey> : UnitOfWorkBase<TUserKey>
         DbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }
 
+    /// <summary>Gets the <see cref="Microsoft.EntityFrameworkCore.DbContext"/> whose changes this unit of work commits.</summary>
     protected DbContext DbContext { get; }
 
+    /// <inheritdoc />
     protected override IRepository<TEntity, TKey> CreateRepository<TEntity, TKey>() =>
         new EfRepository<TEntity, TKey>(DbContext);
 
+    /// <inheritdoc />
     protected override void CommitCore(TUserKey? userId)
     {
         var versions = new EfVersionTracker();
@@ -100,6 +110,7 @@ public abstract class EfUnitOfWork<TUserKey> : UnitOfWorkBase<TUserKey>
         }
     }
 
+    /// <inheritdoc />
     protected override async Task CommitCoreAsync(TUserKey? userId, CancellationToken cancellationToken)
     {
         var versions = new EfVersionTracker();
