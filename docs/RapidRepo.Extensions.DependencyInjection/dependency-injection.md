@@ -2,7 +2,7 @@
 
 `RapidRepo.Extensions.DependencyInjection` provides an `IServiceCollection.AddRapidRepo(...)` extension that auto-discovers and registers repositories and the unit of work by scanning assemblies.
 
-The package is provider-neutral. What depends on the persistence technology, such as the generic repository implementation and its data source, comes from a provider you configure in the same call, for example `UseEntityFrameworkCore<TContext>()` from [RapidRepo.EntityFrameworkCore](../RapidRepo.EntityFrameworkCore/dependency-injection.md).
+The package is provider-neutral. What depends on the persistence technology, such as the generic repository implementation and its data source, comes from a provider you configure in the same call, for example `UseEntityFrameworkCore<TContext>()` from [RapidRepo.EntityFrameworkCore](../RapidRepo.EntityFrameworkCore/ef-core-registration.md).
 
 ## Installation
 
@@ -31,7 +31,7 @@ The package reference must use analyzer metadata so the generator DLL is not tre
     ReferenceOutputAssembly="false" />
 ```
 
-See [RapidRepo.SourceGenerators — Unit of Work](../RapidRepo.SourceGenerators/unit-of-work.md) for usage details.
+See [RapidRepo.SourceGenerators — Unit of Work](../RapidRepo.SourceGenerators/generate-unit-of-work.md) for usage details.
 
 ---
 
@@ -135,7 +135,7 @@ builder.Services.AddRapidRepo(options =>
 });
 ```
 
-The provider decides how. EF Core registers one repository per `DbSet<>` when the call is bound to a context, and an open-generic fallback otherwise; see [EF Core and dependency injection](../RapidRepo.EntityFrameworkCore/dependency-injection.md). Without a provider, `RegisterGenericRepositories` throws, because there is no implementation to register.
+The provider decides how. EF Core registers one repository per `DbSet<>` when the call is bound to a context, and an open-generic fallback otherwise; see [EF Core and dependency injection](../RapidRepo.EntityFrameworkCore/ef-core-registration.md). Without a provider, `RegisterGenericRepositories` throws, because there is no implementation to register.
 
 **Precedence**: specific registrations from assembly scanning always win. An application that scans a custom `ProductRepository : IProductRepository` resolves `IProductRepository` to `ProductRepository`, and `IRepository<Product, long>` to the provider's generic repository.
 
@@ -216,7 +216,7 @@ Call `UseUnitOfWork` once per unit of work interface type. Registering the same 
 
 ## Current user
 
-Register an `ICurrentUserProvider<TUserKey>` so that units of work stamp the audit user without every commit passing one. For the resolution order and how a unit of work finds the provider, see [Unit of Work — The current user](../RapidRepo/unit-of-work.md#the-current-user).
+Register an `ICurrentUserProvider<TUserKey>` so that units of work stamp the audit user without every commit passing one. For the resolution order and how a unit of work finds the provider, see [Unit of Work — The current user](../RapidRepo/auditing.md#the-current-user).
 
 ```csharp
 builder.Services.AddRapidRepo(options =>
@@ -264,7 +264,7 @@ A provider implements `IRapidRepoProvider` and is configured through an extensio
 
 | Provider package | Extension |
 |---|---|
-| `RapidRepo.EntityFrameworkCore` | `UseEntityFrameworkCore<TContext>()`, `UseEntityFrameworkCore()`; see [EF Core and dependency injection](../RapidRepo.EntityFrameworkCore/dependency-injection.md) |
+| `RapidRepo.EntityFrameworkCore` | `UseEntityFrameworkCore<TContext>()`, `UseEntityFrameworkCore()`; see [EF Core and dependency injection](../RapidRepo.EntityFrameworkCore/ef-core-registration.md) |
 
 `AddRapidRepo` scans, filters, checks for ambiguity, and registers the scanned repositories and units of work. It then hands the provider a `RapidRepoRegistrationContext`, which holds what was registered and how the call was configured, so the provider can add its own registrations. Configure one provider per call; use a separate `AddRapidRepo` call per provider or data source.
 

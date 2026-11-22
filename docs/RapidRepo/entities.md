@@ -21,7 +21,7 @@ public class Product : BaseEntity<string>
 
 ## `BaseAuditableEntity<TId>`
 
-Extends `BaseEntity<TId>` with timestamp-only audit fields. The Unit of Work automatically sets these on `Commit`/`CommitAsync`.
+Extends `BaseEntity<TId>` with timestamp-only audit fields. The Unit of Work sets these on `Commit`/`CommitAsync`; see [Auditing](auditing.md).
 
 | Property | Type | Set on |
 |---|---|---|
@@ -40,7 +40,7 @@ public class Product : BaseAuditableEntity<long>
 
 ## `BaseAuditableEntity<TId, TUserKey>`
 
-Inherits directly from `BaseEntity<TId>` and implements `IAuditableEntity<TUserKey>` to track which user performed each operation. `TId` can be any non-null key type, while `TUserKey` must be a value type. Note: this variant does **not** include a `DeletedAt` property — see [Soft Delete](#soft-delete-ideletableentity) below.
+Inherits directly from `BaseEntity<TId>` and implements `IAuditableEntity<TUserKey>` to track which user performed each operation. `TId` can be any non-null key type, while `TUserKey` must be a value type. Note: this variant does **not** include a `DeletedAt` property — see [Soft Delete](soft-delete.md).
 
 | Property | Type | Set on |
 |---|---|---|
@@ -99,37 +99,28 @@ public class Product : BaseAuditableDeletableEntity<long, Guid>
 
 ## Soft Delete (`IDeletableEntity`)
 
-When you need soft-delete on an entity that does not already inherit from `BaseAuditableDeletableEntity`, implement `IDeletableEntity` or `IDeletableEntity<TUserKey>` directly and declare the required properties. The `DeletedAt` (and optionally `DeletedBy`) fields are set automatically by the Unit of Work when the entity is deleted.
+To add soft delete to an entity that does not inherit from `BaseAuditableDeletableEntity`, implement `IDeletableEntity` or `IDeletableEntity<TUserKey>` and declare `DeletedAt` (and `DeletedBy`). In an inheritance hierarchy, implement it on the root type. See [Soft Delete](soft-delete.md) for the setup, reads, restore and permanent removal.
 
 ```csharp
-// Timestamp only — declare DeletedAt to satisfy IDeletableEntity
 public class Product : BaseAuditableEntity<long>, IDeletableEntity
 {
     public string Name { get; set; } = string.Empty;
     public DateTime? DeletedAt { get; set; }
 }
-
-// With user tracking — declare both DeletedAt and DeletedBy
-public class Product : BaseAuditableEntity<long, Guid>, IDeletableEntity<Guid>
-{
-    public string Name { get; set; } = string.Empty;
-    public DateTime? DeletedAt { get; set; }
-    public Guid? DeletedBy { get; set; }
-}
 ```
 
-> Reads exclude soft-deleted records by default, and `new ReadOptions { IncludeDeleted = true }` brings them back. How the exclusion is set up is up to the provider. With EF Core, call `modelBuilder.AddSoftDeleteQueryFilters()`; see [Soft delete and query filters](../RapidRepo.EntityFrameworkCore/entity-framework-core.md#soft-delete-and-query-filters).
+---
 
-In an inheritance hierarchy, implement the interface on the root type, so that every type below it is soft-deletable too. EF Core only allows query filters on the root, so with EF Core a deletable type under a root that is not deletable cannot be filtered, and `AddSoftDeleteQueryFilters()` throws; see [Inheritance](../RapidRepo.EntityFrameworkCore/entity-framework-core.md#inheritance).
+## Optimistic concurrency (`IVersionedEntity`)
+
+Implement `IVersionedEntity`, or inherit from `BaseVersionedEntity<TId>`, to make a commit fail with `ConcurrencyException` instead of overwriting a row someone else changed since it was read. See [Optimistic Concurrency](concurrency.md).
 
 ```csharp
-public abstract class Document : BaseEntity<int>, IDeletableEntity
+public class Order : BaseAuditableEntity<int, Guid>, IVersionedEntity
 {
-    public DateTime? DeletedAt { get; set; }
+    public string Status { get; set; } = "";
+    public long Version { get; set; }
 }
-
-public class Invoice : Document { }   // soft-deletable through Document
-public class Contract : Document { }  // soft-deletable through Document
 ```
 
 ---
@@ -144,6 +135,7 @@ public class Contract : Document { }  // soft-deletable through Document
 | Track timestamps + soft delete | `BaseAuditableDeletableEntity<TId>` |
 | Track who created/modified + soft delete | `BaseAuditableDeletableEntity<TId, TUserKey>` |
 | Add soft delete to an existing hierarchy | Add `IDeletableEntity` or `IDeletableEntity<TUserKey>` to the hierarchy's root type |
+| Detect concurrent edits | `BaseVersionedEntity<TId>`, or add `IVersionedEntity` to any of the above |
 
 ---
 

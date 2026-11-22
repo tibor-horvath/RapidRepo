@@ -7,12 +7,13 @@ namespace RapidRepo.Testing.Conformance;
 
 /// <summary>
 /// What a provider supplies to run the conformance suite: an empty data store holding the conformance entities
-/// (<see cref="Widget"/> and <see cref="Note"/>), and sessions over it.
+/// (<see cref="Widget"/>, <see cref="Note"/> and <see cref="Ticket"/>), and sessions over it.
 /// </summary>
 /// <remarks>
 /// A new store is created for every test, so implementations need a parameterless constructor and must start empty.
 /// Soft-deleted <see cref="Note"/>s must be excluded from reads by default, the way the provider normally sets that
-/// up (for EF Core, <c>AddSoftDeleteQueryFilters()</c>).
+/// up (for EF Core, <c>AddSoftDeleteQueryFilters()</c>). <see cref="Ticket"/>'s version must be checked on update and
+/// delete (for EF Core, <c>AddConcurrencyTokens()</c> in <c>ConfigureConventions</c>).
 /// </remarks>
 public interface IConformanceStore : IDisposable
 {

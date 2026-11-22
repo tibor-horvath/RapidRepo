@@ -64,7 +64,7 @@ These rules are part of the contract, so they hold for every provider:
 
 1. **Writes are staged.** Nothing reaches the store until the unit of work commits.
 2. **`Delete` soft-deletes an `IDeletableEntity`** and permanently removes any other entity.
-3. **Audit fields are stamped at commit time**, with the commit's user and the unit of work's clock. See [Unit of Work](unit-of-work.md#how-auditing-works).
+3. **Audit fields are stamped at commit time**, with the commit's user and the unit of work's clock. See [Auditing](auditing.md#how-auditing-works).
 4. **Generated keys are populated on the entity after the commit.**
 5. **Changing a loaded entity without calling `Update` is not portable.** EF Core persists such a change because it tracks loaded entities; other providers do not. Always call `Update`.
 
@@ -72,37 +72,7 @@ These rules are part of the contract, so they hold for every provider:
 
 ## Soft delete, restore, and permanent removal
 
-For an entity implementing `IDeletableEntity`, `Delete` marks it as deleted instead of removing the row, and reads exclude it by default. Two more operations complete the picture:
-
-| Method | What it does |
-|---|---|
-| `Restore(entity)` / `RestoreById(id)` | Clears `DeletedAt` (and `DeletedBy` when the entity implements `IDeletableEntity<TUserKey>`), making the record visible again |
-| `HardDelete(entity)` / `HardDeleteById(id)` | Removes the row permanently, bypassing soft delete |
-
-```csharp
-// Soft delete: the row stays in the table.
-_products.Delete(product);
-await _unitOfWork.CommitAsync(currentUserId);
-
-// Undo it. RestoreById finds deleted entities by default.
-_products.RestoreById(productId);
-await _unitOfWork.CommitAsync(currentUserId);
-
-// Purge it for good.
-_products.HardDelete(product);
-await _unitOfWork.CommitAsync();
-
-// By identifier, includeDeleted: true is what reaches a row that is already soft-deleted.
-_products.HardDeleteById(productId, includeDeleted: true);
-await _unitOfWork.CommitAsync();
-```
-
-Both come in range forms (`RestoreRange`, `HardDeleteRange`). Like `Delete` and `Update`, they only stage a change, so they have no async counterparts. Only the `*ById` variants look the entity up, and only those have `*Async` versions.
-
-- `Restore` requires soft-delete support and throws `InvalidOperationException` without it.
-- `HardDelete` works on any entity. For one without soft delete it does exactly what `Delete` does.
-
-`includeDeleted` concerns soft delete only. A provider that cannot tell its soft-delete filter apart from other filters may bypass those too; see the provider's documentation. With EF Core and `AddSoftDeleteQueryFilters()`, other named filters such as a tenant filter stay in force. See [Soft delete and query filters](../RapidRepo.EntityFrameworkCore/entity-framework-core.md#soft-delete-and-query-filters).
+For an entity implementing `IDeletableEntity`, `Delete` marks it as deleted instead of removing the row, and reads exclude it by default. `Restore` / `RestoreById` bring it back, and `HardDelete` / `HardDeleteById` remove the row permanently. See [Soft Delete](soft-delete.md).
 
 ---
 

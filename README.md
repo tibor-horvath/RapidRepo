@@ -36,6 +36,7 @@ It is, and RapidRepo builds on it rather than hiding it. What it adds is a small
 - Supports non-null entity key types (e.g. `int`, `Guid`, `string`)
 - Built-in auditing (`CreatedAt`, `CreatedBy`, `ModifiedAt`, `ModifiedBy`), stamped at commit with a controllable clock
 - Built-in soft delete (`DeletedAt`, `DeletedBy`) with restore and permanent-delete escape hatches
+- Opt-in optimistic concurrency (`IVersionedEntity`) with a provider-neutral `ConcurrencyException`
 - Paged query results via `Paged<T>`, with declarative sorting
 - Optional companion packages for DI registration and Unit of Work source generation
 
@@ -51,7 +52,7 @@ It is, and RapidRepo builds on it rather than hiding it. What it adds is a small
 | `RapidRepo` | Entities, repository and Unit of Work contracts, `ReadOptions`, `SortOrder<T>`, audit and soft-delete rules. No dependencies |
 | [`RapidRepo.EntityFrameworkCore`](docs/RapidRepo.EntityFrameworkCore/entity-framework-core.md) | The EF Core provider: `EfRepository`, `EfUnitOfWork`, `EfReadOptions`, `AddSoftDeleteQueryFilters()`, `UseEntityFrameworkCore<TContext>()` |
 | [`RapidRepo.Extensions.DependencyInjection`](docs/RapidRepo.Extensions.DependencyInjection/dependency-injection.md) | `AddRapidRepo(...)`: scans assemblies and registers repositories and the Unit of Work |
-| [`RapidRepo.SourceGenerators`](docs/RapidRepo.SourceGenerators/unit-of-work.md) | `[GenerateUnitOfWork]`: emits repository properties and a companion interface on your `partial` Unit of Work class |
+| [`RapidRepo.SourceGenerators`](docs/RapidRepo.SourceGenerators/generate-unit-of-work.md) | `[GenerateUnitOfWork]`: emits repository properties and a companion interface on your `partial` Unit of Work class |
 
 For an EF Core application, one package brings in the core and the DI extension:
 
@@ -120,7 +121,7 @@ public class ProductService(IRepository<Product, long> products, IUnitOfWork<Gui
 
 ### Generated Unit of Work
 
-With [`RapidRepo.SourceGenerators`](docs/RapidRepo.SourceGenerators/unit-of-work.md), `[GenerateUnitOfWork]` reads the `DbSet`s of your context and generates a repository property for each one, plus an interface that declares them. The entity and `AppDbContext` stay the same as above:
+With [`RapidRepo.SourceGenerators`](docs/RapidRepo.SourceGenerators/generate-unit-of-work.md), `[GenerateUnitOfWork]` reads the `DbSet`s of your context and generates a repository property for each one, plus an interface that declares them. The entity and `AppDbContext` stay the same as above:
 
 ```csharp
 // 1. Declare the Unit of Work; the generator fills in the repository properties
@@ -227,18 +228,23 @@ public class ProductService(IAppUnitOfWork unitOfWork)
 
 ## Documentation
 
+Start at the [documentation index](docs/README.md).
+
 | Package | Topic | Description |
 |---|---|---|
-| RapidRepo | [Entities](docs/RapidRepo/entities.md) | `BaseEntity`, `BaseAuditableEntity`, `BaseAuditableDeletableEntity`, soft delete |
-| RapidRepo | [Repositories](docs/RapidRepo/repositories.md) | Interfaces, write semantics, soft delete and restore, custom methods |
-| RapidRepo | [Unit of Work](docs/RapidRepo/unit-of-work.md) | Setup, committing, auditing |
+| RapidRepo | [Entities](docs/RapidRepo/entities.md) | `BaseEntity`, `BaseAuditableEntity`, `BaseAuditableDeletableEntity`, choosing a base class |
+| RapidRepo | [Repositories](docs/RapidRepo/repositories.md) | Interfaces, write semantics, custom methods |
+| RapidRepo | [Unit of Work](docs/RapidRepo/unit-of-work.md) | Setup, `GetRepository`, committing |
+| RapidRepo | [Querying](docs/RapidRepo/querying.md) | Filtering, sorting, projection, paging, bulk operations |
+| RapidRepo | [Soft Delete](docs/RapidRepo/soft-delete.md) | `IDeletableEntity`, reading deleted rows, restore, permanent removal |
+| RapidRepo | [Auditing](docs/RapidRepo/auditing.md) | Audit stamping rules, the current user, the clock |
+| RapidRepo | [Optimistic Concurrency](docs/RapidRepo/concurrency.md) | `IVersionedEntity`, client updates, handling conflicts |
 | RapidRepo | [API Reference](docs/RapidRepo/api-reference.md) | Read and write methods, `ReadOptions`, `SortOrder<T>` |
-| RapidRepo | [Advanced Usage](docs/RapidRepo/advanced.md) | Filtering, sorting, projection, paging, bulk operations |
 | RapidRepo | [Writing a provider](docs/RapidRepo/providers.md) | Base classes, the DI hook, and the conformance suite |
-| RapidRepo.EntityFrameworkCore | [EF Core](docs/RapidRepo.EntityFrameworkCore/entity-framework-core.md) | `EfRepository`, `EfUnitOfWork`, `EfReadOptions`, custom queries, soft-delete filters |
-| RapidRepo.EntityFrameworkCore | [EF Core and DI](docs/RapidRepo.EntityFrameworkCore/dependency-injection.md) | `UseEntityFrameworkCore`, generic repositories per `DbSet`, multiple contexts |
+| RapidRepo.EntityFrameworkCore | [EF Core](docs/RapidRepo.EntityFrameworkCore/entity-framework-core.md) | `EfRepository`, `EfUnitOfWork`, `EfReadOptions`, custom queries, soft-delete filters, concurrency tokens |
+| RapidRepo.EntityFrameworkCore | [EF Core registration](docs/RapidRepo.EntityFrameworkCore/ef-core-registration.md) | `UseEntityFrameworkCore`, generic repositories per `DbSet`, multiple contexts |
 | RapidRepo.Extensions.DependencyInjection | [Dependency Injection](docs/RapidRepo.Extensions.DependencyInjection/dependency-injection.md) | `AddRapidRepo`, scanning options, filters, lifetime, providers |
-| RapidRepo.SourceGenerators | [Unit of Work](docs/RapidRepo.SourceGenerators/unit-of-work.md) | `[GenerateUnitOfWork]` source generator |
+| RapidRepo.SourceGenerators | [Generated Unit of Work](docs/RapidRepo.SourceGenerators/generate-unit-of-work.md) | `[GenerateUnitOfWork]` source generator |
 | — | [Migrating from 8.x to 9.0](docs/migration/8.x-to-9.0.md) | Package split, renamed types, read options, behaviour changes |
 
 ## License

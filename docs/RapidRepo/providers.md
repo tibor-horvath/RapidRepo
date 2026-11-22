@@ -75,6 +75,19 @@ Derive from `UnitOfWorkBase<TUserKey>` and implement:
 
 Offer a constructor that takes an `ICurrentUserProvider<TUserKey>?` and passes it to the `UnitOfWorkBase` constructor, as `EfUnitOfWork` does, so applications that don't pass an `IServiceProvider` can still supply one.
 
+### Optimistic concurrency
+
+For each staged change of an `IVersionedEntity`, a provider must:
+
+1. **Update** (`Modified`, `SoftDeleted`, `Restored`): call `VersionStamper.Stamp(entity)`, which increments `Version` and returns the expected version, and write the row only `WHERE Version = expected`.
+2. **Hard delete:** delete only `WHERE Version = entity.Version`.
+3. **Insert:** write `Version` as it is.
+4. Treat zero affected rows as a conflict and throw `new ConcurrencyException(entities, yourException)`. That constructor writes the message from the entity types, so every provider reports a conflict the same way.
+5. Persist nothing from a commit that conflicts, so run the commit in one transaction.
+6. If the commit fails for any reason, call `VersionStamper.Revert(entity, expected)` for every stamped entity.
+
+The entity's current `Version` is the expected one, whether the entity was loaded or built from a request, so a provider needs no record of the version it read. The `ConcurrencyConformanceTests` check all of this, and `ConcurrencyAtomicityConformanceTests` check step 5.
+
 Report a soft delete as `SoftDeleted` only on the transition from not deleted to deleted, so an edit to an already deleted entity keeps its deletion stamp. `EntityChangeClassifier` applies this rule; it needs the `DeletedAt` the entity had before the change. A change-tracking provider reads its original value. A command-based provider records it the first time it stages the entity, before `StageDeletionChange` calls `applyChange`.
 
 ---
@@ -113,9 +126,9 @@ The generated code calls only `GetRepository` and `ResolveRepository` on `UnitOf
 
 ## Conformance suite
 
-`RapidRepo.Testing.Conformance` (in this repository; not published) holds provider-neutral xUnit tests for the contract: CRUD, staged changes, soft delete and restore, audit stamping, querying, and the condition expressions every provider must translate. To run them against a provider:
+`RapidRepo.Testing.Conformance` (in this repository; not published) holds provider-neutral xUnit tests for the contract: CRUD, staged changes, soft delete and restore, audit stamping, optimistic concurrency, querying, and the condition expressions every provider must translate. To run them against a provider:
 
-1. Implement `IConformanceStore`: a parameterless constructor that creates an empty store holding the conformance entities `Widget` and `Note`, with soft-deleted `Note`s excluded from reads; and `OpenSession(TimeProvider clock, ICurrentUserProvider<Guid>? currentUserProvider = null)`.
+1. Implement `IConformanceStore`: a parameterless constructor that creates an empty store holding the conformance entities `Widget`, `Note` and `Ticket`, with soft-deleted `Note`s excluded from reads and `Ticket.Version` checked on update and delete; and `OpenSession(TimeProvider clock, ICurrentUserProvider<Guid>? currentUserProvider = null)`.
 2. Implement `IConformanceSession`: a unit of work whose default user is `ConformanceDefaults.DefaultUser` and which stamps with `clock`, plus `Repository<TEntity, TKey>()` returning repositories that stage changes in it. Pass `currentUserProvider` to the `UnitOfWorkBase` constructor, which resolves the audit user. The audit tests check that order: explicit user, then the provider, then the default user.
 
 ```csharp
@@ -135,6 +148,8 @@ public sealed class MyOrmSoftDeleteConformanceTests : SoftDeleteConformanceTests
 public sealed class MyOrmAuditConformanceTests : AuditConformanceTests<MyOrmConformanceStore>;
 public sealed class MyOrmQueryConformanceTests : QueryConformanceTests<MyOrmConformanceStore>;
 public sealed class MyOrmQueryExpressionConformanceTests : QueryExpressionConformanceTests<MyOrmConformanceStore>;
+public sealed class MyOrmConcurrencyConformanceTests : ConcurrencyConformanceTests<MyOrmConformanceStore>;
+public sealed class MyOrmConcurrencyAtomicityConformanceTests : ConcurrencyAtomicityConformanceTests<MyOrmConformanceStore>;
 ```
 
 The suite reads persisted state through a fresh session, so a provider's own caching or change tracking cannot hide a difference. The EF provider runs it against EF Core InMemory and SQLite; see `RapidRepo.EntityFrameworkCore.Tests/Conformance`.

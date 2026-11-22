@@ -63,7 +63,7 @@ The 8.x names (`Repository<,>`, `BaseRepository<,>`, `ReadOnlyRepository<,>`, `W
 ## Documentation
 
 - [EF Core guide](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo.EntityFrameworkCore/entity-framework-core.md)
-- [EF Core and dependency injection](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo.EntityFrameworkCore/dependency-injection.md)
+- [EF Core and dependency injection](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo.EntityFrameworkCore/ef-core-registration.md)
 - [Migrating from 8.x to 9.0](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/migration/8.x-to-9.0.md)
 - [RapidRepo documentation](https://github.com/tibor-horvath/RapidRepo#documentation)
 

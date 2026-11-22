@@ -12,6 +12,7 @@ It gives you the data-layer plumbing most applications rebuild by hand, with con
 - Unit of Work with a single `CommitAsync()`
 - Base entities with built-in auditing (`CreatedAt`, `CreatedBy`, `ModifiedAt`, `ModifiedBy`)
 - Soft delete (`DeletedAt`, `DeletedBy`) with restore and permanent delete
+- Opt-in optimistic concurrency (`IVersionedEntity`, `ConcurrencyException`)
 - Paged results via `Paged<T>`, declarative sorting with `SortOrder<T>`, projections
 - Any non-null key type: `int`, `long`, `Guid`, `string`
 - No package dependencies; targets .NET 10 and 11
@@ -66,8 +67,11 @@ public class CatalogService(IProductRepository products, IUnitOfWork<Guid> unitO
 - [Entities](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo/entities.md)
 - [Repositories](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo/repositories.md)
 - [Unit of Work](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo/unit-of-work.md)
+- [Querying](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo/querying.md)
+- [Soft delete](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo/soft-delete.md)
+- [Auditing](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo/auditing.md)
+- [Optimistic concurrency](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo/concurrency.md)
 - [API reference](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo/api-reference.md)
-- [Advanced usage](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo/advanced.md)
 - [Writing a provider](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo/providers.md)
 - [Migrating from 8.x to 9.0](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/migration/8.x-to-9.0.md)
 
