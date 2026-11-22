@@ -1,5 +1,12 @@
 # Changelog
 
+## [9.3.0](https://github.com/tibor-horvath/RapidRepo/compare/9.2.0...9.3.0) (2026-11-22)
+
+
+### Features
+
+* **uow:** add explicit transaction support to IUnitOfWork ([#158](https://github.com/tibor-horvath/RapidRepo/issues/158)) ([7bb2ccf](https://github.com/tibor-horvath/RapidRepo/commit/7bb2ccfe5b1a47614e951138674769f93177adc8))
+
 ## [9.2.0](https://github.com/tibor-horvath/RapidRepo/compare/9.1.1...9.2.0) (2026-11-22)
 
 
