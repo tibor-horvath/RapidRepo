@@ -9,7 +9,7 @@ Filtering, sorting, projection, paging and bulk writes. These patterns use only 
 Every multi-result query takes an optional `condition` and a `SortOrder<TEntity>`:
 
 ```csharp
-var products = await _unitOfWork.Products.GetAllAsync(
+var products = await unitOfWork.Products.GetAllAsync(
     condition: p => p.IsActive && p.Price > 10m,
     orderBy: SortOrder<Product>.ByDescending(p => p.Price).ThenBy(p => p.Name));
 ```
@@ -25,16 +25,16 @@ Use a `selector` expression to project results without loading the full entity:
 ```csharp
 record ProductSummary(long Id, string Name, decimal Price);
 
-var summaries = await _unitOfWork.Products.GetAllAsync(
+var summaries = await unitOfWork.Products.GetAllAsync(
     selector: p => new ProductSummary(p.Id, p.Name, p.Price),
     condition: p => p.IsActive,
     orderBy: SortOrder<Product>.By(p => p.Name));
 
 // Scalars: through GetById / GetByIds directly ...
-string? name = await _unitOfWork.Products.GetByIdAsync(id, selector: p => p.Name);
+string? name = await unitOfWork.Products.GetByIdAsync(id, selector: p => p.Name);
 
 // ... or through an anonymous type for the overloads that also take a condition.
-var ids = (await _unitOfWork.Products.GetAllAsync(selector: p => new { p.Id })).Select(x => x.Id);
+var ids = (await unitOfWork.Products.GetAllAsync(selector: p => new { p.Id })).Select(x => x.Id);
 ```
 
 Projections are never tracked by the provider.
@@ -46,9 +46,9 @@ Projections are never tracked by the provider.
 Use `GetByIdsAsync` when you have a set of known keys and want all matching entities in a single query:
 
 ```csharp
-IEnumerable<Product> products = await _unitOfWork.Products.GetByIdsAsync(ids);
+IEnumerable<Product> products = await unitOfWork.Products.GetByIdsAsync(ids);
 
-IEnumerable<ProductSummary> summaries = await _unitOfWork.Products.GetByIdsAsync(ids,
+IEnumerable<ProductSummary> summaries = await unitOfWork.Products.GetByIdsAsync(ids,
     selector: p => new ProductSummary(p.Id, p.Name, p.Price));
 ```
 
@@ -61,7 +61,7 @@ An empty `ids` collection returns an empty result immediately, without querying 
 `GetAllPagedAsync` returns a `Paged<T>` suitable for list views and APIs:
 
 ```csharp
-Paged<Product> page = await _unitOfWork.Products.GetAllPagedAsync(
+Paged<Product> page = await unitOfWork.Products.GetAllPagedAsync(
     condition: p => p.IsActive,
     orderBy: SortOrder<Product>.By(p => p.Name),
     pageIndex: 2,
@@ -77,7 +77,7 @@ Each page is a separate offset query, so a deterministic order keeps pages consi
 Pass a `selector` to project each page item:
 
 ```csharp
-Paged<ProductSummary> page = await _unitOfWork.Products.GetAllPagedAsync(
+Paged<ProductSummary> page = await unitOfWork.Products.GetAllPagedAsync(
     selector: p => new ProductSummary(p.Id, p.Name, p.Price),
     condition: p => p.IsActive,
     orderBy: SortOrder<Product>.By(p => p.Name),
@@ -100,7 +100,7 @@ Reads exclude soft-deleted entities by default. Pass `new ReadOptions { IncludeD
 Use `ExistsByIdAsync` instead of `AnyAsync(e => e.Id == id)` when you only need to know whether an entity with a specific key exists:
 
 ```csharp
-bool exists = await _unitOfWork.Products.ExistsByIdAsync(id);
+bool exists = await unitOfWork.Products.ExistsByIdAsync(id);
 ```
 
 ---
@@ -108,12 +108,12 @@ bool exists = await _unitOfWork.Products.ExistsByIdAsync(id);
 ## Bulk insert and update
 
 ```csharp
-await _unitOfWork.Products.AddRangeAsync(newProducts);
-await _unitOfWork.CommitAsync(userId: currentUserId);
+await unitOfWork.Products.AddRangeAsync(newProducts);
+await unitOfWork.CommitAsync(userId: currentUserId);
 
 foreach (var p in products) p.Price *= 1.1m;
-_unitOfWork.Products.UpdateRange(products);
-await _unitOfWork.CommitAsync(userId: currentUserId);
+unitOfWork.Products.UpdateRange(products);
+await unitOfWork.CommitAsync(userId: currentUserId);
 ```
 
 Call `UpdateRange` (or `Update`) even for entities you loaded through the same unit of work. Only change-tracking providers notice changes without it.

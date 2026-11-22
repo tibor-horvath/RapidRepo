@@ -19,7 +19,7 @@ await unitOfWork.ExecuteInTransactionAsync(async ct =>
     foreach (var line in lines) line.OrderId = order.Id;
     await unitOfWork.OrderLines.AddRangeAsync(lines, ct);
     await unitOfWork.CommitAsync(cancellationToken: ct);
-}, cancellationToken: ct);
+}, cancellationToken);
 ```
 
 - The delegate commits the unit of work itself, as often as it needs. `ExecuteInTransactionAsync` takes no `userId` and doesn't commit for you, so `CommitAsync` behaves the same inside and outside a transaction.

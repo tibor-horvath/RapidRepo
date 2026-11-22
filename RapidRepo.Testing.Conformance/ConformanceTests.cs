@@ -40,9 +40,14 @@ public abstract class ConformanceTests<TStore> : IDisposable
 
     /// <summary>Opens a session, disposed with the test.</summary>
     /// <param name="currentUserProvider">The current-user provider of the session's unit of work, if any.</param>
-    protected IConformanceSession OpenSession(ICurrentUserProvider<Guid>? currentUserProvider = null)
+    protected IConformanceSession OpenSession(ICurrentUserProvider<Guid>? currentUserProvider = null) =>
+        Track(Store.OpenSession(Clock, currentUserProvider));
+
+    /// <summary>Disposes <paramref name="session"/> with the test.</summary>
+    /// <param name="session">A session opened by the derived class.</param>
+    /// <returns>The same session.</returns>
+    protected IConformanceSession Track(IConformanceSession session)
     {
-        var session = Store.OpenSession(Clock, currentUserProvider);
         _sessions.Add(session);
         return session;
     }
@@ -104,6 +109,10 @@ public static class ConformanceSessionExtensions
     public static IRepository<Widget, int> Widgets(this IConformanceSession session) => session.Repository<Widget, int>();
 
     public static IRepository<Ticket, int> Tickets(this IConformanceSession session) => session.Repository<Ticket, int>();
+
+    public static IRepository<Invoice, int> Invoices(this IConformanceSession session) => session.Repository<Invoice, int>();
+
+    public static IRepository<Payment, int> Payments(this IConformanceSession session) => session.Repository<Payment, int>();
 }
 
 /// <summary>A current-user provider that returns a fixed user and counts how often it is asked.</summary>

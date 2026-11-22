@@ -13,12 +13,16 @@
     <PackageValidationBaselineVersion>$(RapidRepoPackageValidationBaselineVersion)</PackageValidationBaselineVersion>
   </PropertyGroup>
 
+  <!-- Hosting.Abstractions (IHostedService, and through it Logging.Abstractions) runs the tenancy validation at host
+       startup. Pinned to the lowest version of each major, so applications are never forced to upgrade. -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.*" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net11.0'">
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="11.*" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="11.0.0" />
   </ItemGroup>
 
   <ItemGroup>

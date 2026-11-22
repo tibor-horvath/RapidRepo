@@ -51,8 +51,8 @@ For an `IDeletableEntity`, `Delete` and `DeleteById` mark the entity as deleted 
 
 ```csharp
 // Soft delete: the row stays in the table.
-_unitOfWork.Products.Delete(product);
-await _unitOfWork.CommitAsync();
+unitOfWork.Products.Delete(product);
+await unitOfWork.CommitAsync();
 ```
 
 At commit, the unit of work stamps `DeletedAt`, `DeletedBy` (for `IDeletableEntity<TUserKey>`), and `ModifiedAt` / `ModifiedBy`. Only the transition from not deleted to deleted stamps them: deleting an entity that is already deleted, or editing it, keeps who deleted it and when.
@@ -66,10 +66,10 @@ Reads exclude soft-deleted entities by default. Pass `IncludeDeleted` to see the
 ```csharp
 var includeDeleted = new ReadOptions { IncludeDeleted = true };
 
-var all = await _unitOfWork.Products.GetAllAsync(options: includeDeleted);
-Product? deleted = await _unitOfWork.Products.GetByIdAsync(id, includeDeleted);
-bool existsEvenIfDeleted = await _unitOfWork.Products.ExistsByIdAsync(id, includeDeleted);
-int total = await _unitOfWork.Products.CountAsync(options: includeDeleted);
+var all = await unitOfWork.Products.GetAllAsync(options: includeDeleted);
+Product? deleted = await unitOfWork.Products.GetByIdAsync(id, includeDeleted);
+bool existsEvenIfDeleted = await unitOfWork.Products.ExistsByIdAsync(id, includeDeleted);
+int total = await unitOfWork.Products.CountAsync(options: includeDeleted);
 ```
 
 `IncludeDeleted` concerns soft delete only. A provider that cannot tell its soft-delete filter apart from other filters may bypass those too; see the provider's documentation. With EF Core and `AddSoftDeleteQueryFilters()`, other named filters such as a tenant filter stay in force.
@@ -85,17 +85,17 @@ int total = await _unitOfWork.Products.CountAsync(options: includeDeleted);
 
 ```csharp
 // Undo a soft delete. RestoreById finds deleted entities by default, and does nothing when there is none.
-_unitOfWork.Products.RestoreById(productId);
-await _unitOfWork.CommitAsync();
+unitOfWork.Products.RestoreById(productId);
+await unitOfWork.CommitAsync();
 
 // Purge it for good.
-_unitOfWork.Products.HardDelete(product);
-await _unitOfWork.CommitAsync();
+unitOfWork.Products.HardDelete(product);
+await unitOfWork.CommitAsync();
 
 // By identifier, HardDeleteById only reaches visible rows by default.
 // includeDeleted: true is what reaches a row that is already soft-deleted.
-_unitOfWork.Products.HardDeleteById(productId, includeDeleted: true);
-await _unitOfWork.CommitAsync();
+unitOfWork.Products.HardDeleteById(productId, includeDeleted: true);
+await unitOfWork.CommitAsync();
 ```
 
 - Both come in range forms (`RestoreRange`, `HardDeleteRange`). Like `Delete` and `Update`, they only stage a change, so they have no async counterparts. Only the `*ById` variants look the entity up, and only those have `*Async` versions.

@@ -4,6 +4,7 @@ using RapidRepo.Auditing;
 using RapidRepo.Entities;
 using RapidRepo.Extensions;
 using RapidRepo.Repositories.Interfaces;
+using RapidRepo.Tenancy;
 using RapidRepo.Testing.Conformance;
 using RapidRepo.UnitOfWork;
 
@@ -35,9 +36,9 @@ public sealed class ConformanceDbContext(DbContextOptions<ConformanceDbContext> 
 /// <summary>A session: one context, its unit of work, and repositories over that context.</summary>
 public sealed class EfConformanceSession : IConformanceSession
 {
-    private readonly ConformanceDbContext _dbContext;
+    private readonly DbContext _dbContext;
 
-    public EfConformanceSession(ConformanceDbContext dbContext, TimeProvider clock, ICurrentUserProvider<Guid>? currentUserProvider)
+    public EfConformanceSession(DbContext dbContext, TimeProvider clock, ICurrentUserProvider<Guid>? currentUserProvider)
     {
         _dbContext = dbContext;
         UnitOfWork = new ConformanceUnitOfWork(dbContext, clock, currentUserProvider);
@@ -95,4 +96,80 @@ public sealed class EfSqliteConformanceStore : IConformanceStore
         new EfConformanceSession(new ConformanceDbContext(_options), clock, currentUserProvider);
 
     public void Dispose() => _connection.Dispose();
+}
+
+/// <summary>
+/// The conformance entities plus the tenant entity, isolated the way an application would isolate them: the context
+/// implements <see cref="ITenantDbContext{TTenantKey}"/> over a tenant provider, and
+/// <see cref="ModelBuilderExtensions.AddTenantQueryFilters{TTenantKey}"/> filters every tenant entity.
+/// </summary>
+public sealed class TenantConformanceDbContext(
+    DbContextOptions<TenantConformanceDbContext> options,
+    ICurrentTenantProvider<Guid>? tenantProvider = null) : DbContext(options), ITenantDbContext<Guid>
+{
+    public Guid CurrentTenantId => tenantProvider?.GetCurrentTenantId() ?? Guid.Empty;
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder) =>
+        configurationBuilder.AddConcurrencyTokens();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Widget>();
+        modelBuilder.Entity<Note>();
+        modelBuilder.Entity<Ticket>();
+        modelBuilder.Entity<Invoice>();
+        modelBuilder.Entity<Payment>().HasOne<Invoice>().WithMany().HasForeignKey(p => p.InvoiceId);
+        modelBuilder.AddSoftDeleteQueryFilters();
+        modelBuilder.AddTenantQueryFilters(this);
+    }
+}
+
+/// <summary>
+/// The sessions of a tenancy store: without a tenant provider for the plain conformance tests, and with one for the
+/// tenancy tests. Derived stores only choose the database.
+/// </summary>
+public abstract class EfTenantConformanceStore : ITenantConformanceStore
+{
+    protected abstract DbContextOptions<TenantConformanceDbContext> Options { get; }
+
+    public IConformanceSession OpenSession(TimeProvider clock, ICurrentUserProvider<Guid>? currentUserProvider = null) =>
+        new EfConformanceSession(new TenantConformanceDbContext(Options), clock, currentUserProvider);
+
+    public IConformanceSession OpenSession(TimeProvider clock, ICurrentTenantProvider<Guid> tenantProvider) =>
+        new EfConformanceSession(new TenantConformanceDbContext(Options, tenantProvider), clock, currentUserProvider: null);
+
+    public abstract void Dispose();
+}
+
+/// <summary>EF Core InMemory, with tenancy.</summary>
+public sealed class EfInMemoryTenantConformanceStore : EfTenantConformanceStore
+{
+    protected override DbContextOptions<TenantConformanceDbContext> Options { get; } = new DbContextOptionsBuilder<TenantConformanceDbContext>()
+        .UseInMemoryDatabase($"TenantConformance-{Guid.NewGuid()}")
+        .Options;
+
+    public override void Dispose()
+    {
+        using var dbContext = new TenantConformanceDbContext(Options);
+        dbContext.Database.EnsureDeleted();
+    }
+}
+
+/// <summary>EF Core SQLite in memory, with tenancy.</summary>
+public sealed class EfSqliteTenantConformanceStore : EfTenantConformanceStore
+{
+    private readonly SqliteConnection _connection = new("DataSource=:memory:");
+
+    public EfSqliteTenantConformanceStore()
+    {
+        _connection.Open();
+        Options = new DbContextOptionsBuilder<TenantConformanceDbContext>().UseSqlite(_connection).Options;
+
+        using var dbContext = new TenantConformanceDbContext(Options);
+        dbContext.Database.EnsureCreated();
+    }
+
+    protected override DbContextOptions<TenantConformanceDbContext> Options { get; }
+
+    public override void Dispose() => _connection.Dispose();
 }

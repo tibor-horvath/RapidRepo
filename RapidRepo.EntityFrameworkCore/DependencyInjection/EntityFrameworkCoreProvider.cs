@@ -46,6 +46,11 @@ internal sealed class EntityFrameworkCoreProvider(Type? contextType, EntityFrame
         if (contextType is not null)
         {
             DbContextRegistrar.RegisterForwarder(services, contextType, dependentTypes);
+
+            // Only ever run by the startup validation, which AddRapidRepo registers when tenancy is configured.
+            services.TryAddEnumerable(ServiceDescriptor.Singleton(
+                typeof(IRapidRepoStartupValidator),
+                typeof(EfTenancyStartupValidator<>).MakeGenericType(contextType)));
             return;
         }
 

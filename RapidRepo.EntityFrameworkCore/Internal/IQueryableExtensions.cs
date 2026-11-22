@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore.Metadata;
 using RapidRepo.Extensions;
 using RapidRepo.Repositories;
+using RapidRepo.Tenancy;
 using System.Linq.Expressions;
 
 namespace RapidRepo.EntityFrameworkCore.Internal;
@@ -18,24 +19,32 @@ internal static class IQueryableExtensions
     /// <param name="allowTracking">
     /// <see langword="false"/> for projections and aggregates, which are never tracked whatever the options say.
     /// </param>
-    /// <param name="model">
-    /// The model, used to find the named soft-delete filter. Without it, <see cref="ReadOptions.IncludeDeleted"/>
-    /// bypasses every filter.
+    /// <param name="context">
+    /// The context the query runs on. Its model is used to find the named soft-delete filter; without it,
+    /// <see cref="ReadOptions.IncludeDeleted"/> bypasses every filter. For a tenant entity, it is checked for a current
+    /// tenant before the query is built (see <see cref="EnsureTenantReadAllowed{TEntity}"/>).
     /// </param>
     /// <returns>The extended query.</returns>
+    /// <exception cref="TenantViolationException">
+    /// <typeparamref name="TEntity"/> is a tenant entity, and the read runs without a current tenant, or asks to
+    /// ignore every query filter outside a host scope.
+    /// </exception>
     public static IQueryable<TEntity> ApplyRead<TEntity>(
         this IQueryable<TEntity> query,
         Expression<Func<TEntity, bool>>? condition = null,
         SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null,
         bool allowTracking = true,
-        IModel? model = null)
+        DbContext? context = null)
         where TEntity : class
     {
         options ??= ReadOptions.Default;
 
         // Options for another entity type carry no usable EF hints; only the neutral members apply.
         var efOptions = options as EfReadOptions<TEntity>;
+
+        if (context is not null)
+            EnsureTenantReadAllowed<TEntity>(context, ignoresAllFilters: efOptions is { IgnoreAllQueryFilters: true });
 
         if (!allowTracking || efOptions is { Track: false })
         {
@@ -48,7 +57,7 @@ internal static class IQueryableExtensions
         }
         else if (options.IncludeDeleted)
         {
-            query = query.IgnoreSoftDeleteFilter(model);
+            query = query.IgnoreSoftDeleteFilter(context?.Model);
         }
 
         if (condition != null)
@@ -111,9 +120,52 @@ internal static class IQueryableExtensions
             return query.IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilterKey]);
 
         if (rootType.GetDeclaredQueryFilters().Any(f => f.IsAnonymous))
+        {
+            // Lifting every filter of a tenant entity would lift its tenant isolation with it. Only non-tenant
+            // entities keep the 8.x fallback.
+            if (TenantTraits.IsTenantEntity(typeof(TEntity)))
+            {
+                throw new TenantViolationException(
+                    $"IncludeDeleted cannot be applied to {typeof(TEntity).Name}: it has an anonymous query filter, " +
+                    "which can only be lifted together with the tenant filter. Make the soft-delete filter named " +
+                    "(AddSoftDeleteQueryFilters does so unless another anonymous filter exists) and use " +
+                    "AddTenantQueryFilters for tenancy.",
+                    typeof(TEntity));
+            }
+
             return query.IgnoreQueryFilters();
+        }
 
         return query;
+    }
+
+    /// <summary>
+    /// Fails closed before a tenant entity is read: the tenancy configuration must be valid, a current tenant must
+    /// exist, and every query filter may only be ignored inside a host scope. A query filter cannot throw, so this is
+    /// checked here; the filter itself then matches no rows without a tenant, as a second line of defence.
+    /// </summary>
+    /// <exception cref="TenantViolationException">There is no current tenant, or every filter is ignored outside a host scope.</exception>
+    /// <exception cref="RapidRepoConfigurationException">The context's tenancy configuration is invalid.</exception>
+    internal static void EnsureTenantReadAllowed<TEntity>(DbContext context, bool ignoresAllFilters)
+    {
+        if (TenantTraits.GetTenantKeyType(typeof(TEntity)) is not { } keyType)
+            return;
+
+        TenancyValidator.EnsureValid(context);
+
+        if (AmbientTenant.IsHostScope)
+            return;
+
+        if (ignoresAllFilters)
+        {
+            throw new TenantViolationException(
+                $"IgnoreAllQueryFilters would lift the tenant filter of {typeof(TEntity).Name}. Read across tenants " +
+                "only inside ITenantHostScope.BeginHostScope().",
+                typeof(TEntity));
+        }
+
+        if (TenantDbContexts.GetCurrentTenantId(context, keyType) is null)
+            throw TenantViolationException.MissingTenant(typeof(TEntity), "read");
     }
 
     /// <summary>

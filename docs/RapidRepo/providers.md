@@ -101,6 +101,16 @@ Transactions are optional: without an override, the transaction members throw `N
 
 While a transaction is open, `CommitCore` / `CommitCoreAsync` must write in it rather than open their own. The `TransactionConformanceTests` check commit, rollback, joining and the hand-opened form.
 
+### Multi-tenancy
+
+Tenancy is optional too. A provider that supports it:
+
+1. Filters reads of `ITenantEntity<TTenantKey>` to the current tenant, and throws `TenantViolationException.MissingTenant(...)` before reading without one. Resolve the current tenant with `AmbientTenant.ResolveCurrentTenant(keyType, source, sourceName)`, which applies the innermost override before asking your own source, and only asks it when no override applies. Where throwing is not possible, such as inside a query filter, use `ResolveCurrentTenantOrNull`, which treats a misconfigured empty string as no tenant. `TenantKeys` holds what counts as "no tenant" (`IsNone`, `Normalize`), so every source is read the same way. Inside `AmbientTenant.IsHostScope`, nothing is filtered.
+2. In `CommitCore` / `CommitCoreAsync`, before writing anything, gets one guard from `CreateTenantGuard()` and runs every staged tenant entity through it: `ApplyToAdded` for inserts, and `VerifyExisting` for updates and deletes: `VerifyExisting(entity, kind, storedTenantId)` with the `TenantId` **stored** in the database when you found the row for another tenant, `VerifyExisting(entity, kind)` otherwise. Read the stored tenants with one query per entity type. Never use the instance's `TenantId` for that: an instance built from a request can carry any value.
+3. Overrides `GetCurrentTenantId(Type)`, returning the source's raw answer, and `GetTenantSourceName(Type)`, naming it for error messages, if the tenant comes from somewhere other than the `ICurrentTenantProvider<TTenantKey>` in the service provider. `EfUnitOfWork` reads it from the context. `GetTenantSourceName` is called even while an override applies, so it must not read the tenant: decide the name from types alone, or the application's provider would run inside background jobs that have no request.
+
+`CreateTenantGuard`, `GetCurrentTenantId` and `GetTenantSourceName` are `protected` members of `UnitOfWorkBase` with working defaults, so a provider that does nothing about tenancy keeps compiling. `TenantConformanceTests` (opt-in through `ITenantConformanceStore`) check the rules, including hostile updates and deletes that carry another tenant's id.
+
 Report a soft delete as `SoftDeleted` only on the transition from not deleted to deleted, so an edit to an already deleted entity keeps its deletion stamp. `EntityChangeClassifier` applies this rule; it needs the `DeletedAt` the entity had before the change. A change-tracking provider reads its original value. A command-based provider records it the first time it stages the entity, before `StageDeletionChange` calls `applyChange`.
 
 ---
@@ -164,6 +174,9 @@ public sealed class MyOrmQueryExpressionConformanceTests : QueryExpressionConfor
 public sealed class MyOrmConcurrencyConformanceTests : ConcurrencyConformanceTests<MyOrmConformanceStore>;
 public sealed class MyOrmConcurrencyAtomicityConformanceTests : ConcurrencyAtomicityConformanceTests<MyOrmConformanceStore>;
 public sealed class MyOrmTransactionConformanceTests : TransactionConformanceTests<MyOrmConformanceStore>;   // if it supports transactions
+public sealed class MyOrmTenantConformanceTests : TenantConformanceTests<MyOrmTenantConformanceStore>;       // if it supports tenancy
 ```
+
+For the tenant suite, implement `ITenantConformanceStore` as well: the store also holds `Invoice`, isolated by tenant, and `OpenSession(clock, ICurrentTenantProvider<Guid> tenantProvider)` opens a session whose current tenant comes from that provider.
 
 The suite reads persisted state through a fresh session, so a provider's own caching or change tracking cannot hide a difference. The EF provider runs it against EF Core InMemory and SQLite; see `RapidRepo.EntityFrameworkCore.Tests/Conformance`.

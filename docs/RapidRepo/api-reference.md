@@ -13,13 +13,13 @@ Every read has an async variant (`GetByIdAsync`, `GetAllAsync`, …) that also t
 Returns the entity with the given key, or `null` if not found.
 
 ```csharp
-Product? product = await _unitOfWork.Products.GetByIdAsync(id);
+Product? product = await unitOfWork.Products.GetByIdAsync(id);
 
 // Projected
-string? name = await _unitOfWork.Products.GetByIdAsync(id, selector: p => p.Name);
+string? name = await unitOfWork.Products.GetByIdAsync(id, selector: p => p.Name);
 
 // Including a soft-deleted entity
-Product? deleted = await _unitOfWork.Products.GetByIdAsync(id, new ReadOptions { IncludeDeleted = true });
+Product? deleted = await unitOfWork.Products.GetByIdAsync(id, new ReadOptions { IncludeDeleted = true });
 ```
 
 ### GetByIds
@@ -27,8 +27,8 @@ Product? deleted = await _unitOfWork.Products.GetByIdAsync(id, new ReadOptions {
 Returns the entities whose keys are in the collection. Keys without an entity are skipped, and an empty collection returns an empty result without querying the store.
 
 ```csharp
-IEnumerable<Product> products = await _unitOfWork.Products.GetByIdsAsync(ids);
-IEnumerable<string> names = await _unitOfWork.Products.GetByIdsAsync(ids, selector: p => p.Name);
+IEnumerable<Product> products = await unitOfWork.Products.GetByIdsAsync(ids);
+IEnumerable<string> names = await unitOfWork.Products.GetByIdsAsync(ids, selector: p => p.Name);
 ```
 
 ### GetAll
@@ -36,9 +36,9 @@ IEnumerable<string> names = await _unitOfWork.Products.GetByIdsAsync(ids, select
 Returns all entities matching the optional condition, in the optional sort order.
 
 ```csharp
-IEnumerable<Product> all = await _unitOfWork.Products.GetAllAsync();
+IEnumerable<Product> all = await unitOfWork.Products.GetAllAsync();
 
-IEnumerable<Product> active = await _unitOfWork.Products.GetAllAsync(
+IEnumerable<Product> active = await unitOfWork.Products.GetAllAsync(
     condition: p => p.IsActive,
     orderBy: SortOrder<Product>.By(p => p.Name));
 ```
@@ -48,13 +48,13 @@ IEnumerable<Product> active = await _unitOfWork.Products.GetAllAsync(
 Returns a `Paged<TEntity>` (namespace `RapidRepo.Dtos`), or a `Paged<TResult>` when a selector is supplied. The page index is 1-based. **`pageIndex` defaults to `1` and `pageSize` to `10`**, so a call without them returns only the first 10 rows.
 
 ```csharp
-Paged<Product> page = await _unitOfWork.Products.GetAllPagedAsync(
+Paged<Product> page = await unitOfWork.Products.GetAllPagedAsync(
     condition: p => p.IsActive,
     orderBy: SortOrder<Product>.By(p => p.Name),
     pageIndex: 1,
     pageSize: 20);
 
-Paged<ProductSummary> summaries = await _unitOfWork.Products.GetAllPagedAsync(
+Paged<ProductSummary> summaries = await unitOfWork.Products.GetAllPagedAsync(
     selector: p => new ProductSummary(p.Id, p.Name, p.Price),
     condition: p => p.IsActive,
     pageIndex: 1,
@@ -80,11 +80,11 @@ Paged<ProductSummary> summaries = await _unitOfWork.Products.GetAllPagedAsync(
 `GetFirst` throws `InvalidOperationException` when nothing matches; `GetFirstOrDefault` returns `null`. Pass a sort order to decide which entity is first.
 
 ```csharp
-Product cheapest = await _unitOfWork.Products.GetFirstAsync(
+Product cheapest = await unitOfWork.Products.GetFirstAsync(
     condition: p => p.Price > 10m,
     orderBy: SortOrder<Product>.By(p => p.Price));
 
-Product? firstOrNull = await _unitOfWork.Products.GetFirstOrDefaultAsync(p => p.Price > 10m);
+Product? firstOrNull = await unitOfWork.Products.GetFirstOrDefaultAsync(p => p.Price > 10m);
 ```
 
 ### GetSingle / GetSingleOrDefault
@@ -92,16 +92,16 @@ Product? firstOrNull = await _unitOfWork.Products.GetFirstOrDefaultAsync(p => p.
 `GetSingle` throws when nothing, or more than one entity, matches. `GetSingleOrDefault` returns `null` when nothing matches and throws when more than one does.
 
 ```csharp
-Product single = await _unitOfWork.Products.GetSingleAsync(p => p.Sku == "ABC-123");
-Product? singleOrNull = await _unitOfWork.Products.GetSingleOrDefaultAsync(p => p.Sku == "ABC-123");
+Product single = await unitOfWork.Products.GetSingleAsync(p => p.Sku == "ABC-123");
+Product? singleOrNull = await unitOfWork.Products.GetSingleOrDefaultAsync(p => p.Sku == "ABC-123");
 ```
 
 ### ExistsById / Any / Count
 
 ```csharp
-bool exists = await _unitOfWork.Products.ExistsByIdAsync(id);
-bool any = await _unitOfWork.Products.AnyAsync(p => p.Sku == "ABC-123");
-int count = await _unitOfWork.Products.CountAsync(p => p.IsActive);
+bool exists = await unitOfWork.Products.ExistsByIdAsync(id);
+bool any = await unitOfWork.Products.AnyAsync(p => p.Sku == "ABC-123");
+int count = await unitOfWork.Products.CountAsync(p => p.IsActive);
 ```
 
 ---
@@ -154,7 +154,7 @@ A provider may accept a subclass with its own hints, for example `EfReadOptions<
 `GetAll`, `GetAllPaged`, `GetFirst*`, `GetSingle*`, `GetById` and `GetByIds` all have a `selector` overload that returns a projection instead of the entity. With Entity Framework Core the projection runs in the database, so only the selected columns are read; a provider that cannot translate selectors may load the matching rows and project them in memory (see [Writing a provider](providers.md#reads)):
 
 ```csharp
-IEnumerable<ProductSummary> summaries = await _unitOfWork.Products.GetAllAsync(
+IEnumerable<ProductSummary> summaries = await unitOfWork.Products.GetAllAsync(
     selector: p => new ProductSummary(p.Id, p.Name, p.Price),
     condition: p => p.IsActive);
 ```
@@ -189,9 +189,9 @@ The projection overloads that also take a condition (`GetAll`, `GetAllPaged`, `G
 
 | Method | Description |
 |---|---|
-| `CommitAsync(userId?, cancellationToken)` | Stamps audit fields and versions, and persists every staged change. Throws `ConcurrencyException` on a conflict of an `IVersionedEntity` |
+| `CommitAsync(userId?, cancellationToken)` | Stamps audit fields, versions and tenants, and persists every staged change. Throws `ConcurrencyException` on a conflict of an `IVersionedEntity`, and `TenantViolationException`, before writing anything, when a change breaks a [tenant rule](multi-tenancy.md#commits) |
 | `Commit(userId?)` | Synchronous version of `CommitAsync` |
 | `ExecuteInTransactionAsync(operation, isolationLevel?, cancellationToken)` | Runs `operation` in a transaction: commits it when `operation` completes, rolls it back when it throws. An overload returns `operation`'s result. Joins a transaction that is already open |
 | `BeginTransactionAsync(isolationLevel?, cancellationToken)` | Opens a transaction by hand and returns an `IUnitOfWorkTransaction` (`CommitAsync`, `RollbackAsync`; disposing without commit rolls back). Never retried |
 
-Without a `userId`, the audit user comes from the `ICurrentUserProvider<TUserKey>`, if any, and otherwise is the default user key. See [Auditing](auditing.md) for the audit rules and [the current user](auditing.md#the-current-user), [Optimistic Concurrency](concurrency.md) for conflicts, and [Transactions](transactions.md) for grouping commits. A unit of work whose provider doesn't support transactions throws `NotSupportedException` from the transaction members.
+Without a `userId`, the audit user comes from the `ICurrentUserProvider<TUserKey>`, if any, and otherwise is the default user key. See [Auditing](auditing.md) for the audit rules and [the current user](auditing.md#the-current-user), [Optimistic Concurrency](concurrency.md) for conflicts, [Multi-Tenancy](multi-tenancy.md) for the tenant rules, and [Transactions](transactions.md) for grouping commits. A unit of work whose persistence provider doesn't support transactions throws `NotSupportedException` from the transaction members.

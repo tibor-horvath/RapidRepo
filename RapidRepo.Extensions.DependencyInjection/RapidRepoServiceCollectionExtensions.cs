@@ -1,5 +1,8 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using RapidRepo.Auditing;
+using RapidRepo.Tenancy;
+using RapidRepo.Tenancy.Host;
 using RapidRepo.Extensions.DependencyInjection;
 using RapidRepo.Extensions.DependencyInjection.Internal;
 using System.Diagnostics;
@@ -81,6 +84,8 @@ public static class RapidRepoServiceCollectionExtensions
         if (options.RequireCurrentUser)
             services.TryAddSingleton(new CurrentUserOptions { RequireCurrentUser = true });
 
+        RegisterTenancy(services, options);
+
         if (provider is null)
             WarnOnMissingProvider(candidates.Count, options.UnitOfWorkRegistrations.Count);
 
@@ -93,6 +98,27 @@ public static class RapidRepoServiceCollectionExtensions
             options.RegisterGenericRepositories));
 
         return services;
+    }
+
+    /// <summary>
+    /// Registers the tenant provider, the tenant scopes and the startup validation, only when this call configured a
+    /// tenant provider: an application without tenancy gets no new services and never resolves its context at
+    /// startup.
+    /// </summary>
+    private static void RegisterTenancy(IServiceCollection services, RapidRepoOptions options)
+    {
+        if (options.CurrentTenantProviderRegistrations.Count == 0)
+            return;
+
+        services.TryAddSingleton(typeof(ITenantScope<>), typeof(LoggingTenantScope<>));
+        services.TryAddSingleton<ITenantHostScope, LoggingTenantHostScope>();
+
+        // Same lifetime as the units of work, so a per-request provider is never captured by a longer-lived one.
+        foreach (var registration in options.CurrentTenantProviderRegistrations)
+            services.TryAdd(registration.CreateDescriptor(options.Lifetime));
+
+        if (options.ValidateTenancyOnStartup)
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, TenancyStartupValidationService>());
     }
 
     private static bool PassesFilters(Type type, RapidRepoOptions options)

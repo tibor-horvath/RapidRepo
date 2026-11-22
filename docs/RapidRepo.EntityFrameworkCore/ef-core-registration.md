@@ -40,6 +40,8 @@ An entity is eligible when both hold:
 
 For anything outside those rules, register a repository explicitly.
 
+> **Non-public `DbSet`s.** Registration includes them, but the [source generator](../RapidRepo.SourceGenerators/generate-unit-of-work.md#sources-dbcontexts-and-entity-types) reads only public, non-static `DbSet<>` properties. An entity whose only `DbSet` is non-public can be injected as `IRepository<,>`, but gets no generated unit of work property. Make the `DbSet` public, pass the entity type to `[GenerateUnitOfWork]`, or write the property yourself.
+
 An application that already registers its own forwarder keeps it:
 
 ```csharp

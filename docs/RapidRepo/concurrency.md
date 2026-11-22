@@ -1,8 +1,10 @@
 # Optimistic Concurrency
 
-Implement `IVersionedEntity` to stop concurrent edits from overwriting each other. A commit that would update or delete a row that someone else changed since it was read throws `ConcurrencyException` (namespace `RapidRepo.Concurrency`), and nothing in that commit is saved on a store with transactions, such as any relational database (EF Core InMemory has none, so changes written before the conflict stay written there). Entities that don't implement the interface keep last-write-wins behaviour.
+Implement `IVersionedEntity` to stop concurrent edits from overwriting each other. Entities that don't implement it keep last-write-wins behaviour.
 
-The rules on this page are provider-neutral. With EF Core, also call `configurationBuilder.AddConcurrencyTokens()` in `ConfigureConventions`; see [Optimistic concurrency](../RapidRepo.EntityFrameworkCore/entity-framework-core.md#optimistic-concurrency).
+A commit that would update or delete a row that someone else changed since it was read throws `ConcurrencyException` (namespace `RapidRepo.Concurrency`). On a store with transactions, such as any relational database, nothing in that commit is saved.
+
+The rules on this page are provider-neutral. With EF Core, also call `configurationBuilder.AddConcurrencyTokens()` in `ConfigureConventions`; see [Optimistic concurrency](../RapidRepo.EntityFrameworkCore/entity-framework-core.md#optimistic-concurrency), which also covers stores without transactions such as EF Core InMemory.
 
 ---
 
@@ -61,17 +63,17 @@ The entity's current `Version` is the version the unit of work expects the store
 ```csharp
 // Detached: build the entity from the request.
 var order = new Order { Id = id, Status = request.Status, Version = request.Version };
-repo.Update(order);
+unitOfWork.Orders.Update(order);
 await unitOfWork.CommitAsync();   // throws ConcurrencyException if the order changed since request.Version
 return order.Version;             // the new version for the client
 ```
 
 ```csharp
 // Loaded: read the entity, then apply the client's version along with its changes.
-var order = await repo.GetByIdAsync(id);
+var order = await unitOfWork.Orders.GetByIdAsync(id);
 order.Status = request.Status;
 order.Version = request.Version;
-repo.Update(order);
+unitOfWork.Orders.Update(order);
 await unitOfWork.CommitAsync();
 ```
 

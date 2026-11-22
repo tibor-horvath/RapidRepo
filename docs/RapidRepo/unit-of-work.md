@@ -67,18 +67,19 @@ public class AppUnitOfWork : EfUnitOfWork<Guid>
 Stage changes through the repositories, then persist them in a single call:
 
 ```csharp
-await _unitOfWork.CommitAsync();   // async (preferred)
-_unitOfWork.Commit();              // sync
+await unitOfWork.CommitAsync();   // async (preferred)
+unitOfWork.Commit();              // sync
 ```
 
 At commit the unit of work:
 
 - stamps the audit fields, with the user passed to `Commit`, else the one from an `ICurrentUserProvider<TUserKey>`, else its default user key. See [Auditing](auditing.md), including [the current user](auditing.md#the-current-user) and [controlling the clock](auditing.md#controlling-the-clock);
+- applies the [tenant rules](multi-tenancy.md#commits) to every [tenant entity](multi-tenancy.md): stamps new rows with the current tenant, and throws `TenantViolationException`, before writing anything, when a change would touch another tenant's row or runs without a tenant;
 - checks `Version` on every update and hard delete of a [versioned entity](concurrency.md), and throws `ConcurrencyException` on a conflict. Updates, soft deletes and restores also increment `Version`; inserts keep the `Version` they are given, and hard deletes don't change it;
 - persists every staged change.
 
 ```csharp
-await _unitOfWork.CommitAsync(userId: currentUserId);
+await unitOfWork.CommitAsync(userId: currentUserId);
 ```
 
 Each commit is its own transaction. To make several commits succeed or fail together, run them in `ExecuteInTransactionAsync`; see [Transactions](transactions.md).
