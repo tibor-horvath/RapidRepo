@@ -4,6 +4,10 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <PackageReadmeFile>RapidRepo.SourceGenerators.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
+    <Description>Roslyn source generator for RapidRepo: mark a partial class with [GenerateUnitOfWork] to generate typed repository properties and a matching Unit of Work interface at build time.</Description>
+    <PackageTags>$(PackageTags);source-generator;roslyn;codegen</PackageTags>
+    <!-- Analyzer-only package: the DLL ships under analyzers/, so there is no lib/ symbol or API surface to publish. -->
+    <IncludeSymbols>false</IncludeSymbols>
     <LangVersion>latest</LangVersion>
     <IsRoslynComponent>true</IsRoslynComponent>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
