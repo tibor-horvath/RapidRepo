@@ -1,5 +1,12 @@
 # Changelog
 
+## [9.5.0](https://github.com/tibor-horvath/RapidRepo/compare/9.4.0...9.5.0) (2026-11-22)
+
+
+### Features
+
+* **core:** move the commit sequence into UnitOfWorkBase ([#168](https://github.com/tibor-horvath/RapidRepo/issues/168)) ([0b8c01d](https://github.com/tibor-horvath/RapidRepo/commit/0b8c01d843e93709a94d2dab41a09c64e4980711))
+
 ## [9.4.0](https://github.com/tibor-horvath/RapidRepo/compare/9.3.0...9.4.0) (2026-11-22)
 
 
