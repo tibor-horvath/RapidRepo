@@ -1,4 +1,4 @@
-using System.Runtime.CompilerServices;
+using System.Reflection;
 using FluentAssertions;
 using FluentAssertions.Execution;
 using Microsoft.CodeAnalysis;
@@ -111,9 +111,16 @@ public class GeneratorSnapshotTests
         return sources.OrderBy(s => s.HintName, StringComparer.Ordinal).ToList();
     }
 
-    private static void MatchSnapshot(string hintName, string actual, [CallerFilePath] string testFile = "")
+    // The project directory is embedded at build time (see the .csproj); [CallerFilePath] would give a /_/ path under
+    // deterministic CI builds.
+    private static readonly string SnapshotDirectory = Path.Combine(
+        typeof(GeneratorSnapshotTests).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+            .Single(a => a.Key == "ProjectDirectory").Value!,
+        "Snapshots");
+
+    private static void MatchSnapshot(string hintName, string actual)
     {
-        var directory = Path.Combine(Path.GetDirectoryName(testFile)!, "Snapshots");
+        var directory = SnapshotDirectory;
         var stem = Path.Combine(directory, Path.GetFileNameWithoutExtension(hintName));
         var verifiedPath = stem + ".verified.txt";
         var receivedPath = stem + ".received.txt";

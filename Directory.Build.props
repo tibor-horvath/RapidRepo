@@ -15,4 +15,26 @@
     <RapidRepoTestTargetFramework>net11.0</RapidRepoTestTargetFramework>
   </PropertyGroup>
 
+  <!-- NuGet package metadata shared by every published package. Each project sets its own Description and adds to
+       PackageTags. -->
+  <PropertyGroup>
+    <Copyright>Copyright (c) Tibor Horváth</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/tibor-horvath/RapidRepo</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/tibor-horvath/RapidRepo</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <PackageReleaseNotes>https://github.com/tibor-horvath/RapidRepo/blob/master/CHANGELOG.md</PackageReleaseNotes>
+    <PackageTags>repository;unit-of-work;uow;repository-pattern;data-access;dotnet</PackageTags>
+
+    <!-- Symbol package (.snupkg) for nuget.org's symbol server; Source Link (built into the SDK) maps it to GitHub. -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+
+    <!-- Package validation baseline: the first release of the current major. Pack fails on any breaking change
+         against it, so bump this only when releasing a new major version. Opted into per library project. -->
+    <RapidRepoPackageValidationBaselineVersion>9.0.0</RapidRepoPackageValidationBaselineVersion>
+  </PropertyGroup>
+
 </Project>
