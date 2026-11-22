@@ -38,11 +38,15 @@ builder.Services.AddRapidRepo(options =>
 | `ThrowOnAmbiguousRegistration` | `true` | Fail when two classes implement the same interface |
 | `RegisterGenericRepositories` | `false` | Let the provider register its generic repository; requires a provider |
 | `Include` / `Exclude`, `IncludeNamespace` / `ExcludeNamespace`, `IncludeType<T>` / `ExcludeType<T>` | — | Filter which types are registered |
+| `UseCurrentUserProvider<TProvider, TUserKey>()` / `UseCurrentUser<TUserKey>(...)` | — | Supply the audit user, so commits don't have to pass one |
+| `RequireCurrentUser` | `false` | When a commit has no user and is about to stamp a user audit field (`CreatedBy`, `ModifiedBy`, `DeletedBy`), throw instead of stamping the default user key. Commits that stamp no user field succeed |
+| `UseCurrentTenantProvider<TProvider, TTenantKey>()` / `UseCurrentTenant<TTenantKey>(...)` | — | Supply the current tenant for multi-tenancy, and register the tenant scopes |
+| `ValidateTenancyOnStartup` | `true` | With a tenant provider, validate the tenancy setup when the host starts |
 
 ## Documentation
 
 - [Dependency injection guide and full options reference](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo.Extensions.DependencyInjection/dependency-injection.md)
-- [EF Core and dependency injection](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo.EntityFrameworkCore/ef-core-registration.md)
+- [EF Core registration](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo.EntityFrameworkCore/ef-core-registration.md)
 - [RapidRepo documentation](https://github.com/tibor-horvath/RapidRepo#documentation)
 
 Pairs well with [RapidRepo.SourceGenerators](https://www.nuget.org/packages/RapidRepo.SourceGenerators), which generates the repository properties of your Unit of Work.

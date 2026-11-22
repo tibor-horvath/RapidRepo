@@ -29,7 +29,7 @@ These rules live in the core as `AuditStamper<TUserKey>`, so every provider appl
 Pass the current user to a commit to record them in the audit fields:
 
 ```csharp
-await _unitOfWork.CommitAsync(userId: currentUserId);
+await unitOfWork.CommitAsync(userId: currentUserId);
 ```
 
 To avoid passing the user to every commit, give the unit of work an `ICurrentUserProvider<TUserKey>` (namespace `RapidRepo.Auditing`). It tells the unit of work who is making the changes, so services can call `CommitAsync()` without threading a user through every method:
@@ -103,8 +103,8 @@ Services then commit without a user:
 ```csharp
 public async Task CreateAsync(Product product)
 {
-    _unitOfWork.Products.Add(product);
-    await _unitOfWork.CommitAsync();   // CreatedBy = the signed-in user
+    unitOfWork.Products.Add(product);
+    await unitOfWork.CommitAsync();   // CreatedBy = the signed-in user
 }
 ```
 
@@ -116,7 +116,13 @@ By default a commit with no user stamps the default user key, often `Guid.Empty`
 options.RequireCurrentUser = true;   // in AddRapidRepo
 ```
 
-With strict mode on, a commit with neither a `userId` nor a user from the provider throws `InvalidOperationException` as soon as it would stamp a user field, before anything is persisted. The user fields are `CreatedBy` and `ModifiedBy` on `IAuditableEntity<TUserKey>`, and `DeletedBy` on `IDeletableEntity<TUserKey>`. A commit that stamps none of them still succeeds without a user. That includes a commit that changes only entities without user fields, or only `CreatedAt`/`ModifiedAt` on an `IAuditableEntity`. Jobs that legitimately write user fields without a signed-in user pass one explicitly, such as their system user. Strict mode is read from `CurrentUserOptions` in the unit of work's service provider. A unit of work without a service provider can override `RequireCurrentUser` instead:
+With strict mode on, a commit with neither a `userId` nor a user from the current-user provider throws `InvalidOperationException` as soon as it would stamp a user field, before anything is persisted.
+
+- The user fields are `CreatedBy` and `ModifiedBy` on `IAuditableEntity<TUserKey>`, and `DeletedBy` on `IDeletableEntity<TUserKey>`.
+- A commit that stamps none of them still succeeds without a user, for example one that changes only entities without user fields, or only `CreatedAt`/`ModifiedAt` on an `IAuditableEntity`.
+- Jobs that legitimately write user fields without a signed-in user pass one explicitly, such as their system user.
+
+Strict mode is read from `CurrentUserOptions` in the unit of work's service provider. A unit of work without a service provider can override `RequireCurrentUser` instead:
 
 ```csharp
 protected override bool RequireCurrentUser => true;

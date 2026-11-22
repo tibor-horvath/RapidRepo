@@ -125,7 +125,7 @@ Every read takes a `ReadOptions`. Pass an `EfReadOptions<TEntity>` for the EF Co
 | `Track` | `true` | Whether returned entities are tracked. Projections, counts and existence checks are never tracked |
 | `SplitQuery` | `false` | Load collection includes through [split queries](https://learn.microsoft.com/ef/core/querying/single-split-queries) |
 | `OrderBy` | `null` | An ordering applied to the query directly. Overrides the `SortOrder` argument; use it only for orderings a `SortOrder` cannot express |
-| `IgnoreAllQueryFilters` | `false` | Bypass every global query filter, not only soft delete |
+| `IgnoreAllQueryFilters` | `false` | Bypass every global query filter, not only soft delete. The tenant filter stays and lifts itself only in a host scope; see [Tenant query filters](#tenant-query-filters) |
 
 ```csharp
 var products = await repo.GetAllAsync(
@@ -177,6 +177,7 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
     modelBuilder.AddSoftDeleteQueryFilters();
     modelBuilder.Entity<Invoice>().HasQueryFilter("Tenant", i => i.TenantId == _tenantId);
+    // Or let RapidRepo isolate tenants: modelBuilder.AddTenantQueryFilters(this). See "Tenant query filters" below.
 }
 
 // Deleted invoices of the current tenant only; the tenant filter stays in force.
@@ -196,15 +197,74 @@ EF Core only allows query filters on the root of an inheritance hierarchy, so th
 
 ### Entities with an anonymous filter
 
-EF Core does not allow anonymous and named filters on the same entity type. An entity that already has an anonymous filter when `AddSoftDeleteQueryFilters()` runs gets an anonymous soft-delete filter instead, which replaces the existing one, as in 8.x. A soft-delete filter you declare by hand without a name, such as `HasQueryFilter(e => e.DeletedAt == null)`, is anonymous too. For these entities RapidRepo cannot tell the soft-delete filter apart from the rest, so `IncludeDeleted` bypasses every filter on them.
+EF Core does not allow anonymous and named filters on the same entity type. An entity that already has an anonymous filter when `AddSoftDeleteQueryFilters()` runs gets an anonymous soft-delete filter instead, which replaces the existing one, as in 8.x. A soft-delete filter you declare by hand without a name, such as `HasQueryFilter(e => e.DeletedAt == null)`, is anonymous too. For these entities RapidRepo cannot tell the soft-delete filter apart from the rest, so `IncludeDeleted` bypasses every filter on them, except in a model with tenant entities, where it throws instead (see [Tenant query filters](#tenant-query-filters)).
 
 Combine soft delete with tenant isolation through named filters, as above, rather than in one anonymous filter.
 
 ---
 
+## Tenant query filters
+
+For the provider-neutral rules (stamping, write guards, scopes), see [Multi-Tenancy](../RapidRepo/multi-tenancy.md). With EF Core, the context supplies the tenant and registers the filter:
+
+```csharp
+public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentTenantProvider<Guid> tenants)
+    : DbContext(options), ITenantDbContext<Guid>
+{
+    public Guid CurrentTenantId => tenants.GetCurrentTenantId();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        // ... entity configuration ...
+        modelBuilder.AddSoftDeleteQueryFilters();
+        modelBuilder.AddTenantQueryFilters(this);
+    }
+}
+```
+
+- `AddTenantQueryFilters(this)` adds a **named** filter, `RapidRepo.Tenant` (`ModelBuilderExtensions.TenantFilterKey`), to the root of every entity hierarchy that implements `ITenantEntity<TTenantKey>`. It sits next to the soft-delete filter, and `IncludeDeleted` never lifts it.
+- The filter reads the tenant **on every query**, through the context: the innermost `ITenantScope.Override`, else `CurrentTenantId`. Inside a host scope it matches every row. Without a tenant it matches no rows, and repository reads throw before the query is built.
+- Constructing the context never reads the tenant, so `dotnet ef migrations` needs none.
+- `EfUnitOfWork` reads the tenant from the same `CurrentTenantId`, so reads and commits always agree.
+- Every tenant entity of a context uses the same tenant key type. Map entities with another key type in a separate context.
+- `AddTenantQueryFilters` never replaces an existing anonymous filter, because that would silently drop your own tenant condition. It throws instead; see [Migrating a hand-written tenant filter](../RapidRepo/multi-tenancy.md#migrating-a-hand-written-tenant-filter).
+- It maps `TenantId` as a concurrency token, so updates and deletes are written only `WHERE TenantId` still holds the tenant the commit checked. A row moved to another tenant in between makes the commit throw `DbUpdateConcurrencyException` and writes nothing.
+- `EfReadOptions.IgnoreAllQueryFilters` lifts every filter but the tenant filter, on the root, on every tenant entity reached through navigations, and on tenant sets you join into the query. The tenant filter lifts itself only while the query runs inside a host scope, so an `IQueryable` from `Query()` built in a host scope is filtered by tenant again when it runs after the scope. On a tenant entity, `IgnoreAllQueryFilters` throws outside a host scope.
+- In a model with tenant entities, `IgnoreAllQueryFilters` and the anonymous-filter fallback of `IncludeDeleted` throw when an entity the query reads has an anonymous filter, rather than lift the tenant filter with it: EF Core lifts filters for the whole query, including tenant sets joined into it. Only models without tenant entities keep the 8.x fallback described above. Name the filter (`AddSoftDeleteQueryFilters` does so unless another anonymous filter exists) to read soft-deleted rows of such an entity.
+- The validation fails when a filter registered under `TenantFilterKey` is not the one `AddTenantQueryFilters` builds, for example a later `HasQueryFilter(ModelBuilderExtensions.TenantFilterKey, e => true)`.
+- `ExecuteUpdate` and `ExecuteDelete` honour the filter, so they stay scoped to the current tenant. They bypass stamping and the write guards, so never set `TenantId` in them.
+
+**Context pooling.** With `AddDbContextPool`, a context outlives the scope it was leased in and can't take scoped services. Read the tenant from ambient state instead, for example through a singleton provider over `IHttpContextAccessor`. The filter reads `CurrentTenantId` per query, so a reused instance always sees the current request's tenant.
+
+### Tenancy validation
+
+`TenancyValidator` checks a context's model:
+
+| Check | Why |
+|---|---|
+| Every tenant entity has the `RapidRepo.Tenant` filter on its hierarchy root. | Otherwise writes would be guarded while reads returned every tenant's rows. |
+| No tenant entity has an anonymous filter. | EF Core doesn't allow anonymous and named filters together, and `IncludeDeleted` couldn't lift soft delete alone. |
+| The context implements `ITenantDbContext<TTenantKey>`, with the entities' key type. | Neither the filter nor the unit of work could find the tenant. |
+| All tenant entities share one key type. | The filter and the stamping would compare different types. |
+| A tenant provider is registered (startup only). | The first request would throw. |
+| Foreign keys between tenant entities include `TenantId` (ownerships aside). | A warning by default; an error with `RequireTenantScopedForeignKeys`. The commit checks exactly the same foreign keys. |
+
+A failure throws one `RapidRepoConfigurationException` (an `InvalidOperationException`) whose `Problems` lists every problem with its fix, as does its message. The check runs:
+
+- **on first use**, once per model, the first time a repository reads or a unit of work commits a tenant entity. It always runs and needs no host;
+- **at startup**, through the hosted service `AddRapidRepo` registers when a tenant provider is configured, so `host.StartAsync()` fails;
+- **explicitly**, with `serviceProvider.ValidateRapidRepoTenancy()`, or with `TenancyValidator.Validate(context)` in a test, which also returns the warnings.
+
+A context without tenant entities always passes, without any other work.
+
+---
+
 ## Optimistic concurrency
 
-`configurationBuilder.AddConcurrencyTokens()`, called in `ConfigureConventions`, registers a model convention that marks the `Version` property of every entity that implements `IVersionedEntity` as a concurrency token (`IsConcurrencyToken()`). Explicit configuration wins over it, so `Property(e => e.Version).IsConcurrencyToken(false)` opts an entity out, and the unit of work then refuses to commit that entity. EF Core then adds `WHERE Version = @expected` to each update and delete of those entities. `Version` is a plain `bigint` column that the unit of work increments. It is not a `rowversion` or PostgreSQL `xmin` column, so it behaves the same on every database. Adding `IVersionedEntity` to an existing entity needs a migration for the new column.
+`configurationBuilder.AddConcurrencyTokens()`, called in `ConfigureConventions`, marks the `Version` property of every entity that implements `IVersionedEntity` as a concurrency token (`IsConcurrencyToken()`). EF Core then adds `WHERE Version = @expected` to each update and delete of those entities.
+
+- `Version` is a plain `bigint` column that the unit of work increments. It is not a `rowversion` or PostgreSQL `xmin` column, so it behaves the same on every database. Adding `IVersionedEntity` to an existing entity needs a migration for the new column.
+- Explicit configuration wins over the convention, so `Property(e => e.Version).IsConcurrencyToken(false)` opts an entity out. The unit of work then refuses to commit that entity (see below).
 
 - If an `IVersionedEntity`'s `Version` is not a concurrency token, a commit that writes the entity throws `InvalidOperationException` and saves nothing. Forgetting `AddConcurrencyTokens()` can't lose updates silently. Marking the property yourself, for example with `[ConcurrencyCheck]`, also works.
 - `EfUnitOfWork` translates EF Core's `DbUpdateConcurrencyException` into `ConcurrencyException` when the conflict involves an `IVersionedEntity`, and keeps EF's exception as `InnerException`. EF Core stops at the first conflicting batch, so `Entities` may not list every stale entity.

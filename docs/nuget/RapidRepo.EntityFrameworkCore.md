@@ -56,6 +56,8 @@ var products = await repo.GetAllAsync(
 - `EfReadOptions<TEntity>`: includes, tracking, split queries, an `OrderBy` override, and bypassing all query filters.
 - `IEfRepository<TEntity, TId>` / `IEfReadOnlyRepository<TEntity, TId>`: the contracts plus `Query()`, which returns an `IQueryable<TEntity>`.
 - `ModelBuilder.AddSoftDeleteQueryFilters()`: excludes soft-deleted rows by default, as a named filter, so `ReadOptions.IncludeDeleted` bypasses soft delete only and leaves other named filters, such as a tenant filter, in force.
+- `ModelBuilder.AddTenantQueryFilters(this)` and `ITenantDbContext<TTenantKey>`: isolate `ITenantEntity` rows per tenant with a named `RapidRepo.Tenant` filter. `TenancyValidator` checks the model at startup, on first use, or in a test.
+- `ModelConfigurationBuilder.AddConcurrencyTokens()`: marks `IVersionedEntity.Version` as a concurrency token, for optimistic concurrency.
 - `UseEntityFrameworkCore<TContext>()` / `UseEntityFrameworkCore()`: the provider for `AddRapidRepo`. It registers the `DbContext` forwarder and generic repositories per `DbSet`.
 
 The 8.x names (`Repository<,>`, `BaseRepository<,>`, `ReadOnlyRepository<,>`, `WriteRepository<,>`, `UnitOfWork<>`) still compile but are obsolete (`RRMIG001`) and will be removed in 10.0.
@@ -63,7 +65,7 @@ The 8.x names (`Repository<,>`, `BaseRepository<,>`, `ReadOnlyRepository<,>`, `W
 ## Documentation
 
 - [EF Core guide](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo.EntityFrameworkCore/entity-framework-core.md)
-- [EF Core and dependency injection](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo.EntityFrameworkCore/ef-core-registration.md)
+- [EF Core registration](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo.EntityFrameworkCore/ef-core-registration.md)
 - [Migrating from 8.x to 9.0](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/migration/8.x-to-9.0.md)
 - [RapidRepo documentation](https://github.com/tibor-horvath/RapidRepo#documentation)
 

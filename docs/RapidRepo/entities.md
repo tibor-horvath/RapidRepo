@@ -1,12 +1,14 @@
 # Entities
 
-All entities used with RapidRepo must inherit from one of the provided base classes.
+All entities used with RapidRepo must inherit from `BaseEntity<TId>`, directly or through one of the other base classes on this page. Optional features, such as soft delete, concurrency and multi-tenancy, are added through interfaces.
+
+`TId` is the entity's key type. The repository interfaces call the same type `TKey`, so `IRepository<Product, long>` is the repository of a `Product : BaseEntity<long>`.
 
 ---
 
-## `BaseEntity<TKey>`
+## `BaseEntity<TId>`
 
-The simplest base class. Provides only an `Id` property. `TKey` can be any non-null key type (for example `int`, `long`, `Guid`, or `string`).
+The simplest base class. Provides only an `Id` property. `TId` can be any non-null key type (for example `int`, `long`, `Guid`, or `string`).
 
 ```csharp
 public class Product : BaseEntity<string>
@@ -126,6 +128,20 @@ public class Order : BaseAuditableEntity<int, Guid>, IVersionedEntity
 
 ---
 
+## Multi-tenancy (`ITenantEntity<TTenantKey>`)
+
+Implement `ITenantEntity<TTenantKey>` to give each row a tenant: reads see only the current tenant's rows, and a commit stamps new rows and refuses to touch another tenant's. See [Multi-Tenancy](multi-tenancy.md).
+
+```csharp
+public class Invoice : BaseAuditableDeletableEntity<int, Guid>, ITenantEntity<Guid>
+{
+    public Guid TenantId { get; set; }
+    public string Number { get; set; } = "";
+}
+```
+
+---
+
 ## Choosing the right base class
 
 | Scenario | Base class |
@@ -137,6 +153,7 @@ public class Order : BaseAuditableEntity<int, Guid>, IVersionedEntity
 | Track who created/modified + soft delete | `BaseAuditableDeletableEntity<TId, TUserKey>` |
 | Add soft delete to an existing hierarchy | Add `IDeletableEntity` or `IDeletableEntity<TUserKey>` to the hierarchy's root type |
 | Detect concurrent edits | `BaseVersionedEntity<TId>`, or add `IVersionedEntity` to any of the above |
+| Isolate rows per tenant | Add `ITenantEntity<TTenantKey>` to any of the above (on the hierarchy's root type) |
 
 ---
 

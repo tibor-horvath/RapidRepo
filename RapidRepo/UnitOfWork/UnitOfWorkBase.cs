@@ -1,6 +1,7 @@
 using RapidRepo.Auditing;
 using RapidRepo.Entities;
 using RapidRepo.Repositories.Interfaces;
+using RapidRepo.Tenancy;
 using System.Data;
 
 namespace RapidRepo.UnitOfWork;
@@ -143,6 +144,57 @@ public abstract class UnitOfWorkBase<TUserKey> : IUnitOfWork<TUserKey>
             : $"the ICurrentUserProvider<{typeof(TUserKey).Name}> returned null. ") +
         "RequireCurrentUser is set, so the default user key is not used. Pass a userId, configure a " +
         "current-user provider, or turn RequireCurrentUser off for commits that run without a user.");
+
+    /// <summary>
+    /// Creates the guard that applies the tenant rules to one commit. A provider calls it at most once per commit,
+    /// and only when the commit stages tenant entities, then runs every staged tenant entity through it before
+    /// writing anything.
+    /// </summary>
+    /// <remarks>
+    /// The current tenant is resolved lazily, per tenant key type: from the innermost
+    /// <see cref="ITenantScope{TTenantKey}.Override"/>, otherwise from <see cref="GetCurrentTenantId"/>. Inside a
+    /// host scope the guard skips the tenant rules.
+    /// </remarks>
+    /// <returns>The guard.</returns>
+    protected TenantCommitGuard CreateTenantGuard() =>
+        new(AmbientTenant.IsHostScope, keyType =>
+            AmbientTenant.ResolveCurrentTenant(keyType, () => GetCurrentTenantId(keyType), GetTenantSourceName(keyType)));
+
+    /// <summary>
+    /// Gets the current tenant for <paramref name="tenantKeyType"/>, when no tenant override is open. By default it
+    /// asks the <see cref="ICurrentTenantProvider{TTenantKey}"/> registered in the service provider passed to the
+    /// constructor. Providers override it to use their own source, for example the EF Core context, together with
+    /// <see cref="GetTenantSourceName"/>.
+    /// </summary>
+    /// <remarks>
+    /// Return the source's answer as it is: the caller applies the overrides and normalizes it.
+    /// </remarks>
+    /// <param name="tenantKeyType">The tenant key type of the entities being committed.</param>
+    /// <returns>
+    /// The current tenant, boxed, or <see langword="null"/> (or a default value) when there is none.
+    /// </returns>
+    protected virtual object? GetCurrentTenantId(Type tenantKeyType)
+    {
+        ArgumentNullException.ThrowIfNull(tenantKeyType);
+
+        if (_serviceProvider?.GetService(typeof(ICurrentTenantProvider<>).MakeGenericType(tenantKeyType)) is not { } provider)
+            return null;
+
+        return CurrentTenantProviders.GetCurrentTenantId(provider, tenantKeyType);
+    }
+
+    /// <summary>
+    /// Names the source <see cref="GetCurrentTenantId"/> reads, for the error raised when it returns an empty string.
+    /// Override it together with <see cref="GetCurrentTenantId"/>.
+    /// </summary>
+    /// <remarks>
+    /// It is called whether or not a tenant override applies, so it must not read the tenant itself: asking the
+    /// provider here would run it inside overrides, where it may have nothing to answer.
+    /// </remarks>
+    /// <param name="tenantKeyType">The tenant key type of the entities being committed.</param>
+    /// <returns>The name of the tenant source.</returns>
+    protected virtual string GetTenantSourceName(Type tenantKeyType) =>
+        $"The {nameof(ICurrentTenantProvider<int>)}<{tenantKeyType.Name}>";
 
     /// <summary>
     /// Gets a generic repository for <typeparamref name="TEntity"/> that shares this unit of work's changes.

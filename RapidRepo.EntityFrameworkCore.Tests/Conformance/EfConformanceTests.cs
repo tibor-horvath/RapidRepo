@@ -24,3 +24,8 @@ public sealed class SqliteQueryExpressionConformanceTests : QueryExpressionConfo
 public sealed class SqliteConcurrencyConformanceTests : ConcurrencyConformanceTests<EfSqliteConformanceStore>;
 public sealed class SqliteConcurrencyAtomicityConformanceTests : ConcurrencyAtomicityConformanceTests<EfSqliteConformanceStore>;
 public sealed class SqliteTransactionConformanceTests : TransactionConformanceTests<EfSqliteConformanceStore>;
+
+// Multi-tenancy, opt-in through ITenantConformanceStore.
+
+public sealed class InMemoryTenantConformanceTests : TenantConformanceTests<EfInMemoryTenantConformanceStore>;
+public sealed class SqliteTenantConformanceTests : TenantConformanceTests<EfSqliteTenantConformanceStore>;

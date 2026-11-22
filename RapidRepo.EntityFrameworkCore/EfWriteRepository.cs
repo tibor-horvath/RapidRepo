@@ -125,5 +125,5 @@ public abstract class EfWriteRepository<TEntity, TId>(DbContext dbContext) : Wri
             .ApplyRead(
                 condition: e => id.Equals(e.Id),
                 options: includeDeleted ? IncludingDeleted : ReadOptions.Default,
-                model: DbContext.Model);
+                context: DbContext);
 }

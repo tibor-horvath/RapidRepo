@@ -19,6 +19,7 @@ New to RapidRepo? Start with the [Quick Start](../README.md#quick-start), then r
 | [Auditing](RapidRepo/auditing.md) | Audit stamping rules, the current user, strict mode, the clock |
 | [Optimistic Concurrency](RapidRepo/concurrency.md) | `IVersionedEntity`, updates from a client, handling conflicts |
 | [Transactions](RapidRepo/transactions.md) | Grouping commits, nested calls, retries, opening a transaction by hand |
+| [Multi-Tenancy](RapidRepo/multi-tenancy.md) | `ITenantEntity`, the current tenant, write guards, overrides and host scopes, validation |
 
 ## Reference
 

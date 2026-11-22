@@ -65,6 +65,9 @@ This single call replaces one `AddScoped<>` line per repository. Any concrete, n
 | `RequireCurrentUser` | `bool` | `false` | A commit with no audit user throws when it would stamp `CreatedBy`, `ModifiedBy` or `DeletedBy`, instead of stamping the default user key. See [Current user](#current-user). |
 | `UseCurrentUserProvider<TProvider, TUserKey>()` | method | — | Register the `ICurrentUserProvider<TUserKey>` units of work ask for the audit user. One per user key type. |
 | `UseCurrentUser<TUserKey>(Func<IServiceProvider, TUserKey?>)` | method | — | Same, from a delegate. |
+| `UseCurrentTenantProvider<TProvider, TTenantKey>()` | method | — | Register the `ICurrentTenantProvider<TTenantKey>` that supplies the request's tenant, the tenant scopes and the startup validation. One per tenant key type. See [Current tenant](#current-tenant). |
+| `UseCurrentTenant<TTenantKey>(Func<IServiceProvider, TTenantKey?>)` | method | — | Same, from a delegate. |
+| `ValidateTenancyOnStartup` | `bool` | `true` | With a tenant provider, run the tenancy validation in a hosted service at startup. |
 | `UseProvider(IRapidRepoProvider)` | method | — | Configure the provider for this call. Provider packages wrap it, e.g. `UseEntityFrameworkCore<TContext>()`. One per call. |
 | `ScanAssemblies(params Assembly[])` | method | — | Add one or more assemblies to scan. |
 | `ScanAssembliesContaining<TMarker>()` | method | — | Add the assembly that contains `TMarker`. |
@@ -135,7 +138,7 @@ builder.Services.AddRapidRepo(options =>
 });
 ```
 
-The provider decides how. EF Core registers one repository per `DbSet<>` when the call is bound to a context, and an open-generic fallback otherwise; see [EF Core and dependency injection](../RapidRepo.EntityFrameworkCore/ef-core-registration.md). Without a provider, `RegisterGenericRepositories` throws, because there is no implementation to register.
+The provider decides how. EF Core registers one repository per `DbSet<>` when the call is bound to a context, and an open-generic fallback otherwise; see [EF Core registration](../RapidRepo.EntityFrameworkCore/ef-core-registration.md). Without a provider, `RegisterGenericRepositories` throws, because there is no implementation to register.
 
 **Precedence**: specific registrations from assembly scanning always win. An application that scans a custom `ProductRepository : IProductRepository` resolves `IProductRepository` to `ProductRepository`, and `IRepository<Product, long>` to the provider's generic repository.
 
@@ -216,7 +219,7 @@ Call `UseUnitOfWork` once per unit of work interface type. Registering the same 
 
 ## Current user
 
-Register an `ICurrentUserProvider<TUserKey>` so that units of work stamp the audit user without every commit passing one. For the resolution order and how a unit of work finds the provider, see [Unit of Work — The current user](../RapidRepo/auditing.md#the-current-user).
+Register an `ICurrentUserProvider<TUserKey>` so that units of work stamp the audit user without every commit passing one. For the resolution order and how a unit of work finds the provider, see [Auditing — The current user](../RapidRepo/auditing.md#the-current-user).
 
 ```csharp
 builder.Services.AddRapidRepo(options =>
@@ -245,6 +248,29 @@ Set `RequireCurrentUser = true` to make a commit with no user throw, instead of 
 
 ---
 
+## Current tenant
+
+Register an `ICurrentTenantProvider<TTenantKey>` for [multi-tenancy](../RapidRepo/multi-tenancy.md):
+
+```csharp
+builder.Services.AddRapidRepo(options =>
+{
+    options.UseEntityFrameworkCore<AppDbContext>();
+    options.UseCurrentTenantProvider<ClaimsTenantProvider, Guid>();
+    // or: options.UseCurrentTenant<Guid>(sp => /* read a claim or header */);
+});
+```
+
+Configuring a tenant provider also registers:
+
+- the provider itself, with `Lifetime`, like the current-user provider. Configure one per tenant key type; a registration the application already made takes precedence.
+- `ITenantScope<TTenantKey>` and `ITenantHostScope`, which log every override and host scope. `ITenantHostScope` applies an `ITenantHostScopePolicy`, if you register one.
+- a hosted service that runs the tenancy validation when the host starts, so `host.StartAsync()` fails on a misconfiguration with a `RapidRepoConfigurationException` listing every problem in `Problems`. Set `ValidateTenancyOnStartup = false` to leave it out, for example when a test calls `serviceProvider.ValidateRapidRepoTenancy()` instead. The persistence provider's validation on first use still runs.
+
+Without a tenant provider, `AddRapidRepo` registers none of these, and nothing resolves your context at startup.
+
+---
+
 ## Lifetime
 
 The default `ServiceLifetime.Scoped` matches the lifetime of the data access resources repositories depend on, such as an EF Core `DbContext` in ASP.NET Core. Changing to `Transient` is safe but allocates more. `Singleton` causes captive-dependency issues: by default a warning is written to `Trace`; set `ThrowOnSingletonMisuse = true` to throw instead.
@@ -267,7 +293,7 @@ A provider implements `IRapidRepoProvider` and is configured through an extensio
 
 | Provider package | Extension |
 |---|---|
-| `RapidRepo.EntityFrameworkCore` | `UseEntityFrameworkCore<TContext>()`, `UseEntityFrameworkCore()`; see [EF Core and dependency injection](../RapidRepo.EntityFrameworkCore/ef-core-registration.md) |
+| `RapidRepo.EntityFrameworkCore` | `UseEntityFrameworkCore<TContext>()`, `UseEntityFrameworkCore()`; see [EF Core registration](../RapidRepo.EntityFrameworkCore/ef-core-registration.md) |
 
 `AddRapidRepo` scans, filters, checks for ambiguity, and registers the scanned repositories and units of work. It then hands the provider a `RapidRepoRegistrationContext`, which holds what was registered and how the call was configured, so the provider can add its own registrations. Configure one provider per call; use a separate `AddRapidRepo` call per provider or data source.
 

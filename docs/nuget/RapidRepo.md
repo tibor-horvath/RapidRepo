@@ -13,6 +13,7 @@ It gives you the data-layer plumbing most applications rebuild by hand, with con
 - Base entities with built-in auditing (`CreatedAt`, `CreatedBy`, `ModifiedAt`, `ModifiedBy`)
 - Soft delete (`DeletedAt`, `DeletedBy`) with restore and permanent delete
 - Opt-in optimistic concurrency (`IVersionedEntity`, `ConcurrencyException`)
+- Opt-in row-level multi-tenancy (`ITenantEntity<TTenantKey>`): tenant stamping, filtering, and write guards that check the stored row, plus explicit tenant and host scopes
 - Paged results via `Paged<T>`, declarative sorting with `SortOrder<T>`, projections
 - Any non-null key type: `int`, `long`, `Guid`, `string`
 - No package dependencies; targets .NET 10 and 11
@@ -72,6 +73,7 @@ public class CatalogService(IProductRepository products, IUnitOfWork<Guid> unitO
 - [Auditing](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo/auditing.md)
 - [Optimistic concurrency](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo/concurrency.md)
 - [Transactions](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo/transactions.md)
+- [Multi-tenancy](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo/multi-tenancy.md)
 - [API reference](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo/api-reference.md)
 - [Writing a provider](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo/providers.md)
 - [Migrating from 8.x to 9.0](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/migration/8.x-to-9.0.md)

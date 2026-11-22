@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using RapidRepo.Auditing;
 using RapidRepo.Extensions.DependencyInjection.Internal;
+using RapidRepo.Tenancy;
 using RapidRepo.UnitOfWork;
 using System.Diagnostics;
 using System.Reflection;
@@ -16,7 +17,8 @@ public sealed class RapidRepoOptions
     private readonly List<Func<Type, bool>> _includes = [];
     private readonly List<Func<Type, bool>> _excludes = [];
     private readonly List<(Type InterfaceType, Type ImplementationType)> _unitOfWorkRegistrations = [];
-    private readonly List<CurrentUserProviderRegistration> _currentUserProviderRegistrations = [];
+    private readonly List<ProviderRegistration> _currentUserProviderRegistrations = [];
+    private readonly List<ProviderRegistration> _currentTenantProviderRegistrations = [];
 
     /// <summary>Lifetime applied to every discovered repository. Default: <see cref="ServiceLifetime.Scoped"/>.</summary>
     public ServiceLifetime Lifetime { get; set; } = ServiceLifetime.Scoped;
@@ -50,9 +52,20 @@ public sealed class RapidRepoOptions
     /// </summary>
     public bool RequireCurrentUser { get; set; }
 
+    /// <summary>
+    /// Run the multi-tenancy validation when the host starts, so that <c>host.StartAsync()</c> fails on a
+    /// misconfiguration (a tenant entity without the tenant filter, a context that cannot supply the tenant, ...).
+    /// Applies only when a tenant provider is configured (see <see cref="UseCurrentTenantProvider{TProvider,TTenantKey}"/>);
+    /// otherwise nothing is registered. Turning it off does not turn off the validation the provider runs on first use.
+    /// Default: <c>true</c>.
+    /// </summary>
+    public bool ValidateTenancyOnStartup { get; set; } = true;
+
     internal IRapidRepoProvider? Provider { get; private set; }
 
-    internal IReadOnlyList<CurrentUserProviderRegistration> CurrentUserProviderRegistrations => _currentUserProviderRegistrations;
+    internal IReadOnlyList<ProviderRegistration> CurrentUserProviderRegistrations => _currentUserProviderRegistrations;
+
+    internal IReadOnlyList<ProviderRegistration> CurrentTenantProviderRegistrations => _currentTenantProviderRegistrations;
 
     internal IReadOnlyList<Assembly> Assemblies => _assemblies;
     internal IReadOnlyList<Func<Type, bool>> Includes => _includes;
@@ -134,7 +147,7 @@ public sealed class RapidRepoOptions
                 $"'{typeof(TInterface).Name}' is not an interface type. TInterface must be an interface.",
                 nameof(TInterface));
 
-        EnsureConcrete(typeof(TImpl), nameof(TImpl));
+        EnsureConcrete(typeof(TImpl), "unit-of-work implementation", nameof(TImpl));
         return AddUnitOfWork(typeof(TInterface), typeof(TImpl));
     }
 
@@ -154,7 +167,7 @@ public sealed class RapidRepoOptions
     {
         var implType = typeof(TImpl);
 
-        EnsureConcrete(implType, nameof(TImpl));
+        EnsureConcrete(implType, "unit-of-work implementation", nameof(TImpl));
 
         // Collect user-defined interfaces that extend IUnitOfWork<TKey> but are not the root itself.
         var candidateInterfaces = implType.GetInterfaces()
@@ -200,13 +213,11 @@ public sealed class RapidRepoOptions
         where TProvider : class, ICurrentUserProvider<TUserKey>
         where TUserKey : struct
     {
-        if (typeof(TProvider).IsAbstract)
-            throw new ArgumentException(
-                $"'{typeof(TProvider).Name}' is abstract and cannot be used as a current-user provider. " +
-                "Provide a concrete class.",
-                nameof(TProvider));
+        EnsureConcrete(typeof(TProvider), ProviderKind.CurrentUser.Name, nameof(TProvider));
 
-        return AddCurrentUserProvider(
+        return AddProvider(
+            _currentUserProviderRegistrations,
+            ProviderKind.CurrentUser,
             typeof(TUserKey),
             lifetime => new ServiceDescriptor(typeof(ICurrentUserProvider<TUserKey>), typeof(TProvider), lifetime));
     }
@@ -232,11 +243,76 @@ public sealed class RapidRepoOptions
     {
         ArgumentNullException.ThrowIfNull(getCurrentUserId);
 
-        return AddCurrentUserProvider(
+        return AddProvider(
+            _currentUserProviderRegistrations,
+            ProviderKind.CurrentUser,
             typeof(TUserKey),
             lifetime => new ServiceDescriptor(
                 typeof(ICurrentUserProvider<TUserKey>),
                 sp => new DelegateCurrentUserProvider<TUserKey>(sp, getCurrentUserId),
+                lifetime));
+    }
+
+    /// <summary>
+    /// Register <typeparamref name="TProvider"/> as the <see cref="ICurrentTenantProvider{TTenantKey}"/> that supplies
+    /// the tenant of the current request. It is registered with <see cref="Lifetime"/>, so it can depend on
+    /// per-request services. This also turns on the startup validation (see <see cref="ValidateTenancyOnStartup"/>).
+    /// </summary>
+    /// <remarks>
+    /// Units of work pick the provider up from the <see cref="IServiceProvider"/> passed to their constructor. For
+    /// EF Core, the context reads the tenant through <c>ITenantDbContext&lt;TTenantKey&gt;</c>, usually by taking this
+    /// provider as a constructor parameter. A registration the application already made for
+    /// <see cref="ICurrentTenantProvider{TTenantKey}"/> takes precedence.
+    /// </remarks>
+    /// <typeparam name="TProvider">The provider implementation.</typeparam>
+    /// <typeparam name="TTenantKey">The tenant key type, the same as the entities'.</typeparam>
+    /// <returns>The same options, for chaining.</returns>
+    /// <exception cref="ArgumentException"><typeparamref name="TProvider"/> is abstract.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// A tenant provider has already been configured for <typeparamref name="TTenantKey"/>.
+    /// </exception>
+    public RapidRepoOptions UseCurrentTenantProvider<TProvider, TTenantKey>()
+        where TProvider : class, ICurrentTenantProvider<TTenantKey>
+        where TTenantKey : notnull
+    {
+        EnsureConcrete(typeof(TProvider), ProviderKind.CurrentTenant.Name, nameof(TProvider));
+
+        return AddProvider(
+            _currentTenantProviderRegistrations,
+            ProviderKind.CurrentTenant,
+            typeof(TTenantKey),
+            lifetime => new ServiceDescriptor(typeof(ICurrentTenantProvider<TTenantKey>), typeof(TProvider), lifetime));
+    }
+
+    /// <summary>
+    /// Register a delegate as the <see cref="ICurrentTenantProvider{TTenantKey}"/> that supplies the tenant of the
+    /// current request, for example
+    /// <c>UseCurrentTenant&lt;Guid&gt;(sp =&gt; sp.GetRequiredService&lt;IHttpContextAccessor&gt;().HttpContext?.User.GetTenantId() ?? Guid.Empty)</c>.
+    /// This also turns on the startup validation (see <see cref="ValidateTenancyOnStartup"/>).
+    /// </summary>
+    /// <remarks>
+    /// The delegate runs with the service provider of the scope the provider was resolved in, each time the tenant
+    /// is needed. It returns <see langword="null"/> (or, for a value-type key, the default value) when there is none.
+    /// </remarks>
+    /// <typeparam name="TTenantKey">The tenant key type, the same as the entities'.</typeparam>
+    /// <param name="getCurrentTenantId">Returns the current tenant.</param>
+    /// <returns>The same options, for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="getCurrentTenantId"/> is <c>null</c>.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// A tenant provider has already been configured for <typeparamref name="TTenantKey"/>.
+    /// </exception>
+    public RapidRepoOptions UseCurrentTenant<TTenantKey>(Func<IServiceProvider, TTenantKey?> getCurrentTenantId)
+        where TTenantKey : notnull
+    {
+        ArgumentNullException.ThrowIfNull(getCurrentTenantId);
+
+        return AddProvider(
+            _currentTenantProviderRegistrations,
+            ProviderKind.CurrentTenant,
+            typeof(TTenantKey),
+            lifetime => new ServiceDescriptor(
+                typeof(ICurrentTenantProvider<TTenantKey>),
+                sp => new DelegateCurrentTenantProvider<TTenantKey>(sp, getCurrentTenantId),
                 lifetime));
     }
 
@@ -313,23 +389,26 @@ public sealed class RapidRepoOptions
         return this;
     }
 
-    private RapidRepoOptions AddCurrentUserProvider(Type userKeyType, Func<ServiceLifetime, ServiceDescriptor> createDescriptor)
+    private RapidRepoOptions AddProvider(
+        List<ProviderRegistration> registrations,
+        ProviderKind kind,
+        Type keyType,
+        Func<ServiceLifetime, ServiceDescriptor> createDescriptor)
     {
-        if (_currentUserProviderRegistrations.Any(r => r.UserKeyType == userKeyType))
+        if (registrations.Any(r => r.KeyType == keyType))
             throw new InvalidOperationException(
-                $"A current-user provider has already been configured for user key type '{userKeyType.Name}'. " +
-                "Call UseCurrentUserProvider or UseCurrentUser once per user key type.");
+                $"A {kind.Name} has already been configured for {kind.KeyName} type '{keyType.Name}'. " +
+                $"Call {kind.Methods} once per {kind.KeyName} type.");
 
-        _currentUserProviderRegistrations.Add(new CurrentUserProviderRegistration(userKeyType, createDescriptor));
+        registrations.Add(new ProviderRegistration(keyType, createDescriptor));
         return this;
     }
 
-    private static void EnsureConcrete(Type implementationType, string paramName)
+    private static void EnsureConcrete(Type implementationType, string role, string paramName)
     {
         if (implementationType.IsAbstract)
             throw new ArgumentException(
-                $"'{implementationType.Name}' is abstract and cannot be used as a unit-of-work implementation. " +
-                "Provide a concrete class.",
+                $"'{implementationType.Name}' is abstract and cannot be used as a {role}. Provide a concrete class.",
                 paramName);
     }
 }

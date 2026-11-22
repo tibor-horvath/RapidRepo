@@ -43,6 +43,13 @@ internal sealed class EntityFrameworkCoreProvider(Type? contextType, EntityFrame
             }
         }
 
+        // Only ever run by the startup validation, which AddRapidRepo registers when tenancy is configured. Unbound,
+        // the repositories and units of work take the base DbContext the application registers, so that is the one
+        // validated.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton(
+            typeof(IRapidRepoStartupValidator),
+            typeof(EfTenancyStartupValidator<>).MakeGenericType(contextType ?? typeof(DbContext))));
+
         if (contextType is not null)
         {
             DbContextRegistrar.RegisterForwarder(services, contextType, dependentTypes);

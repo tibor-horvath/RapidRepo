@@ -86,6 +86,8 @@ public abstract class EfUnitOfWork<TUserKey> : UnitOfWorkBase<TUserKey>
 
         try
         {
+            // Synchronous all the way down: async: false makes the task complete before it is returned.
+            EfTenancyEnforcer.EnforceAsync(DbContext, CreateTenantGuard, async: false, CancellationToken.None).GetAwaiter().GetResult();
             StampChanges(userId, versions);
             DbContext.SaveChanges();
         }
@@ -104,6 +106,7 @@ public abstract class EfUnitOfWork<TUserKey> : UnitOfWorkBase<TUserKey>
 
         try
         {
+            await EfTenancyEnforcer.EnforceAsync(DbContext, CreateTenantGuard, async: true, cancellationToken);
             StampChanges(userId, versions);
             await DbContext.SaveChangesAsync(cancellationToken);
         }
@@ -217,6 +220,33 @@ public abstract class EfUnitOfWork<TUserKey> : UnitOfWorkBase<TUserKey>
     {
         versions.Revert();
         return EfVersionTracker.Translate(exception);
+    }
+
+    /// <summary>
+    /// Reads the current tenant from the context when it implements <see cref="ITenantDbContext{TTenantKey}"/>, so
+    /// reads and commits agree on the tenant; otherwise from the registered tenant provider.
+    /// </summary>
+    protected override object? GetCurrentTenantId(Type tenantKeyType)
+    {
+        ArgumentNullException.ThrowIfNull(tenantKeyType);
+
+        return TenantDbContexts.TryGetContextTenantId(DbContext, tenantKeyType, out var tenantId)
+            ? tenantId
+            : base.GetCurrentTenantId(tenantKeyType);
+    }
+
+    /// <summary>
+    /// Names the context's <c>CurrentTenantId</c> when the context supplies the tenant.
+    /// </summary>
+    protected override string GetTenantSourceName(Type tenantKeyType)
+    {
+        ArgumentNullException.ThrowIfNull(tenantKeyType);
+
+        // A type check only: reading CurrentTenantId here would run the tenant provider even when an override
+        // applies, where the provider may legitimately have nothing to answer (a background job).
+        return TenantDbContexts.Implements(DbContext, tenantKeyType)
+            ? TenantDbContexts.SourceName(DbContext)
+            : base.GetTenantSourceName(tenantKeyType);
     }
 
     /// <summary>
