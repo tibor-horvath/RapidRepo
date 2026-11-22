@@ -65,6 +65,13 @@ public abstract class ConformanceTests<TStore> : IDisposable
         return notes;
     }
 
+    /// <summary>Adds and commits <paramref name="tickets"/>, returning them with their generated keys.</summary>
+    protected Ticket[] SeedTickets(params Ticket[] tickets)
+    {
+        Commit(s => s.Tickets().AddRange(tickets));
+        return tickets;
+    }
+
     /// <summary>Adds and commits <paramref name="widgets"/>, returning them with their generated keys.</summary>
     protected Widget[] SeedWidgets(params Widget[] widgets)
     {
@@ -95,6 +102,8 @@ public static class ConformanceSessionExtensions
     public static IRepository<Note, int> Notes(this IConformanceSession session) => session.Repository<Note, int>();
 
     public static IRepository<Widget, int> Widgets(this IConformanceSession session) => session.Repository<Widget, int>();
+
+    public static IRepository<Ticket, int> Tickets(this IConformanceSession session) => session.Repository<Ticket, int>();
 }
 
 /// <summary>A current-user provider that returns a fixed user and counts how often it is asked.</summary>

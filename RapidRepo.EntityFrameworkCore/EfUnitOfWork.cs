@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using RapidRepo.Auditing;
+using RapidRepo.Concurrency;
 using RapidRepo.Entities;
 using RapidRepo.Entities.Interfaces;
 using RapidRepo.Repositories.Interfaces;
@@ -9,7 +10,8 @@ using RapidRepo.UnitOfWork;
 namespace RapidRepo.EntityFrameworkCore;
 
 /// <summary>
-/// An EF Core unit of work: stamps audit fields on the tracked changes and saves the <see cref="DbContext"/>.
+/// An EF Core unit of work: stamps audit fields and concurrency versions on the tracked changes and saves the
+/// <see cref="DbContext"/>.
 /// </summary>
 /// <remarks>
 /// The unit of work does not own the context it is given and never disposes it; whoever created the context,
@@ -68,30 +70,66 @@ public abstract class EfUnitOfWork<TUserKey> : UnitOfWorkBase<TUserKey>
 
     protected override void CommitCore(TUserKey? userId)
     {
-        StampChanges(userId);
-        DbContext.SaveChanges();
+        var versions = new EfVersionTracker();
+
+        try
+        {
+            StampChanges(userId, versions);
+            DbContext.SaveChanges();
+        }
+        catch (Exception exception)
+        {
+            if (OnCommitFailed(exception, versions) is { } conflict)
+                throw conflict;
+
+            throw;
+        }
     }
 
     protected override async Task CommitCoreAsync(TUserKey? userId, CancellationToken cancellationToken)
     {
-        StampChanges(userId);
-        await DbContext.SaveChangesAsync(cancellationToken);
+        var versions = new EfVersionTracker();
+
+        try
+        {
+            StampChanges(userId, versions);
+            await DbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            if (OnCommitFailed(exception, versions) is { } conflict)
+                throw conflict;
+
+            throw;
+        }
     }
 
     /// <summary>
-    /// Stamps every added or modified entry with one timestamp for the whole commit.
+    /// Undoes the version changes of a failed commit and returns the <see cref="ConcurrencyException"/> to throw in
+    /// place of <paramref name="exception"/>, or <see langword="null"/> to rethrow it.
     /// </summary>
-    private void StampChanges(TUserKey? userId)
+    private static ConcurrencyException? OnCommitFailed(Exception exception, EfVersionTracker versions)
+    {
+        versions.Revert();
+        return EfVersionTracker.Translate(exception);
+    }
+
+    /// <summary>
+    /// Stamps every added or modified entry with one timestamp for the whole commit, and sets up the concurrency
+    /// check of every updated or deleted <see cref="IVersionedEntity"/>.
+    /// </summary>
+    private void StampChanges(TUserKey? userId, EfVersionTracker versions)
     {
         var utcNow = Auditor.UtcNow;
 
         foreach (var entry in DbContext.ChangeTracker.Entries())
         {
-            var kind = Classify(entry);
-            if (kind is { } changeKind)
+            if (Classify(entry) is { } kind)
             {
-                Auditor.Stamp(entry.Entity, changeKind, userId, utcNow);
+                Auditor.Stamp(entry.Entity, kind, userId, utcNow);
             }
+
+            versions.Stamp(entry);
         }
     }
 

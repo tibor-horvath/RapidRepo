@@ -21,6 +21,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     public DbSet<Product> Products => Set<Product>();
 
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.AddConcurrencyTokens();
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -32,7 +37,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 }
 ```
 
-Call `AddSoftDeleteQueryFilters()` after the entity types are configured. See [Soft delete and query filters](#soft-delete-and-query-filters).
+Call `AddSoftDeleteQueryFilters()` after the entity types are configured. `AddConcurrencyTokens()` is a convention, so it applies to every entity type wherever it is configured. See [Soft delete and query filters](#soft-delete-and-query-filters) and [Optimistic concurrency](#optimistic-concurrency).
 
 ---
 
@@ -65,7 +70,7 @@ The write methods of `EfRepository` are virtual, and the write rules call them t
 
 ### Which context to take
 
-The base classes accept any `DbContext`. Taking your derived context (`AppDbContext`) resolves with no further setup, because `AddDbContext<AppDbContext>()` registers `AppDbContext` and not the base `DbContext` type. Taking the base `DbContext` keeps a repository reusable across contexts, but needs a forwarder, which [`UseEntityFrameworkCore<TContext>()`](dependency-injection.md) registers for you. In an application with several contexts, always take the derived context.
+The base classes accept any `DbContext`. Taking your derived context (`AppDbContext`) resolves with no further setup, because `AddDbContext<AppDbContext>()` registers `AppDbContext` and not the base `DbContext` type. Taking the base `DbContext` keeps a repository reusable across contexts, but needs a forwarder, which [`UseEntityFrameworkCore<TContext>()`](ef-core-registration.md) registers for you. In an application with several contexts, always take the derived context.
 
 ---
 
@@ -89,9 +94,9 @@ public class AppUnitOfWork(AppDbContext db, IProductRepository products)
 | `(DbContext, TUserKey defaultUserKey)` | Repositories are injected or come from `GetRepository` |
 | `(DbContext, TUserKey, IServiceProvider)` | The source generator's `ResolveRepository<TRepo>()` resolves custom repositories |
 | `(DbContext, TUserKey, IServiceProvider?, TimeProvider?)` | You also want to control the audit clock |
-| `(DbContext, TUserKey, IServiceProvider?, TimeProvider?, ICurrentUserProvider<TUserKey>?)` | You pass the [current-user provider](../RapidRepo/unit-of-work.md#the-current-user) directly instead of through the service provider |
+| `(DbContext, TUserKey, IServiceProvider?, TimeProvider?, ICurrentUserProvider<TUserKey>?)` | You pass the [current-user provider](../RapidRepo/auditing.md#the-current-user) directly instead of through the service provider |
 
-At commit, `EfUnitOfWork` reads each change from the change tracker, stamps the audit fields, and calls `SaveChanges`. A soft delete or restore is recognised by comparing the original and current `DeletedAt`, so only the transition stamps `DeletedAt` / `DeletedBy`. See [How auditing works](../RapidRepo/unit-of-work.md#how-auditing-works).
+At commit, `EfUnitOfWork` reads each change from the change tracker, stamps the audit fields, and calls `SaveChanges`. A soft delete or restore is recognised by comparing the original and current `DeletedAt`, so only the transition stamps `DeletedAt` / `DeletedBy`. See [How auditing works](../RapidRepo/auditing.md#how-auditing-works).
 
 `EfUnitOfWork` never disposes the `DbContext`; whoever created it does.
 
@@ -182,6 +187,18 @@ EF Core only allows query filters on the root of an inheritance hierarchy, so th
 EF Core does not allow anonymous and named filters on the same entity type. An entity that already has an anonymous filter when `AddSoftDeleteQueryFilters()` runs gets an anonymous soft-delete filter instead, which replaces the existing one, as in 8.x. A soft-delete filter you declare by hand without a name, such as `HasQueryFilter(e => e.DeletedAt == null)`, is anonymous too. For these entities RapidRepo cannot tell the soft-delete filter apart from the rest, so `IncludeDeleted` bypasses every filter on them.
 
 Combine soft delete with tenant isolation through named filters, as above, rather than in one anonymous filter.
+
+---
+
+## Optimistic concurrency
+
+`configurationBuilder.AddConcurrencyTokens()`, called in `ConfigureConventions`, registers a model convention that marks the `Version` property of every entity that implements `IVersionedEntity` as a concurrency token (`IsConcurrencyToken()`). Explicit configuration wins over it, so `Property(e => e.Version).IsConcurrencyToken(false)` opts an entity out, and the unit of work then refuses to commit that entity. EF Core then adds `WHERE Version = @expected` to each update and delete of those entities. `Version` is a plain `bigint` column that the unit of work increments. It is not a `rowversion` or PostgreSQL `xmin` column, so it behaves the same on every database. Adding `IVersionedEntity` to an existing entity needs a migration for the new column.
+
+- If an `IVersionedEntity`'s `Version` is not a concurrency token, a commit that writes the entity throws `InvalidOperationException` and saves nothing. Forgetting `AddConcurrencyTokens()` can't lose updates silently. Marking the property yourself, for example with `[ConcurrencyCheck]`, also works.
+- `EfUnitOfWork` translates EF Core's `DbUpdateConcurrencyException` into `ConcurrencyException` when the conflict involves an `IVersionedEntity`, and keeps EF's exception as `InnerException`. EF Core stops at the first conflicting batch, so `Entities` may not list every stale entity.
+- Any other `DbUpdateConcurrencyException` is thrown unchanged, as before. Examples are a concurrency token you configured yourself, or an update of a row that no longer exists for an entity without `IVersionedEntity`.
+- A relational database saves nothing from a conflicting commit, because `SaveChanges` runs in a transaction. EF Core InMemory has no transactions, so changes written before the conflict stay written there.
+- The version covers the entity's own row. Changing only an owned entity, or only a collection of related entities, doesn't update the owner's row, so it doesn't increment the owner's version.
 
 ---
 

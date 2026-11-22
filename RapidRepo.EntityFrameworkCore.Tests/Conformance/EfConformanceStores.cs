@@ -11,7 +11,8 @@ namespace RapidRepo.EntityFrameworkCore.Tests.Conformance;
 
 /// <summary>
 /// The conformance entities mapped the way an application would map them: soft-deleted notes filtered out by
-/// <see cref="ModelBuilderExtensions.AddSoftDeleteQueryFilters"/>.
+/// <see cref="ModelBuilderExtensions.AddSoftDeleteQueryFilters"/>, and tickets versioned by
+/// <see cref="ModelConfigurationBuilderExtensions.AddConcurrencyTokens"/>.
 /// </summary>
 public sealed class ConformanceDbContext(DbContextOptions<ConformanceDbContext> options) : DbContext(options)
 {
@@ -19,10 +20,14 @@ public sealed class ConformanceDbContext(DbContextOptions<ConformanceDbContext> 
 
     public DbSet<Note> Notes => Set<Note>();
 
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder) =>
+        configurationBuilder.AddConcurrencyTokens();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Widget>();
         modelBuilder.Entity<Note>();
+        modelBuilder.Entity<Ticket>();
         modelBuilder.AddSoftDeleteQueryFilters();
     }
 }

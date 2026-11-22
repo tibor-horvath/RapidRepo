@@ -133,9 +133,9 @@ internal static class DbContextRegistrar
             $"Cannot register a generic repository for '{entityType.Name}' against '{contextType.Name}': " +
             $"'{FriendlyName(serviceType)}' is already registered against '{existingContext.Name}'. " +
             $"'{entityType.Name}' is mapped by both contexts, and that service type cannot express which one " +
-            "is meant. Give each context its own repository interface and register it by assembly scanning, " +
-            "or set RegisterAsSelf = true and inject " +
-            $"'{FriendlyName(typeof(EfRepository<,,>).MakeGenericType(entityType, existing.GenericTypeArguments[1], contextType))}'.");
+            "is meant. Turn RegisterGenericRepositories off for one of the contexts, and give its module its own " +
+            "repository interface registered by assembly scanning, or register and inject " +
+            $"'{FriendlyName(typeof(EfRepository<,,>).MakeGenericType(entityType, existing.GenericTypeArguments[1], contextType))}' explicitly.");
     }
 
     private static string FriendlyName(Type type)

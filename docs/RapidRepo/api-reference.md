@@ -179,6 +179,7 @@ The projection overloads that also take a condition (`GetAll`, `GetAllPaged`, `G
 - All write methods only stage changes. Call `Commit` or `CommitAsync` on the unit of work to persist them.
 - The `Restore` methods throw `InvalidOperationException` when `TEntity` does not implement `IDeletableEntity`.
 - The by-id methods also find an entity staged for insertion but not yet committed.
+- See [Soft Delete](soft-delete.md) for how `Delete`, `Restore` and `HardDelete` work together.
 - `includeDeleted` decides whether the lookup finds soft-deleted entities. `RestoreById` defaults it to `true`, because the entity to restore is deleted. `HardDeleteById` defaults it to `false`, because the operation cannot be undone.
 
 ---
@@ -187,7 +188,7 @@ The projection overloads that also take a condition (`GetAll`, `GetAllPaged`, `G
 
 | Method | Description |
 |---|---|
-| `CommitAsync(userId?, cancellationToken)` | Stamps audit fields and persists every staged change |
+| `CommitAsync(userId?, cancellationToken)` | Stamps audit fields and versions, and persists every staged change. Throws `ConcurrencyException` on a conflict of an `IVersionedEntity` |
 | `Commit(userId?)` | Synchronous version of `CommitAsync` |
 
-Without a `userId`, the audit user comes from the `ICurrentUserProvider<TUserKey>`, if any, and otherwise is the default user key. See [Unit of Work](unit-of-work.md) for the audit rules and [The current user](unit-of-work.md#the-current-user).
+Without a `userId`, the audit user comes from the `ICurrentUserProvider<TUserKey>`, if any, and otherwise is the default user key. See [Auditing](auditing.md) for the audit rules and [the current user](auditing.md#the-current-user), and [Optimistic Concurrency](concurrency.md) for conflicts.

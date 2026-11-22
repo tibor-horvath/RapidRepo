@@ -42,7 +42,7 @@ builder.Services.AddRapidRepo(options =>
 ## Documentation
 
 - [Dependency injection guide and full options reference](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo.Extensions.DependencyInjection/dependency-injection.md)
-- [EF Core and dependency injection](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo.EntityFrameworkCore/dependency-injection.md)
+- [EF Core and dependency injection](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo.EntityFrameworkCore/ef-core-registration.md)
 - [RapidRepo documentation](https://github.com/tibor-horvath/RapidRepo#documentation)
 
 Pairs well with [RapidRepo.SourceGenerators](https://www.nuget.org/packages/RapidRepo.SourceGenerators), which generates the repository properties of your Unit of Work.

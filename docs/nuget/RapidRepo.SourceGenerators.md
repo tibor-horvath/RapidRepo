@@ -52,7 +52,7 @@ public partial class AppUnitOfWork
 
 ## Documentation
 
-- [Source generator guide](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo.SourceGenerators/unit-of-work.md)
+- [Source generator guide](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo.SourceGenerators/generate-unit-of-work.md)
 - [RapidRepo documentation](https://github.com/tibor-horvath/RapidRepo#documentation)
 
 Source and issues: [github.com/tibor-horvath/RapidRepo](https://github.com/tibor-horvath/RapidRepo). Licensed under MIT.

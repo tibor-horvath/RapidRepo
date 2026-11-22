@@ -10,6 +10,10 @@ public sealed class InMemorySoftDeleteConformanceTests : SoftDeleteConformanceTe
 public sealed class InMemoryAuditConformanceTests : AuditConformanceTests<EfInMemoryConformanceStore>;
 public sealed class InMemoryQueryConformanceTests : QueryConformanceTests<EfInMemoryConformanceStore>;
 public sealed class InMemoryQueryExpressionConformanceTests : QueryExpressionConformanceTests<EfInMemoryConformanceStore>;
+public sealed class InMemoryConcurrencyConformanceTests : ConcurrencyConformanceTests<EfInMemoryConformanceStore>;
+
+// No InMemory ConcurrencyAtomicityConformanceTests: EF Core InMemory has no transactions, so rows written before the
+// conflict stay written. SQLite covers atomicity.
 
 public sealed class SqliteCrudConformanceTests : CrudConformanceTests<EfSqliteConformanceStore>;
 public sealed class SqliteStagedChangesConformanceTests : StagedChangesConformanceTests<EfSqliteConformanceStore>;
@@ -17,3 +21,5 @@ public sealed class SqliteSoftDeleteConformanceTests : SoftDeleteConformanceTest
 public sealed class SqliteAuditConformanceTests : AuditConformanceTests<EfSqliteConformanceStore>;
 public sealed class SqliteQueryConformanceTests : QueryConformanceTests<EfSqliteConformanceStore>;
 public sealed class SqliteQueryExpressionConformanceTests : QueryExpressionConformanceTests<EfSqliteConformanceStore>;
+public sealed class SqliteConcurrencyConformanceTests : ConcurrencyConformanceTests<EfSqliteConformanceStore>;
+public sealed class SqliteConcurrencyAtomicityConformanceTests : ConcurrencyAtomicityConformanceTests<EfSqliteConformanceStore>;
