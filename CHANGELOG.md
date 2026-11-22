@@ -1,5 +1,12 @@
 # Changelog
 
+## [9.2.0](https://github.com/tibor-horvath/RapidRepo/compare/9.1.1...9.2.0) (2026-11-22)
+
+
+### Features
+
+* **concurrency:** add opt-in optimistic concurrency via IVersionedEntity ([#156](https://github.com/tibor-horvath/RapidRepo/issues/156)) ([2328ad5](https://github.com/tibor-horvath/RapidRepo/commit/2328ad5f00ec92e20ab637a45086a7f25bb83423))
+
 ## [9.1.1](https://github.com/tibor-horvath/RapidRepo/compare/9.1.0...9.1.1) (2026-11-20)
 
 
