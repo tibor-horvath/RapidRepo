@@ -2,7 +2,7 @@
 #pragma warning disable RRMIG001
 
 using System.Reflection;
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.EntityFrameworkCore;
 using RapidRepo.EntityFrameworkCore.Tests.Repositories.TestData;
 using RapidRepo.Repositories;

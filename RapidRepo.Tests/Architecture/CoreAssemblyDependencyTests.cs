@@ -1,5 +1,5 @@
 using System.Reflection;
-using FluentAssertions;
+using AwesomeAssertions;
 using RapidRepo.Entities;
 
 namespace RapidRepo.Tests.Architecture;

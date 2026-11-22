@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using RapidRepo.Entities;
 using RapidRepo.Repositories;
 

@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using RapidRepo.Extensions.DependencyInjection.Tests.TestData;
 using RapidRepo.Extensions.DependencyInjection.Tests.TestData.Ambiguous.Provider;

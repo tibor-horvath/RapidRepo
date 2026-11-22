@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+﻿using AwesomeAssertions;
 using Microsoft.EntityFrameworkCore;
 using RapidRepo.EntityFrameworkCore.Tests.Repositories.TestData;
 using RapidRepo.EntityFrameworkCore.Tests.Repositories.WriteRepository.TestData;

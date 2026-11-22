@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using RapidRepo.Repositories;
 
 namespace RapidRepo.Tests.Repositories;

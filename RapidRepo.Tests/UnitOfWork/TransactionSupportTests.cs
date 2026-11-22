@@ -1,5 +1,5 @@
 using System.Data;
-using FluentAssertions;
+using AwesomeAssertions;
 using RapidRepo.Entities;
 using RapidRepo.Repositories.Interfaces;
 using RapidRepo.UnitOfWork;
