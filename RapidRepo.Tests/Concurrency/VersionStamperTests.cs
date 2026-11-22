@@ -39,4 +39,14 @@ public class VersionStamperTests
 
         entity.Version.Should().Be(4);
     }
+
+    [Fact]
+    public void NullEntity_Throws()
+    {
+        var stamp = () => VersionStamper.Stamp(null!);
+        var revert = () => VersionStamper.Revert(null!, 0);
+
+        stamp.Should().Throw<ArgumentNullException>().WithParameterName("entity");
+        revert.Should().Throw<ArgumentNullException>().WithParameterName("entity");
+    }
 }

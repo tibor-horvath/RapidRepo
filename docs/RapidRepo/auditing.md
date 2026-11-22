@@ -58,6 +58,7 @@ A unit of work finds the provider in one of two ways:
 1. **From the `IServiceProvider`** passed to its constructor. A unit of work that already takes one, as the [source generator](../RapidRepo.SourceGenerators/generate-unit-of-work.md) examples do, needs no change:
 
    ```csharp
+   [GenerateUnitOfWork(typeof(AppDbContext))]   // generates Products, required by IAppUnitOfWork
    public partial class AppUnitOfWork(AppDbContext db, IServiceProvider sp)
        : EfUnitOfWork<Guid>(db, Guid.Empty, sp), IAppUnitOfWork;
    ```
@@ -65,8 +66,11 @@ A unit of work finds the provider in one of two ways:
 2. **As a constructor parameter**, for a unit of work that does not take a service provider:
 
    ```csharp
-   public class AppUnitOfWork(AppDbContext db, ICurrentUserProvider<Guid> currentUser)
-       : EfUnitOfWork<Guid>(db, Guid.Empty, serviceProvider: null, timeProvider: null, currentUser), IAppUnitOfWork;
+   public class AppUnitOfWork(AppDbContext db, IProductRepository products, ICurrentUserProvider<Guid> currentUser)
+       : EfUnitOfWork<Guid>(db, Guid.Empty, serviceProvider: null, timeProvider: null, currentUser), IAppUnitOfWork
+   {
+       public IProductRepository Products { get; } = products;
+   }
    ```
 
 A provider passed to the constructor wins over one in the service provider. The service provider is asked at the first commit, not when the unit of work is created. Register the provider with `UseCurrentUserProvider` or `UseCurrentUser` in `AddRapidRepo`; see [Dependency Injection — Current user](../RapidRepo.Extensions.DependencyInjection/dependency-injection.md#current-user).
@@ -125,6 +129,9 @@ protected override bool RequireCurrentUser => true;
 Audit times come from a `TimeProvider`, `TimeProvider.System` by default. Pass your own to make audit times deterministic, for example in tests:
 
 ```csharp
-public class AppUnitOfWork(AppDbContext db, TimeProvider clock)
-    : EfUnitOfWork<Guid>(db, Guid.Empty, serviceProvider: null, timeProvider: clock), IAppUnitOfWork;
+public class AppUnitOfWork(AppDbContext db, IProductRepository products, TimeProvider clock)
+    : EfUnitOfWork<Guid>(db, Guid.Empty, serviceProvider: null, timeProvider: clock), IAppUnitOfWork
+{
+    public IProductRepository Products { get; } = products;
+}
 ```

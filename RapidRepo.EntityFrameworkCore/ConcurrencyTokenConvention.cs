@@ -25,8 +25,9 @@ internal sealed class ConcurrencyTokenConvention : IModelFinalizingConvention
             if (!typeof(IVersionedEntity).IsAssignableFrom(entityType.ClrType))
                 continue;
 
-            // Declared on the type that owns the property, so a hierarchy configures it once.
-            entityType.FindDeclaredProperty(nameof(IVersionedEntity.Version))?.Builder.IsConcurrencyToken(true);
+            // FindProperty also finds a Version inherited from a mapped base type that does not implement the
+            // interface itself; the token is then set on that base type's property, which every type below it shares.
+            entityType.FindProperty(nameof(IVersionedEntity.Version))?.Builder.IsConcurrencyToken(true);
         }
     }
 }

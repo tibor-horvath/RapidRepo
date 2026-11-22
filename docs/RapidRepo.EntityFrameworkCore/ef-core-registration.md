@@ -85,6 +85,7 @@ builder.Services.AddRapidRepo(options =>
 {
     options.UseEntityFrameworkCore<SalesDbContext>();
     options.ScanAssembliesContaining<SalesModuleMarker>();
+    options.RegisterGenericRepositories = true;
     options.UseUnitOfWork<ISalesUnitOfWork, SalesUnitOfWork>();
 });
 
@@ -92,6 +93,7 @@ builder.Services.AddRapidRepo(options =>
 {
     options.UseEntityFrameworkCore<BillingDbContext>();
     options.ScanAssembliesContaining<BillingModuleMarker>();
+    options.RegisterGenericRepositories = true;
     options.UseUnitOfWork<IBillingUnitOfWork, BillingUnitOfWork>();
 });
 ```
@@ -107,19 +109,19 @@ Cannot register a generic repository for 'Invoice' against 'BillingDbContext':
 'IRepository<Invoice, Int32>' is already registered against 'SalesDbContext'. ...
 ```
 
-Two ways forward:
+The check runs whenever `RegisterGenericRepositories` is on, so `RegisterAsSelf` does not avoid it. Turn `RegisterGenericRepositories` off in all but one of the calls whose contexts share the entity, and give those modules their repositories another way:
 
 ```csharp
-// Give each context its own interface, and let scanning register it
-public interface ISalesInvoiceRepository : IRepository<Invoice, int>;
-public class SalesInvoiceRepository(SalesDbContext db)
-    : EfRepository<Invoice, int>(db), ISalesInvoiceRepository;
+// Give the module its own interface, and let scanning register it
+public interface IBillingInvoiceRepository : IRepository<Invoice, int>;
+public class BillingInvoiceRepository(BillingDbContext db)
+    : EfRepository<Invoice, int>(db), IBillingInvoiceRepository;
 
-// Or expose the context-qualified concrete type and inject that
-options.RegisterAsSelf = true;   // registers EfRepository<Invoice, int, SalesDbContext>
+// Or register the context-qualified concrete type yourself, and inject that
+builder.Services.AddScoped<EfRepository<Invoice, int, BillingDbContext>>();
 ```
 
-`RegisterAsSelf` is unambiguous by construction here, since the context is part of the type.
+With `RegisterGenericRepositories` off, that call registers no generic repositories at all, for any entity of its context, and `RegisterAsSelf` adds no `EfRepository<TEntity, TId, TContext>` registrations either. Register every repository that module injects, by scanning or by hand.
 
 ### Repositories must name their own context
 

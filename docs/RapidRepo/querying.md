@@ -70,7 +70,9 @@ Paged<Product> page = await _unitOfWork.Products.GetAllPagedAsync(
 Console.WriteLine($"Page {page.Page} of {page.TotalPages} ({page.TotalCount} total)");
 ```
 
-**Without a sort order, paging orders by `Id`.** Pages are therefore stable and the same on every provider, which also satisfies databases that require an `ORDER BY` for offset paging.
+**Without a sort order, paging orders by `Id`.** The order is therefore deterministic and the same on every provider, which also satisfies databases that require an `ORDER BY` for offset paging.
+
+Each page is a separate offset query, so a deterministic order keeps pages consistent only while the data does not change. A row inserted or deleted between two page requests shifts the offsets, and the next page then repeats or skips rows. When a caller must walk every row exactly once while others write, page by key instead (keyset paging: `condition: p => p.Id > lastId` with `SortOrder<Product>.By(p => p.Id)`), or read from a snapshot.
 
 Pass a `selector` to project each page item:
 

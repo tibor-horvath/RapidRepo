@@ -3,9 +3,13 @@ namespace RapidRepo.Concurrency;
 /// <summary>
 /// The exception a commit throws when it would overwrite or delete a row of an
 /// <see cref="Entities.Interfaces.IVersionedEntity"/> that was changed or deleted by someone else since it was read.
-/// Nothing in the commit is persisted.
 /// </summary>
 /// <remarks>
+/// <para>
+/// On a store that writes a commit atomically, such as a relational database, nothing in the commit is persisted.
+/// The unit of work does not undo writes the store has already made, so on a store without transactions, such as
+/// EF Core InMemory, changes written before the conflict was detected stay written.
+/// </para>
 /// <para>
 /// The unit of work still holds the stale entities, so retrying the same commit fails again. Reload the entities in
 /// a new unit of work (or scope), apply the change again, and commit, or report the conflict to the caller (for

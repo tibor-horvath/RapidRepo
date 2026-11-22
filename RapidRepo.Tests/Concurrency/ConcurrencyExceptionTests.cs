@@ -44,4 +44,14 @@ public class ConcurrencyExceptionTests
         exception.Entities.Should().BeEmpty();
         new ConcurrencyException(Array.Empty<object>()).Message.Should().Be(exception.Message);
     }
+
+    [Fact]
+    public void NullEntities_Throws()
+    {
+        var withEntities = () => new ConcurrencyException((IEnumerable<object>)null!);
+        var withMessage = () => new ConcurrencyException("message", (IEnumerable<object>)null!, innerException: null);
+
+        withEntities.Should().Throw<ArgumentNullException>().WithParameterName("entities");
+        withMessage.Should().Throw<ArgumentNullException>().WithParameterName("entities");
+    }
 }

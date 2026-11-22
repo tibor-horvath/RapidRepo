@@ -17,7 +17,7 @@ public class Product : BaseAuditableEntity<long>, IDeletableEntity
 }
 
 // With user tracking: declare both DeletedAt and DeletedBy
-public class Product : BaseAuditableEntity<long, Guid>, IDeletableEntity<Guid>
+public class Customer : BaseAuditableEntity<long, Guid>, IDeletableEntity<Guid>
 {
     public string Name { get; set; } = string.Empty;
     public DateTime? DeletedAt { get; set; }

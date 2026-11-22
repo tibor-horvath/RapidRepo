@@ -1,6 +1,6 @@
 # Optimistic Concurrency
 
-Implement `IVersionedEntity` to stop concurrent edits from overwriting each other. A commit that would update or delete a row that someone else changed since it was read throws `ConcurrencyException` (namespace `RapidRepo.Concurrency`), and nothing in that commit is saved. Entities that don't implement the interface keep last-write-wins behaviour.
+Implement `IVersionedEntity` to stop concurrent edits from overwriting each other. A commit that would update or delete a row that someone else changed since it was read throws `ConcurrencyException` (namespace `RapidRepo.Concurrency`), and nothing in that commit is saved on a store with transactions, such as any relational database (EF Core InMemory has none, so changes written before the conflict stay written there). Entities that don't implement the interface keep last-write-wins behaviour.
 
 The rules on this page are provider-neutral. With EF Core, also call `configurationBuilder.AddConcurrencyTokens()` in `ConfigureConventions`; see [Optimistic concurrency](../RapidRepo.EntityFrameworkCore/entity-framework-core.md#optimistic-concurrency).
 
@@ -47,6 +47,8 @@ public abstract class AppEntity<TId> : BaseAuditableDeletableEntity<TId, Guid>, 
 | Hard-deleted | Checked |
 
 After a successful commit, the entity holds the new version, so you can return it to the client.
+
+The check identifies the row by its key and version. A store that reuses the key of a deleted versioned entity can let a stale update or delete match the new row once it reaches the same version, so don't reuse the keys of versioned entities. Most generated keys are never reused, but some stores recycle them, such as SQLite's `INTEGER PRIMARY KEY` without `AUTOINCREMENT`.
 
 Don't increment `Version` yourself. Writes made outside the unit of work, such as raw SQL or bulk updates, don't change it either. Increment it there by hand, or concurrent edits won't notice those writes.
 

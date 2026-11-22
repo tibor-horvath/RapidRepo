@@ -86,6 +86,8 @@ For each staged change of an `IVersionedEntity`, a provider must:
 5. Persist nothing from a commit that conflicts, so run the commit in one transaction.
 6. If the commit fails for any reason, call `VersionStamper.Revert(entity, expected)` for every stamped entity.
 
+These predicates identify a row by key and version, so they cannot tell a row from a later one that reuses its key and has reached the same version. RapidRepo leaves key reuse for versioned entities unsupported and documents it as such ([Optimistic Concurrency](concurrency.md#how-the-version-changes)); a provider for a store that reuses keys must add its own row discriminator to the predicates.
+
 The entity's current `Version` is the expected one, whether the entity was loaded or built from a request, so a provider needs no record of the version it read. The `ConcurrencyConformanceTests` check all of this, and `ConcurrencyAtomicityConformanceTests` check step 5.
 
 Report a soft delete as `SoftDeleted` only on the transition from not deleted to deleted, so an edit to an already deleted entity keeps its deletion stamp. `EntityChangeClassifier` applies this rule; it needs the `DeletedAt` the entity had before the change. A change-tracking provider reads its original value. A command-based provider records it the first time it stages the entity, before `StageDeletionChange` calls `applyChange`.

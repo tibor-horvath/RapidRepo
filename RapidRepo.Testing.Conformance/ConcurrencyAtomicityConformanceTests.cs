@@ -38,7 +38,12 @@ public abstract class ConcurrencyAtomicityConformanceTests<TStore> : Conformance
         var commit = () => session.UnitOfWork.Commit();
 
         commit.Should().Throw<ConcurrencyException>();
-        InNewSession(s => s.Tickets().GetById(ids[0]))!.Title.Should().Be("Fresh");
+        var storedFresh = InNewSession(s => s.Tickets().GetById(ids[0]))!;
+        storedFresh.Title.Should().Be("Fresh");
+        storedFresh.Version.Should().Be(0);
+        var storedStale = InNewSession(s => s.Tickets().GetById(ids[1]))!;
+        storedStale.Title.Should().Be("Changed");
+        storedStale.Version.Should().Be(1);
         InNewSession(s => s.Notes().Count()).Should().Be(0);
     }
 }

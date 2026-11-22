@@ -231,8 +231,8 @@ public class ServiceResolutionTests
     }
 
     /// <summary>
-    /// The way out of the conflict above: <c>RegisterAsSelf</c> exposes the context-qualified concrete type,
-    /// so each module can inject the repository for the context it means.
+    /// <c>RegisterAsSelf</c> exposes the context-qualified concrete type. It does not avoid the conflict above,
+    /// which is checked first; only turning <c>RegisterGenericRepositories</c> off for one context does.
     /// </summary>
     [Fact]
     public void UseEntityFrameworkCore_RegisterAsSelf_ExposesTheContextQualifiedRepository()

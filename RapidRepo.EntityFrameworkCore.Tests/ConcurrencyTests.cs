@@ -26,6 +26,25 @@ public class ConcurrencyTests
     }
 
     [Fact]
+    public void AddConcurrencyTokens_MarksAVersionInheritedFromABaseTypeThatDoesNotOptIn()
+    {
+        using var context = Create<InheritedTokenContext>();
+        context.Database.EnsureCreated();
+
+        context.Model.FindEntityType(typeof(VersionedLeaf))!.FindProperty(nameof(VersionedLeaf.Version))!
+            .IsConcurrencyToken.Should().BeTrue();
+
+        var leaf = new VersionedLeaf();
+        context.Add(leaf);
+        new TestUow(context).Commit();
+        leaf.Title = "Edited";
+        context.Update(leaf);
+        new TestUow(context).Commit();
+
+        leaf.Version.Should().Be(1);
+    }
+
+    [Fact]
     public void AddConcurrencyTokens_YieldsToExplicitConfiguration()
     {
         using var context = Create<OptOutContext>();
@@ -130,6 +149,28 @@ public class ConcurrencyTests
     public class Plain : BaseEntity<int>
     {
         public long Version { get; set; }
+    }
+
+    /// <summary>A mapped base type that declares Version without opting in.</summary>
+    public class UnversionedBase : BaseEntity<int>
+    {
+        public string Title { get; set; } = "";
+        public long Version { get; set; }
+    }
+
+    /// <summary>Opts in below the type that declares Version.</summary>
+    public class VersionedLeaf : UnversionedBase, IVersionedEntity;
+
+    public sealed class InheritedTokenContext(DbContextOptions<InheritedTokenContext> options) : DbContext(options)
+    {
+        protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder) =>
+            configurationBuilder.AddConcurrencyTokens();
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<UnversionedBase>();
+            modelBuilder.Entity<VersionedLeaf>();
+        }
     }
 
     public sealed class TokenContext(DbContextOptions<TokenContext> options) : DbContext(options)

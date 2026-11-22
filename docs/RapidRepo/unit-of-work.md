@@ -74,7 +74,7 @@ _unitOfWork.Commit();              // sync
 At commit the unit of work:
 
 - stamps the audit fields, with the user passed to `Commit`, else the one from an `ICurrentUserProvider<TUserKey>`, else its default user key. See [Auditing](auditing.md), including [the current user](auditing.md#the-current-user) and [controlling the clock](auditing.md#controlling-the-clock);
-- checks and increments `Version` on [versioned entities](concurrency.md), and throws `ConcurrencyException` on a conflict;
+- checks `Version` on every update and hard delete of a [versioned entity](concurrency.md), and throws `ConcurrencyException` on a conflict. Updates, soft deletes and restores also increment `Version`; inserts keep the `Version` they are given, and hard deletes don't change it;
 - persists every staged change.
 
 ```csharp
