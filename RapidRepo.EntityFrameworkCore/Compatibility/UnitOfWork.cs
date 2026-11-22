@@ -14,11 +14,18 @@ namespace RapidRepo.UnitOfWork;
 public abstract class UnitOfWork<TUserKey> : EfUnitOfWork<TUserKey>, IDisposable
     where TUserKey : struct
 {
+    /// <summary>Creates a unit of work that commits the changes tracked by <paramref name="dbContext"/>.</summary>
+    /// <param name="dbContext">The context whose changes this unit of work commits.</param>
+    /// <param name="defaultUserKey">The user recorded in audit fields when a commit names none.</param>
     protected UnitOfWork(DbContext dbContext, TUserKey defaultUserKey)
         : base(dbContext, defaultUserKey)
     {
     }
 
+    /// <summary>Creates a unit of work that commits the changes tracked by <paramref name="dbContext"/>.</summary>
+    /// <param name="dbContext">The context whose changes this unit of work commits.</param>
+    /// <param name="defaultUserKey">The user recorded in audit fields when a commit names none.</param>
+    /// <param name="serviceProvider">The service provider custom repositories are resolved from.</param>
     protected UnitOfWork(DbContext dbContext, TUserKey defaultUserKey, IServiceProvider serviceProvider)
         : base(dbContext, defaultUserKey, serviceProvider)
     {

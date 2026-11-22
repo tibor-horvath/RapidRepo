@@ -33,8 +33,10 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
     /// </summary>
     protected DbContext DbContext { get; } = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
 
+    /// <inheritdoc />
     public virtual IQueryable<TEntity> Query(EfReadOptions<TEntity>? options = null) => BuildQuery(options: options);
 
+    /// <inheritdoc />
     public virtual bool ExistsById(TId id, ReadOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(id);
@@ -42,6 +44,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return Untracked(options: options).Any(ById(id));
     }
 
+    /// <inheritdoc />
     public virtual Task<bool> ExistsByIdAsync(
         TId id,
         ReadOptions? options = null,
@@ -52,6 +55,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return Untracked(options: options).AnyAsync(ById(id), cancellationToken);
     }
 
+    /// <inheritdoc />
     public virtual bool Any(Expression<Func<TEntity, bool>> condition, ReadOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(condition);
@@ -59,6 +63,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return Untracked(options: options).Any(condition);
     }
 
+    /// <inheritdoc />
     public virtual Task<bool> AnyAsync(
         Expression<Func<TEntity, bool>> condition,
         ReadOptions? options = null,
@@ -69,15 +74,18 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return Untracked(options: options).AnyAsync(condition, cancellationToken);
     }
 
+    /// <inheritdoc />
     public virtual int Count(Expression<Func<TEntity, bool>>? condition = null, ReadOptions? options = null) =>
         Untracked(condition, options: options).Count();
 
+    /// <inheritdoc />
     public virtual Task<int> CountAsync(
         Expression<Func<TEntity, bool>>? condition = null,
         ReadOptions? options = null,
         CancellationToken cancellationToken = default) =>
         Untracked(condition, options: options).CountAsync(cancellationToken);
 
+    /// <inheritdoc />
     public virtual TEntity? GetById(TId id, ReadOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(id);
@@ -85,6 +93,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return BuildQuery(options: options).FirstOrDefault(ById(id));
     }
 
+    /// <inheritdoc />
     public virtual TResult? GetById<TResult>(
         TId id,
         Expression<Func<TEntity, TResult>> selector,
@@ -96,6 +105,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return Untracked(ById(id), options: options).Select(selector).FirstOrDefault();
     }
 
+    /// <inheritdoc />
     public virtual Task<TEntity?> GetByIdAsync(
         TId id,
         ReadOptions? options = null,
@@ -106,6 +116,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return BuildQuery(options: options).FirstOrDefaultAsync(ById(id), cancellationToken);
     }
 
+    /// <inheritdoc />
     public virtual Task<TResult?> GetByIdAsync<TResult>(
         TId id,
         Expression<Func<TEntity, TResult>> selector,
@@ -118,6 +129,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return Untracked(ById(id), options: options).Select(selector).FirstOrDefaultAsync(cancellationToken);
     }
 
+    /// <inheritdoc />
     public virtual IEnumerable<TEntity> GetByIds(IEnumerable<TId> ids, ReadOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(ids);
@@ -128,6 +140,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return BuildQuery(ByIds(idList), options: options).ToList();
     }
 
+    /// <inheritdoc />
     public virtual IEnumerable<TResult> GetByIds<TResult>(
         IEnumerable<TId> ids,
         Expression<Func<TEntity, TResult>> selector,
@@ -142,6 +155,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return Untracked(ByIds(idList), options: options).Select(selector).ToList();
     }
 
+    /// <inheritdoc />
     public virtual async Task<IEnumerable<TEntity>> GetByIdsAsync(
         IEnumerable<TId> ids,
         ReadOptions? options = null,
@@ -155,6 +169,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return await BuildQuery(ByIds(idList), options: options).ToListAsync(cancellationToken);
     }
 
+    /// <inheritdoc />
     public virtual async Task<IEnumerable<TResult>> GetByIdsAsync<TResult>(
         IEnumerable<TId> ids,
         Expression<Func<TEntity, TResult>> selector,
@@ -170,12 +185,14 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return await Untracked(ByIds(idList), options: options).Select(selector).ToListAsync(cancellationToken);
     }
 
+    /// <inheritdoc />
     public virtual TEntity? GetFirstOrDefault(
         Expression<Func<TEntity, bool>>? condition = null,
         SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null) =>
         BuildQuery(condition, orderBy, options).FirstOrDefault();
 
+    /// <inheritdoc />
     public virtual TResult? GetFirstOrDefault<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
@@ -188,6 +205,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return Untracked(condition, orderBy, options).Select(selector).FirstOrDefault();
     }
 
+    /// <inheritdoc />
     public virtual Task<TEntity?> GetFirstOrDefaultAsync(
         Expression<Func<TEntity, bool>>? condition = null,
         SortOrder<TEntity>? orderBy = null,
@@ -195,6 +213,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         CancellationToken cancellationToken = default) =>
         BuildQuery(condition, orderBy, options).FirstOrDefaultAsync(cancellationToken);
 
+    /// <inheritdoc />
     public virtual Task<TResult?> GetFirstOrDefaultAsync<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
@@ -208,12 +227,14 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return Untracked(condition, orderBy, options).Select(selector).FirstOrDefaultAsync(cancellationToken);
     }
 
+    /// <inheritdoc />
     public virtual TEntity GetFirst(
         Expression<Func<TEntity, bool>>? condition = null,
         SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null) =>
         BuildQuery(condition, orderBy, options).First();
 
+    /// <inheritdoc />
     public virtual TResult GetFirst<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
@@ -226,6 +247,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return Untracked(condition, orderBy, options).Select(selector).First();
     }
 
+    /// <inheritdoc />
     public virtual Task<TEntity> GetFirstAsync(
         Expression<Func<TEntity, bool>>? condition = null,
         SortOrder<TEntity>? orderBy = null,
@@ -233,6 +255,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         CancellationToken cancellationToken = default) =>
         BuildQuery(condition, orderBy, options).FirstAsync(cancellationToken);
 
+    /// <inheritdoc />
     public virtual Task<TResult> GetFirstAsync<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
@@ -246,11 +269,13 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return Untracked(condition, orderBy, options).Select(selector).FirstAsync(cancellationToken);
     }
 
+    /// <inheritdoc />
     public virtual TEntity? GetSingleOrDefault(
         Expression<Func<TEntity, bool>>? condition = null,
         ReadOptions? options = null) =>
         BuildQuery(condition, options: options).SingleOrDefault();
 
+    /// <inheritdoc />
     public virtual TResult? GetSingleOrDefault<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
@@ -262,12 +287,14 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return Untracked(condition, options: options).Select(selector).SingleOrDefault();
     }
 
+    /// <inheritdoc />
     public virtual Task<TEntity?> GetSingleOrDefaultAsync(
         Expression<Func<TEntity, bool>>? condition = null,
         ReadOptions? options = null,
         CancellationToken cancellationToken = default) =>
         BuildQuery(condition, options: options).SingleOrDefaultAsync(cancellationToken);
 
+    /// <inheritdoc />
     public virtual Task<TResult?> GetSingleOrDefaultAsync<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
@@ -280,11 +307,13 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return Untracked(condition, options: options).Select(selector).SingleOrDefaultAsync(cancellationToken);
     }
 
+    /// <inheritdoc />
     public virtual TEntity GetSingle(
         Expression<Func<TEntity, bool>>? condition = null,
         ReadOptions? options = null) =>
         BuildQuery(condition, options: options).Single();
 
+    /// <inheritdoc />
     public virtual TResult GetSingle<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
@@ -296,12 +325,14 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return Untracked(condition, options: options).Select(selector).Single();
     }
 
+    /// <inheritdoc />
     public virtual Task<TEntity> GetSingleAsync(
         Expression<Func<TEntity, bool>>? condition = null,
         ReadOptions? options = null,
         CancellationToken cancellationToken = default) =>
         BuildQuery(condition, options: options).SingleAsync(cancellationToken);
 
+    /// <inheritdoc />
     public virtual Task<TResult> GetSingleAsync<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
@@ -314,12 +345,14 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return Untracked(condition, options: options).Select(selector).SingleAsync(cancellationToken);
     }
 
+    /// <inheritdoc />
     public virtual IEnumerable<TEntity> GetAll(
         Expression<Func<TEntity, bool>>? condition = null,
         SortOrder<TEntity>? orderBy = null,
         ReadOptions? options = null) =>
         BuildQuery(condition, orderBy, options).ToList();
 
+    /// <inheritdoc />
     public virtual IEnumerable<TResult> GetAll<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
@@ -332,6 +365,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return Untracked(condition, orderBy, options).Select(selector).ToList();
     }
 
+    /// <inheritdoc />
     public virtual async Task<IEnumerable<TEntity>> GetAllAsync(
         Expression<Func<TEntity, bool>>? condition = null,
         SortOrder<TEntity>? orderBy = null,
@@ -339,6 +373,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         CancellationToken cancellationToken = default) =>
         await BuildQuery(condition, orderBy, options).ToListAsync(cancellationToken);
 
+    /// <inheritdoc />
     public virtual async Task<IEnumerable<TResult>> GetAllAsync<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
@@ -352,6 +387,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return await Untracked(condition, orderBy, options).Select(selector).ToListAsync(cancellationToken);
     }
 
+    /// <inheritdoc />
     public virtual Paged<TEntity> GetAllPaged(
         Expression<Func<TEntity, bool>>? condition = null,
         SortOrder<TEntity>? orderBy = null,
@@ -366,6 +402,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return Paging.ToPage(query.Count(), Page(query, pageIndex, pageSize).ToList(), pageIndex, pageSize);
     }
 
+    /// <inheritdoc />
     public virtual Paged<TResult> GetAllPaged<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,
@@ -383,6 +420,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return Paging.ToPage(query.Count(), Page(query.Select(selector), pageIndex, pageSize).ToList(), pageIndex, pageSize);
     }
 
+    /// <inheritdoc />
     public virtual async Task<Paged<TEntity>> GetAllPagedAsync(
         Expression<Func<TEntity, bool>>? condition = null,
         SortOrder<TEntity>? orderBy = null,
@@ -400,6 +438,7 @@ public abstract class EfReadOnlyRepository<TEntity, TId>(DbContext dbContext) : 
         return Paging.ToPage(totalCount, results, pageIndex, pageSize);
     }
 
+    /// <inheritdoc />
     public virtual async Task<Paged<TResult>> GetAllPagedAsync<TResult>(
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<TEntity, bool>>? condition = null,

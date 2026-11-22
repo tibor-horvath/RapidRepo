@@ -25,22 +25,30 @@ public abstract class EfWriteRepository<TEntity, TId>(DbContext dbContext) : Wri
     /// </summary>
     protected DbContext DbContext { get; } = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
 
+    /// <inheritdoc />
     protected override void StageInsert(TEntity entity) => DbContext.Set<TEntity>().Add(entity);
 
+    /// <inheritdoc />
     protected override async ValueTask StageInsertAsync(TEntity entity, CancellationToken cancellationToken) =>
         await DbContext.Set<TEntity>().AddAsync(entity, cancellationToken);
 
+    /// <inheritdoc />
     protected override void StageInsertRange(IReadOnlyList<TEntity> entities) => DbContext.Set<TEntity>().AddRange(entities);
 
+    /// <inheritdoc />
     protected override async ValueTask StageInsertRangeAsync(IReadOnlyList<TEntity> entities, CancellationToken cancellationToken) =>
         await DbContext.Set<TEntity>().AddRangeAsync(entities, cancellationToken);
 
+    /// <inheritdoc />
     protected override void StageUpdate(TEntity entity) => DbContext.Set<TEntity>().Update(entity);
 
+    /// <inheritdoc />
     protected override void StageUpdateRange(IReadOnlyList<TEntity> entities) => DbContext.Set<TEntity>().UpdateRange(entities);
 
+    /// <inheritdoc />
     protected override void StageRemove(TEntity entity) => DbContext.Remove(entity);
 
+    /// <inheritdoc />
     protected override void StageRemoveRange(IReadOnlyList<TEntity> entities) => DbContext.RemoveRange(entities);
 
     /// <summary>
@@ -75,6 +83,7 @@ public abstract class EfWriteRepository<TEntity, TId>(DbContext dbContext) : Wri
     protected override TEntity? FindForWrite(TId id, bool includeDeleted) =>
         FindPendingAddition(id) ?? QueryById(id, includeDeleted).FirstOrDefault();
 
+    /// <inheritdoc />
     protected override async ValueTask<TEntity?> FindForWriteAsync(TId id, bool includeDeleted, CancellationToken cancellationToken) =>
         FindPendingAddition(id) ?? await QueryById(id, includeDeleted).FirstOrDefaultAsync(cancellationToken);
 

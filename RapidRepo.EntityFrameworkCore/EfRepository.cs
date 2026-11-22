@@ -17,59 +17,79 @@ public class EfRepository<TEntity, TId> : EfReadOnlyRepository<TEntity, TId>, IE
 {
     private readonly WriteRepository _writeRepository;
 
+    /// <summary>Creates a repository that reads from and stages changes in <paramref name="dbContext"/>.</summary>
+    /// <param name="dbContext">The context the repository reads from and stages changes in.</param>
     public EfRepository(DbContext dbContext)
         : base(dbContext)
     {
         _writeRepository = new WriteRepository(this, dbContext);
     }
 
+    /// <inheritdoc />
     public virtual void Add(TEntity entity) => _writeRepository.Add(entity);
 
+    /// <inheritdoc />
     public virtual void AddRange(IEnumerable<TEntity> entities) => _writeRepository.AddRange(entities);
 
+    /// <inheritdoc />
     public virtual Task AddAsync(TEntity entity, CancellationToken cancellationToken = default) =>
         _writeRepository.AddAsync(entity, cancellationToken);
 
+    /// <inheritdoc />
     public virtual Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default) =>
         _writeRepository.AddRangeAsync(entities, cancellationToken);
 
+    /// <inheritdoc />
     public virtual void Delete(TEntity entity) => _writeRepository.BaseDelete(entity);
 
+    /// <inheritdoc />
     public virtual void DeleteRange(IEnumerable<TEntity> entities) => _writeRepository.DeleteRange(entities);
 
+    /// <inheritdoc />
     public virtual void Restore(TEntity entity) => _writeRepository.BaseRestore(entity);
 
+    /// <inheritdoc />
     public virtual void RestoreRange(IEnumerable<TEntity> entities) => _writeRepository.RestoreRange(entities);
 
+    /// <inheritdoc />
     public virtual void RestoreById(TId id, bool includeDeleted = true) =>
         _writeRepository.RestoreById(id, includeDeleted);
 
+    /// <inheritdoc />
     public virtual Task RestoreByIdAsync(
         TId id,
         bool includeDeleted = true,
         CancellationToken cancellationToken = default) =>
         _writeRepository.RestoreByIdAsync(id, includeDeleted, cancellationToken);
 
+    /// <inheritdoc />
     public virtual void HardDelete(TEntity entity) => _writeRepository.BaseHardDelete(entity);
 
+    /// <inheritdoc />
     public virtual void HardDeleteRange(IEnumerable<TEntity> entities) => _writeRepository.BaseHardDeleteRange(entities);
 
+    /// <inheritdoc />
     public virtual void HardDeleteById(TId id, bool includeDeleted = false) =>
         _writeRepository.HardDeleteById(id, includeDeleted);
 
+    /// <inheritdoc />
     public virtual Task HardDeleteByIdAsync(
         TId id,
         bool includeDeleted = false,
         CancellationToken cancellationToken = default) =>
         _writeRepository.HardDeleteByIdAsync(id, includeDeleted, cancellationToken);
 
+    /// <inheritdoc />
     public virtual void Update(TEntity entity) => _writeRepository.Update(entity);
 
+    /// <inheritdoc />
     public virtual void DeleteById(TId id) => _writeRepository.DeleteById(id);
 
+    /// <inheritdoc />
     public virtual Task DeleteByIdAsync(TId id, CancellationToken cancellationToken = default) =>
         _writeRepository.DeleteByIdAsync(id, cancellationToken);
 
+    /// <inheritdoc />
     public virtual void UpdateRange(IEnumerable<TEntity> entities) => _writeRepository.UpdateRange(entities);
 
     /// <summary>
@@ -126,5 +146,7 @@ public sealed class EfRepository<TEntity, TId, TContext> : EfRepository<TEntity,
     where TId : notnull
     where TContext : DbContext
 {
+    /// <summary>Creates a repository that reads from and stages changes in <paramref name="dbContext"/>.</summary>
+    /// <param name="dbContext">The context the repository reads from and stages changes in.</param>
     public EfRepository(TContext dbContext) : base(dbContext) { }
 }

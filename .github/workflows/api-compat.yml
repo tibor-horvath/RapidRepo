@@ -1,0 +1,92 @@
+name: API Compatibility
+
+# Does this PR break the public API of a shipped package? Packs the base branch
+# as a baseline and runs package validation (APICompat) on the PR against it.
+# A break is allowed only when the PR title marks it with `!`, so release-please
+# bumps the major version.
+#
+# `pull_request` (not `_target`): this builds PR code, so it runs with a
+# read-only token and no secrets. `edited` re-checks after a title change.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+    branches:
+      - master
+      - beta
+      - pre-release
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  api-compat:
+    name: Public API
+    # Description-only edits change nothing this job looks at.
+    if: github.event.action != 'edited' || github.event.changes.title != null
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out PR
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+        with:
+          path: head
+          persist-credentials: false
+
+      - name: Check out base
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: "11.0.x"
+
+      # The base only has to produce packages: skip its own baseline check and
+      # don't fail it on warnings the PR may be fixing.
+      - name: Pack base as baseline
+        run: >-
+          dotnet pack base/RapidRepo.sln -c Release
+          -o "$RUNNER_TEMP/baseline"
+          -p:PackageVersion=0.0.0-baseline
+          -p:DisablePackageBaselineValidation=true
+          -p:WarningsAsErrors=
+          -p:TreatWarningsAsErrors=false
+
+      - name: Validate PR against baseline
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set +e
+          dotnet pack head/RapidRepo.sln -c Release \
+            -o "$RUNNER_TEMP/head" \
+            -p:RapidRepoApiBaselineDir="$RUNNER_TEMP/baseline" \
+            2>&1 | tee "$RUNNER_TEMP/pack.log"
+          status=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$status" -eq 0 ]; then
+            echo "No public API breaks against the base branch."
+            exit 0
+          fi
+
+          # Anything other than an APICompat / package validation error is a
+          # real build failure, whatever the title says.
+          if grep -E ': error ' "$RUNNER_TEMP/pack.log" | grep -Evq 'error (CP|PKV)[0-9]+|API (breaking changes|compatibility errors)'; then
+            echo "::error title=Pack failed::dotnet pack failed for a reason other than API compatibility; see the log above."
+            exit 1
+          fi
+
+          if printf '%s' "$PR_TITLE" | grep -Eq '^[a-z]+(\([^)]*\))?!:'; then
+            echo "::notice title=Breaking change::Public API breaks found; allowed because the PR title is marked with '!'."
+            exit 0
+          fi
+
+          echo "::error title=Unmarked breaking change::This PR breaks the public API (see the CP errors above). Keep the old API (add an overload, [Obsolete] the old member), or mark the PR title with '!' (e.g. 'feat!: ...') and add a note under docs/migration/."
+          exit 1

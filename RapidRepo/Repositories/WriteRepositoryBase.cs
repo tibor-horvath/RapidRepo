@@ -37,42 +37,49 @@ public abstract class WriteRepositoryBase<TEntity, TKey> : IWriteRepository<TEnt
     /// </summary>
     protected static bool SupportsSoftDelete => EntityTraits<TEntity>.SupportsSoftDelete;
 
+    /// <inheritdoc />
     public virtual void Add(TEntity entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
         StageInsert(entity);
     }
 
+    /// <inheritdoc />
     public virtual void AddRange(IEnumerable<TEntity> entities)
     {
         ArgumentNullException.ThrowIfNull(entities);
         StageInsertRange(entities.ToList());
     }
 
+    /// <inheritdoc />
     public virtual async Task AddAsync(TEntity entity, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entity);
         await StageInsertAsync(entity, cancellationToken);
     }
 
+    /// <inheritdoc />
     public virtual async Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entities);
         await StageInsertRangeAsync(entities.ToList(), cancellationToken);
     }
 
+    /// <inheritdoc />
     public virtual void Update(TEntity entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
         StageUpdate(entity);
     }
 
+    /// <inheritdoc />
     public virtual void UpdateRange(IEnumerable<TEntity> entities)
     {
         ArgumentNullException.ThrowIfNull(entities);
         StageUpdateRange(entities.ToList());
     }
 
+    /// <inheritdoc />
     public virtual void Delete(TEntity entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
@@ -86,6 +93,7 @@ public abstract class WriteRepositoryBase<TEntity, TKey> : IWriteRepository<TEnt
         MarkAsDeleted(entity);
     }
 
+    /// <inheritdoc />
     public virtual void DeleteRange(IEnumerable<TEntity> entities)
     {
         ArgumentNullException.ThrowIfNull(entities);
@@ -103,6 +111,7 @@ public abstract class WriteRepositoryBase<TEntity, TKey> : IWriteRepository<TEnt
         }
     }
 
+    /// <inheritdoc />
     public virtual void DeleteById(TKey id)
     {
         ArgumentNullException.ThrowIfNull(id);
@@ -114,6 +123,7 @@ public abstract class WriteRepositoryBase<TEntity, TKey> : IWriteRepository<TEnt
         }
     }
 
+    /// <inheritdoc />
     public virtual async Task DeleteByIdAsync(TKey id, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(id);
@@ -125,6 +135,7 @@ public abstract class WriteRepositoryBase<TEntity, TKey> : IWriteRepository<TEnt
         }
     }
 
+    /// <inheritdoc />
     public virtual void Restore(TEntity entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
@@ -133,6 +144,7 @@ public abstract class WriteRepositoryBase<TEntity, TKey> : IWriteRepository<TEnt
         ClearDeletionMarks(entity);
     }
 
+    /// <inheritdoc />
     public virtual void RestoreRange(IEnumerable<TEntity> entities)
     {
         ArgumentNullException.ThrowIfNull(entities);
@@ -144,6 +156,7 @@ public abstract class WriteRepositoryBase<TEntity, TKey> : IWriteRepository<TEnt
         }
     }
 
+    /// <inheritdoc />
     public virtual void RestoreById(TKey id, bool includeDeleted = true)
     {
         ArgumentNullException.ThrowIfNull(id);
@@ -156,6 +169,7 @@ public abstract class WriteRepositoryBase<TEntity, TKey> : IWriteRepository<TEnt
         }
     }
 
+    /// <inheritdoc />
     public virtual async Task RestoreByIdAsync(
         TKey id,
         bool includeDeleted = true,
@@ -171,18 +185,21 @@ public abstract class WriteRepositoryBase<TEntity, TKey> : IWriteRepository<TEnt
         }
     }
 
+    /// <inheritdoc />
     public virtual void HardDelete(TEntity entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
         StageRemove(entity);
     }
 
+    /// <inheritdoc />
     public virtual void HardDeleteRange(IEnumerable<TEntity> entities)
     {
         ArgumentNullException.ThrowIfNull(entities);
         StageRemoveRange(entities.ToList());
     }
 
+    /// <inheritdoc />
     public virtual void HardDeleteById(TKey id, bool includeDeleted = false)
     {
         ArgumentNullException.ThrowIfNull(id);
@@ -194,6 +211,7 @@ public abstract class WriteRepositoryBase<TEntity, TKey> : IWriteRepository<TEnt
         }
     }
 
+    /// <inheritdoc />
     public virtual async Task HardDeleteByIdAsync(
         TKey id,
         bool includeDeleted = false,
