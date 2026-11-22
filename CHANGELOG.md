@@ -1,5 +1,12 @@
 # Changelog
 
+## [9.4.0](https://github.com/tibor-horvath/RapidRepo/compare/9.3.0...9.4.0) (2026-11-22)
+
+
+### Features
+
+* **tenancy:** add provider-neutral multi-tenancy ([#163](https://github.com/tibor-horvath/RapidRepo/issues/163)) ([20941b7](https://github.com/tibor-horvath/RapidRepo/commit/20941b7f26e9f9c75d138f164b2d4ff640523bfa))
+
 ## [9.3.0](https://github.com/tibor-horvath/RapidRepo/compare/9.2.0...9.3.0) (2026-11-22)
 
 
