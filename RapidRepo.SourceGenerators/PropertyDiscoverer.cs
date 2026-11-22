@@ -88,9 +88,10 @@ internal static class PropertyDiscoverer
             var entityTypeDisplay = entityType.ToDisplayString(RepositoryTypeArgumentFormat);
             var keyTypeDisplay    = keyType.ToDisplayString(RepositoryTypeArgumentFormat);
 
-            var entityNs   = entityType.ContainingNamespace.ToDisplayString();
-            var keyNs      = keyType.ContainingNamespace?.ToDisplayString();
-            var namespaces = new List<string> { "RapidRepo.Repositories.Interfaces", entityNs };
+            var entityNs   = UsingNamespace(entityType.ContainingNamespace);
+            var keyNs      = UsingNamespace(keyType.ContainingNamespace);
+            var namespaces = new List<string> { "RapidRepo.Repositories.Interfaces" };
+            if (entityNs is not null) namespaces.Add(entityNs);
 
             // A key printed as a C# keyword (int, long, string) needs no using; anything printed by name does, also
             // System types such as Guid, or the generated code only compiles with implicit usings.
@@ -130,7 +131,7 @@ internal static class PropertyDiscoverer
                 if (!type.IsType || type.TypeKind != TypeKind.Interface) continue;
                 if (type.IsGenericType) continue;
 
-                var ns = type.ContainingNamespace.ToDisplayString();
+                var ns = UsingNamespace(type.ContainingNamespace) ?? string.Empty;
                 if (!PassesNamespaceFilters(ns, includeNamespaces, excludeNamespaces)) continue;
 
                 // Find the entity and key type via implemented repo interfaces
@@ -185,8 +186,8 @@ internal static class PropertyDiscoverer
                     continue;
                 }
 
-                var ifaceNs    = type.ContainingNamespace.ToDisplayString();
-                var namespaces = new List<string> { ifaceNs };
+                var ifaceNs    = UsingNamespace(type.ContainingNamespace);
+                var namespaces = ifaceNs is null ? new List<string>() : new List<string> { ifaceNs };
 
                 var model = new PropertyModel(propertyName, type.Name, $"ResolveRepository<{type.Name}>()", namespaces);
 
@@ -201,6 +202,11 @@ internal static class PropertyDiscoverer
 
         return byEntity.Values.OrderBy(p => p.Name).ToList();
     }
+
+    // The namespace a using directive needs for a type, or null for the global namespace, which needs none
+    // (and whose display string, "<global namespace>", is not valid C#).
+    private static string? UsingNamespace(INamespaceSymbol? ns) =>
+        ns is null || ns.IsGlobalNamespace ? null : ns.ToDisplayString();
 
     internal static ITypeSymbol? FindBaseEntityKeyType(INamedTypeSymbol entity, INamedTypeSymbol baseEntityDef)
     {

@@ -9,7 +9,7 @@ It gives you the data-layer plumbing most applications rebuild by hand, with con
 ## Features
 
 - `IRepository<TEntity, TId>` plus read-only and write-only variants
-- Unit of Work with a single `CommitAsync()`
+- Unit of Work with a single `CommitAsync()`, and explicit transactions across several commits
 - Base entities with built-in auditing (`CreatedAt`, `CreatedBy`, `ModifiedAt`, `ModifiedBy`)
 - Soft delete (`DeletedAt`, `DeletedBy`) with restore and permanent delete
 - Opt-in optimistic concurrency (`IVersionedEntity`, `ConcurrencyException`)
@@ -71,6 +71,7 @@ public class CatalogService(IProductRepository products, IUnitOfWork<Guid> unitO
 - [Soft delete](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo/soft-delete.md)
 - [Auditing](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo/auditing.md)
 - [Optimistic concurrency](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo/concurrency.md)
+- [Transactions](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo/transactions.md)
 - [API reference](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo/api-reference.md)
 - [Writing a provider](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/RapidRepo/providers.md)
 - [Migrating from 8.x to 9.0](https://github.com/tibor-horvath/RapidRepo/blob/master/docs/migration/8.x-to-9.0.md)

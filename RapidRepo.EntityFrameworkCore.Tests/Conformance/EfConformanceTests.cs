@@ -13,7 +13,7 @@ public sealed class InMemoryQueryExpressionConformanceTests : QueryExpressionCon
 public sealed class InMemoryConcurrencyConformanceTests : ConcurrencyConformanceTests<EfInMemoryConformanceStore>;
 
 // No InMemory ConcurrencyAtomicityConformanceTests: EF Core InMemory has no transactions, so rows written before the
-// conflict stay written. SQLite covers atomicity.
+// conflict stay written. SQLite covers atomicity. No InMemory TransactionConformanceTests either, for the same reason.
 
 public sealed class SqliteCrudConformanceTests : CrudConformanceTests<EfSqliteConformanceStore>;
 public sealed class SqliteStagedChangesConformanceTests : StagedChangesConformanceTests<EfSqliteConformanceStore>;
@@ -23,3 +23,4 @@ public sealed class SqliteQueryConformanceTests : QueryConformanceTests<EfSqlite
 public sealed class SqliteQueryExpressionConformanceTests : QueryExpressionConformanceTests<EfSqliteConformanceStore>;
 public sealed class SqliteConcurrencyConformanceTests : ConcurrencyConformanceTests<EfSqliteConformanceStore>;
 public sealed class SqliteConcurrencyAtomicityConformanceTests : ConcurrencyAtomicityConformanceTests<EfSqliteConformanceStore>;
+public sealed class SqliteTransactionConformanceTests : TransactionConformanceTests<EfSqliteConformanceStore>;

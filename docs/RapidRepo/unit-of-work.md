@@ -26,15 +26,15 @@ public class AppUnitOfWork : EfUnitOfWork<Guid>, IAppUnitOfWork
 {
     public IProductRepository Products { get; }
 
-    public AppUnitOfWork(AppDbContext dbContext, IProductRepository productRepository)
-        : base(dbContext, Guid.Empty)
+    public AppUnitOfWork(AppDbContext dbContext, IProductRepository productRepository, IServiceProvider services)
+        : base(dbContext, Guid.Empty, services)
     {
         Products = productRepository ?? throw new ArgumentNullException(nameof(productRepository));
     }
 }
 ```
 
-The repositories must share the unit of work's changes. With EF Core, that means they use the same `DbContext` instance, which is what a scoped DI registration gives you.
+Pass the `IServiceProvider` so the unit of work can find the [current user](auditing.md#the-current-user) and the `RequireCurrentUser` setting registered in `AddRapidRepo`; without it, those settings are ignored. The repositories must share the unit of work's changes. With EF Core, that means they use the same `DbContext` instance, which is what a scoped DI registration gives you.
 
 ---
 
@@ -45,7 +45,7 @@ Instead of injecting each repository through the constructor, use the `GetReposi
 ```csharp
 public class AppUnitOfWork : EfUnitOfWork<Guid>
 {
-    public AppUnitOfWork(AppDbContext dbContext) : base(dbContext, Guid.Empty) { }
+    public AppUnitOfWork(AppDbContext dbContext, IServiceProvider services) : base(dbContext, Guid.Empty, services) { }
 
     public IRepository<Employee, int> Employees => GetRepository<Employee, int>();
     public IRepository<Product, long> Products  => GetRepository<Product, long>();
@@ -80,6 +80,8 @@ At commit the unit of work:
 ```csharp
 await _unitOfWork.CommitAsync(userId: currentUserId);
 ```
+
+Each commit is its own transaction. To make several commits succeed or fail together, run them in `ExecuteInTransactionAsync`; see [Transactions](transactions.md).
 
 ---
 

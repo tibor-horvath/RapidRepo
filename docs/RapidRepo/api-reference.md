@@ -45,7 +45,7 @@ IEnumerable<Product> active = await _unitOfWork.Products.GetAllAsync(
 
 ### GetAllPaged
 
-Returns a `Paged<TEntity>`, or a `Paged<TResult>` when a selector is supplied. The page index is 1-based.
+Returns a `Paged<TEntity>` (namespace `RapidRepo.Dtos`), or a `Paged<TResult>` when a selector is supplied. The page index is 1-based. **`pageIndex` defaults to `1` and `pageSize` to `10`**, so a call without them returns only the first 10 rows.
 
 ```csharp
 Paged<Product> page = await _unitOfWork.Products.GetAllPagedAsync(
@@ -113,6 +113,7 @@ int count = await _unitOfWork.Products.CountAsync(p => p.IsActive);
 | `condition` | `Expression<Func<TEntity, bool>>?` | `null` | Filter predicate |
 | `orderBy` | `SortOrder<TEntity>?` | `null` | Sort order |
 | `options` | `ReadOptions?` | `null` (`ReadOptions.Default`) | Read options; providers accept their own subclass |
+| `pageIndex` / `pageSize` | `int` | `1` / `10` | Paging, on `GetAllPaged` only |
 | `selector` | `Expression<Func<TEntity, TResult>>` | — | Projection, on the selector overloads |
 
 Which methods take which parameters:
@@ -190,5 +191,7 @@ The projection overloads that also take a condition (`GetAll`, `GetAllPaged`, `G
 |---|---|
 | `CommitAsync(userId?, cancellationToken)` | Stamps audit fields and versions, and persists every staged change. Throws `ConcurrencyException` on a conflict of an `IVersionedEntity` |
 | `Commit(userId?)` | Synchronous version of `CommitAsync` |
+| `ExecuteInTransactionAsync(operation, isolationLevel?, cancellationToken)` | Runs `operation` in a transaction: commits it when `operation` completes, rolls it back when it throws. An overload returns `operation`'s result. Joins a transaction that is already open |
+| `BeginTransactionAsync(isolationLevel?, cancellationToken)` | Opens a transaction by hand and returns an `IUnitOfWorkTransaction` (`CommitAsync`, `RollbackAsync`; disposing without commit rolls back). Never retried |
 
-Without a `userId`, the audit user comes from the `ICurrentUserProvider<TUserKey>`, if any, and otherwise is the default user key. See [Auditing](auditing.md) for the audit rules and [the current user](auditing.md#the-current-user), and [Optimistic Concurrency](concurrency.md) for conflicts.
+Without a `userId`, the audit user comes from the `ICurrentUserProvider<TUserKey>`, if any, and otherwise is the default user key. See [Auditing](auditing.md) for the audit rules and [the current user](auditing.md#the-current-user), [Optimistic Concurrency](concurrency.md) for conflicts, and [Transactions](transactions.md) for grouping commits. A unit of work whose provider doesn't support transactions throws `NotSupportedException` from the transaction members.

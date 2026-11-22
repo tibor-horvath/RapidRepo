@@ -27,7 +27,8 @@ Extends `BaseEntity<TId>` with timestamp-only audit fields. The Unit of Work set
 |---|---|---|
 | `CreatedAt` | `DateTime` | Insert |
 | `ModifiedAt` | `DateTime?` | Update |
-| `DeletedAt` | `DateTime?` | Soft delete |
+
+This variant has no `DeletedAt`. For soft delete, use `BaseAuditableDeletableEntity<TId>` or add `IDeletableEntity`; see [Soft Delete](soft-delete.md).
 
 ```csharp
 public class Product : BaseAuditableEntity<long>

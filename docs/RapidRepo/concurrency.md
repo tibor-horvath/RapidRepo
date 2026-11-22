@@ -94,6 +94,8 @@ catch (ConcurrencyException)
 }
 ```
 
+Inside a [transaction](transactions.md), a conflict rolls back every commit the transaction made, not only the one that failed.
+
 ---
 
 ## Implementing it in a provider

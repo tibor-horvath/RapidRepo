@@ -231,7 +231,8 @@ For a one-liner, use a delegate. It runs with the service provider of the unit o
 
 ```csharp
 options.UseCurrentUser<Guid>(sp =>
-    sp.GetRequiredService<IHttpContextAccessor>().HttpContext?.User.GetUserId());
+    Guid.TryParse(sp.GetRequiredService<IHttpContextAccessor>().HttpContext?.User
+        .FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null);
 ```
 
 - The provider is registered with `Lifetime`, the lifetime of the units of work, so a scoped unit of work gets a scoped provider that can depend on per-request services. With a `Singleton` lifetime, the singleton misuse warning or error mentions the provider too.
@@ -239,6 +240,8 @@ options.UseCurrentUser<Guid>(sp =>
 - A registration the application already made for `ICurrentUserProvider<TUserKey>` takes precedence.
 
 Set `RequireCurrentUser = true` to make a commit with no user throw, instead of stamping the default user key, when it would stamp a user field. It registers `CurrentUserOptions`, which the unit of work reads from the service provider passed to its constructor.
+
+> **The unit of work must take an `IServiceProvider`.** Both the current-user provider and `RequireCurrentUser` reach the unit of work through the `IServiceProvider` passed to its base constructor, for example `EfUnitOfWork<Guid>(db, Guid.Empty, serviceProvider)`. A unit of work constructed without one ignores these settings without an error, and stamps the default user key.
 
 ---
 

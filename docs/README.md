@@ -18,6 +18,7 @@ New to RapidRepo? Start with the [Quick Start](../README.md#quick-start), then r
 | [Soft Delete](RapidRepo/soft-delete.md) | `IDeletableEntity`, reading deleted rows, restore, permanent removal |
 | [Auditing](RapidRepo/auditing.md) | Audit stamping rules, the current user, strict mode, the clock |
 | [Optimistic Concurrency](RapidRepo/concurrency.md) | `IVersionedEntity`, updates from a client, handling conflicts |
+| [Transactions](RapidRepo/transactions.md) | Grouping commits, nested calls, retries, opening a transaction by hand |
 
 ## Reference
 
@@ -30,7 +31,7 @@ New to RapidRepo? Start with the [Quick Start](../README.md#quick-start), then r
 
 | Package | Page | What it covers |
 |---|---|---|
-| `RapidRepo.EntityFrameworkCore` | [EF Core](RapidRepo.EntityFrameworkCore/entity-framework-core.md) | `EfRepository`, `EfUnitOfWork`, `EfReadOptions`, custom queries, query filters, concurrency tokens |
+| `RapidRepo.EntityFrameworkCore` | [EF Core](RapidRepo.EntityFrameworkCore/entity-framework-core.md) | `EfRepository`, `EfUnitOfWork`, `EfReadOptions`, custom queries, query filters, concurrency tokens, transactions |
 | `RapidRepo.EntityFrameworkCore` | [EF Core registration](RapidRepo.EntityFrameworkCore/ef-core-registration.md) | `UseEntityFrameworkCore`, generic repositories per `DbSet`, multiple contexts |
 | `RapidRepo.Extensions.DependencyInjection` | [Dependency Injection](RapidRepo.Extensions.DependencyInjection/dependency-injection.md) | `AddRapidRepo`, scanning, filters, lifetime, the current user, providers |
 | `RapidRepo.SourceGenerators` | [Generated Unit of Work](RapidRepo.SourceGenerators/generate-unit-of-work.md) | `[GenerateUnitOfWork]`, attribute reference, diagnostics |

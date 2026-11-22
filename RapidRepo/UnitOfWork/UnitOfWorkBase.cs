@@ -1,6 +1,7 @@
 using RapidRepo.Auditing;
 using RapidRepo.Entities;
 using RapidRepo.Repositories.Interfaces;
+using System.Data;
 
 namespace RapidRepo.UnitOfWork;
 
@@ -105,6 +106,29 @@ public abstract class UnitOfWorkBase<TUserKey> : IUnitOfWork<TUserKey>
     public Task CommitAsync(TUserKey? userId = null, CancellationToken cancellationToken = default) =>
         CommitCoreAsync(ResolveUserId(userId), cancellationToken);
 
+    /// <inheritdoc />
+    public Task ExecuteInTransactionAsync(
+        Func<CancellationToken, Task> operation,
+        IsolationLevel? isolationLevel = null,
+        CancellationToken cancellationToken = default) =>
+        ExecuteInTransactionAsync(TransactionOperations.WithoutResult(operation), isolationLevel, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<TResult> ExecuteInTransactionAsync<TResult>(
+        Func<CancellationToken, Task<TResult>> operation,
+        IsolationLevel? isolationLevel = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        return ExecuteInTransactionCoreAsync(operation, isolationLevel, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<IUnitOfWorkTransaction> BeginTransactionAsync(
+        IsolationLevel? isolationLevel = null,
+        CancellationToken cancellationToken = default) =>
+        BeginTransactionCoreAsync(isolationLevel, cancellationToken);
+
     /// <summary>
     /// Resolves the commit's audit user: the explicit <paramref name="userId"/>, else the current-user provider,
     /// else <see langword="null"/>, which <see cref="Auditor"/> stamps as the default user key (or rejects in
@@ -182,4 +206,57 @@ public abstract class UnitOfWorkBase<TUserKey> : IUnitOfWork<TUserKey>
     /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
     protected abstract Task CommitCoreAsync(TUserKey? userId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Opens a transaction, or returns <see cref="JoinedTransaction.Instance"/> when one is already open. Override it
+    /// to support transactions; both <c>BeginTransactionAsync</c> and <c>ExecuteInTransactionAsync</c> build on it.
+    /// </summary>
+    /// <param name="isolationLevel">The isolation level, or <see langword="null"/> for the database's default.</param>
+    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
+    /// <returns>The transaction.</returns>
+    /// <exception cref="NotSupportedException">Always, unless overridden.</exception>
+    protected virtual Task<IUnitOfWorkTransaction> BeginTransactionCoreAsync(
+        IsolationLevel? isolationLevel,
+        CancellationToken cancellationToken) =>
+        throw TransactionErrors.NotSupported(GetType());
+
+    /// <summary>
+    /// Runs <paramref name="operation"/> in a transaction from <see cref="BeginTransactionCoreAsync"/>. Override it
+    /// to add what the provider needs around the transaction, such as retries on transient failures.
+    /// </summary>
+    /// <typeparam name="TResult">The type of the result.</typeparam>
+    /// <param name="operation">The work to run in the transaction.</param>
+    /// <param name="isolationLevel">The isolation level, or <see langword="null"/> for the database's default.</param>
+    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
+    /// <returns>The result of <paramref name="operation"/>.</returns>
+    protected virtual async Task<TResult> ExecuteInTransactionCoreAsync<TResult>(
+        Func<CancellationToken, Task<TResult>> operation,
+        IsolationLevel? isolationLevel,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await BeginTransactionCoreAsync(isolationLevel, cancellationToken);
+        return await RunInTransactionAsync(transaction, operation, cancellationToken);
+    }
+
+    /// <summary>
+    /// Runs <paramref name="operation"/> and commits <paramref name="transaction"/> when it completes. When it
+    /// throws, the transaction is left uncommitted, so disposing it rolls it back.
+    /// </summary>
+    /// <typeparam name="TResult">The type of the result.</typeparam>
+    /// <param name="transaction">The open transaction. The caller disposes it.</param>
+    /// <param name="operation">The work to run in the transaction.</param>
+    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
+    /// <returns>The result of <paramref name="operation"/>.</returns>
+    protected static async Task<TResult> RunInTransactionAsync<TResult>(
+        IUnitOfWorkTransaction transaction,
+        Func<CancellationToken, Task<TResult>> operation,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(transaction);
+        ArgumentNullException.ThrowIfNull(operation);
+
+        var result = await operation(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return result;
+    }
 }

@@ -1,0 +1,28 @@
+name: Feature request
+description: Suggest a new feature or a change in behaviour
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do, and what makes it hard with RapidRepo today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: The API or behaviour you'd like, ideally with a short code example.
+      render: csharp
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you use today, for example Query() or the DbContext.
+  - type: checkboxes
+    id: provider-neutral
+    attributes:
+      label: Provider neutrality
+      options:
+        - label: This could work the same way for providers other than EF Core
