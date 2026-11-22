@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/tibor-horvath/RapidRepo/blob/master/docs/README.md
+    about: Check the docs for setup, querying, soft delete, auditing and transactions.
+  - name: Report a security vulnerability
+    url: https://github.com/tibor-horvath/RapidRepo/security/advisories/new
+    about: Report security issues privately, not as a public issue.

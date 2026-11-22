@@ -7,9 +7,36 @@
 
 [![Build](https://github.com/tibor-horvath/RapidRepo/actions/workflows/dotnet-build.yml/badge.svg)](https://github.com/tibor-horvath/RapidRepo/actions/workflows/dotnet-build.yml)
 [![Release](https://github.com/tibor-horvath/RapidRepo/actions/workflows/dotnet-release.yml/badge.svg)](https://github.com/tibor-horvath/RapidRepo/actions/workflows/dotnet-release.yml)
+[![NuGet](https://img.shields.io/nuget/v/RapidRepo.svg?logo=nuget)](https://www.nuget.org/packages/RapidRepo)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Built by Tibor Horváth](https://tiborhorvath.dev/badge/built-by-compact.svg)](https://tiborhorvath.dev)
 
 RapidRepo is a repository and Unit of Work implementation for .NET applications. It gives you a clean, consistent data access layer for common CRUD operations, with auditing, soft delete and paging built in. The contracts are provider-neutral; Entity Framework Core is the provider available today.
+
+## At a glance
+
+```csharp
+// Filter, sort and page in one call
+Paged<Product> page = await uow.Products.GetAllPagedAsync(
+    p => p.Price > 10, SortOrder<Product>.By(p => p.Name), pageIndex: 1, pageSize: 20);
+
+// Soft delete: sets DeletedAt instead of removing the row; reads skip it from now on
+uow.Products.Delete(product);
+
+// One commit stamps CreatedBy/ModifiedAt/DeletedBy… with the user and a single timestamp
+await uow.CommitAsync(currentUserId);
+
+// Several commits that succeed or fail together, safe with EF Core's EnableRetryOnFailure
+await uow.ExecuteInTransactionAsync(async ct =>
+{
+    await uow.Orders.AddAsync(order, ct);
+    await uow.CommitAsync(cancellationToken: ct);     // order.Id is now set
+    await uow.Invoices.AddAsync(new Invoice { OrderId = order.Id }, ct);
+    await uow.CommitAsync(cancellationToken: ct);
+});
+```
+
+The [Quick Start](#quick-start) shows the setup behind `uow`.
 
 ## Why RapidRepo?
 
@@ -17,6 +44,8 @@ Most data layers end up rebuilding the same plumbing: setting `CreatedBy` and `M
 
 - **Auditing in one place.** `CommitAsync` stamps the created and modified fields of auditable entities (`IAuditableEntity`, `BaseAuditableEntity`) and the deleted fields of soft-deletable ones with the committing user (or the Unit of Work's default user) and one timestamp per commit. The time comes from a `TimeProvider` that tests can replace. Services don't set these fields by hand, as long as they save through the Unit of Work and not `DbContext.SaveChanges()`.
 - **Soft delete you opt into per entity.** For entities that implement `IDeletableEntity` (or derive from `BaseAuditableDeletableEntity`), `Delete` sets `DeletedAt` instead of removing the row. `Restore` and `HardDelete` are explicit operations. Other entities are deleted normally. Reads exclude deleted rows unless you pass `IncludeDeleted`; with EF Core, you turn this on once with `modelBuilder.AddSoftDeleteQueryFilters()`.
+- **Transactions that survive retries.** `ExecuteInTransactionAsync` makes several commits succeed or fail together. It runs inside EF Core's execution strategy, so it works with `EnableRetryOnFailure`, where a hand-opened transaction would throw. Nested calls join the outer transaction, so services that each use one can call each other. See [Transactions](docs/RapidRepo/transactions.md).
+- **Lost updates caught, not silently overwritten.** Entities that implement `IVersionedEntity` get a version that is checked and incremented at commit. A stale update throws a provider-neutral `ConcurrencyException`, which you can map to HTTP 409 without catching EF Core types. See [Optimistic Concurrency](docs/RapidRepo/concurrency.md).
 - **Your domain can stay free of EF Core.** Entities, repository interfaces and the Unit of Work interface only need the `RapidRepo` contracts package, which has no dependencies. In a layered solution, only the infrastructure project that installs `RapidRepo.EntityFrameworkCore` references EF Core, and the interfaces your services use are easy to mock.
 - **A specified contract, not just an implementation.** Write, soft-delete, audit and query semantics are pinned down by a provider-neutral xUnit conformance suite in this repository. The EF Core provider runs it, and a new provider can run it to prove it behaves the same way behind the same interfaces. See [Writing a provider](docs/RapidRepo/providers.md).
 - **EF Core is still there for hard queries.** When the contract isn't enough, `EfReadOptions` adds includes, tracking and split queries, `Query()` returns an `IQueryable`, and the `DbContext` is still yours.
@@ -48,12 +77,12 @@ It is, and RapidRepo builds on it rather than hiding it. What it adds is a small
 
 ## Packages
 
-| Package | What it contains |
-|---|---|
-| `RapidRepo` | Entities, repository and Unit of Work contracts, `ReadOptions`, `SortOrder<T>`, audit and soft-delete rules. No dependencies |
-| [`RapidRepo.EntityFrameworkCore`](docs/RapidRepo.EntityFrameworkCore/entity-framework-core.md) | The EF Core provider: `EfRepository`, `EfUnitOfWork`, `EfReadOptions`, `AddSoftDeleteQueryFilters()`, `UseEntityFrameworkCore<TContext>()` |
-| [`RapidRepo.Extensions.DependencyInjection`](docs/RapidRepo.Extensions.DependencyInjection/dependency-injection.md) | `AddRapidRepo(...)`: scans assemblies and registers repositories and the Unit of Work |
-| [`RapidRepo.SourceGenerators`](docs/RapidRepo.SourceGenerators/generate-unit-of-work.md) | `[GenerateUnitOfWork]`: emits repository properties and a companion interface on your `partial` Unit of Work class |
+| Package | Version | Downloads | What it contains |
+|---|---|---|---|
+| `RapidRepo` | [![NuGet](https://img.shields.io/nuget/v/RapidRepo.svg)](https://www.nuget.org/packages/RapidRepo) | [![Downloads](https://img.shields.io/nuget/dt/RapidRepo.svg)](https://www.nuget.org/packages/RapidRepo) | Entities, repository and Unit of Work contracts, `ReadOptions`, `SortOrder<T>`, audit and soft-delete rules. No dependencies |
+| [`RapidRepo.EntityFrameworkCore`](docs/RapidRepo.EntityFrameworkCore/entity-framework-core.md) | [![NuGet](https://img.shields.io/nuget/v/RapidRepo.EntityFrameworkCore.svg)](https://www.nuget.org/packages/RapidRepo.EntityFrameworkCore) | [![Downloads](https://img.shields.io/nuget/dt/RapidRepo.EntityFrameworkCore.svg)](https://www.nuget.org/packages/RapidRepo.EntityFrameworkCore) | The EF Core provider: `EfRepository`, `EfUnitOfWork`, `EfReadOptions`, `AddSoftDeleteQueryFilters()`, `UseEntityFrameworkCore<TContext>()` |
+| [`RapidRepo.Extensions.DependencyInjection`](docs/RapidRepo.Extensions.DependencyInjection/dependency-injection.md) | [![NuGet](https://img.shields.io/nuget/v/RapidRepo.Extensions.DependencyInjection.svg)](https://www.nuget.org/packages/RapidRepo.Extensions.DependencyInjection) | [![Downloads](https://img.shields.io/nuget/dt/RapidRepo.Extensions.DependencyInjection.svg)](https://www.nuget.org/packages/RapidRepo.Extensions.DependencyInjection) | `AddRapidRepo(...)`: scans assemblies and registers repositories and the Unit of Work |
+| [`RapidRepo.SourceGenerators`](docs/RapidRepo.SourceGenerators/generate-unit-of-work.md) | [![NuGet](https://img.shields.io/nuget/v/RapidRepo.SourceGenerators.svg)](https://www.nuget.org/packages/RapidRepo.SourceGenerators) | [![Downloads](https://img.shields.io/nuget/dt/RapidRepo.SourceGenerators.svg)](https://www.nuget.org/packages/RapidRepo.SourceGenerators) | `[GenerateUnitOfWork]`: emits repository properties and a companion interface on your `partial` Unit of Work class |
 
 For an EF Core application, one package brings in the core and the DI extension:
 
@@ -139,48 +168,40 @@ Without the generator, write the property yourself: `public IRepository<Product,
 
 ### Custom repositories and a typed Unit of Work
 
-When you need query methods beyond standard CRUD, write a repository for that entity and let `AddRapidRepo` find it by scanning. Entities without a custom repository can still use the generic one through `GetRepository<TEntity, TKey>()` on the Unit of Work.
+When you need query methods beyond standard CRUD, write a repository for that entity and let `AddRapidRepo` find it by scanning. The entity and `AppDbContext` are the same as in the minimal setup; only the repository and the registration are new. With the generator, the `Products` property now uses `IProductRepository`:
 
 ```csharp
-using Microsoft.EntityFrameworkCore;
-using RapidRepo.Entities;
-using RapidRepo.EntityFrameworkCore;
-using RapidRepo.Extensions;
 using RapidRepo.Repositories;              // SortOrder<T>
 using RapidRepo.Repositories.Interfaces;   // IRepository<TEntity, TKey>
-using RapidRepo.UnitOfWork;
 
-namespace MyApp.Data;
-
-// 1. Define an entity
-public class Product : BaseAuditableDeletableEntity<long, Guid>
-{
-    public string Name { get; set; } = string.Empty;
-    public decimal Price { get; set; }
-}
-
-// 2. Map it, with soft-deleted rows filtered out by default
-public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
-{
-    public DbSet<Product> Products => Set<Product>();
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-        => modelBuilder.AddSoftDeleteQueryFilters();
-}
-
-// 3. Custom repository: only needed for methods beyond standard CRUD
+// 1. Custom repository: only needed for methods beyond standard CRUD
 public interface IProductRepository : IRepository<Product, long>
 {
-    Task<IEnumerable<Product>> GetCheapestAsync(int count);
+    Task<IList<Product>> GetCheapestAsync(int count);
 }
 
 public class ProductRepository(AppDbContext context) : EfRepository<Product, long>(context), IProductRepository
 {
-    public async Task<IEnumerable<Product>> GetCheapestAsync(int count)
+    public async Task<IList<Product>> GetCheapestAsync(int count)
         => (await GetAllPagedAsync(orderBy: SortOrder<Product>.By(p => p.Price), pageSize: count)).Results;
 }
 
-// 4. Create a Unit of Work
+// 2. Register in DI (Program.cs): scan the assembly that contains the repository
+builder.Services.AddRapidRepo(options =>
+{
+    options.UseEntityFrameworkCore<AppDbContext>();
+    options.ScanAssembliesContaining<ProductRepository>();
+    options.UseUnitOfWork<AppUnitOfWork>();
+});
+
+// 3. Use it through the Unit of Work
+var cheapest = await unitOfWork.Products.GetCheapestAsync(5);
+```
+
+<details>
+<summary>Without the source generator: write the Unit of Work by hand</summary>
+
+```csharp
 public interface IAppUnitOfWork : IUnitOfWork<Guid>
 {
     IProductRepository Products { get; }
@@ -191,31 +212,11 @@ public class AppUnitOfWork(AppDbContext dbContext, IProductRepository products, 
 {
     public IProductRepository Products { get; } = products;
 }
-
-// 5. Register in DI (Program.cs)
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
-
-builder.Services.AddRapidRepo(options =>
-{
-    options.UseEntityFrameworkCore<AppDbContext>();
-    options.ScanAssembliesContaining<ProductRepository>();
-    options.UseUnitOfWork<AppUnitOfWork>();        // interface auto-detected
-});
-
-// 6. Use in a service
-public class ProductService(IAppUnitOfWork unitOfWork)
-{
-    public Task<IEnumerable<Product>> GetActiveAsync()
-        => unitOfWork.Products.GetAllAsync(p => p.Price > 0, SortOrder<Product>.By(p => p.Name));
-
-    public async Task CreateAsync(Product product, Guid currentUser)
-    {
-        await unitOfWork.Products.AddAsync(product);
-        await unitOfWork.CommitAsync(currentUser);
-    }
-}
 ```
+
+`UseUnitOfWork<AppUnitOfWork>()` detects `IAppUnitOfWork` and registers the class under it. Entities without a property can still use the generic repository through `GetRepository<TEntity, TKey>()`.
+
+</details>
 
 ## Documentation
 
@@ -240,6 +241,10 @@ The documentation is written with AI assistance and reviewed by the maintainer. 
 | RapidRepo.Extensions.DependencyInjection | [Dependency Injection](docs/RapidRepo.Extensions.DependencyInjection/dependency-injection.md) | `AddRapidRepo`, scanning options, filters, lifetime, providers |
 | RapidRepo.SourceGenerators | [Generated Unit of Work](docs/RapidRepo.SourceGenerators/generate-unit-of-work.md) | `[GenerateUnitOfWork]` source generator |
 | — | [Migrating from 8.x to 9.0](docs/migration/8.x-to-9.0.md) | Package split, renamed types, read options, behaviour changes |
+
+## Contributing
+
+Issues and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). Behaviour changes come with a test in the conformance suite, so every provider is held to them. Releases follow [Semantic Versioning](https://semver.org/), and the [changelog](CHANGELOG.md) lists every change. To report a security issue, see [SECURITY.md](SECURITY.md).
 
 ## License
 

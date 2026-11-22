@@ -1,0 +1,54 @@
+name: Bug report
+description: Something in RapidRepo doesn't behave as documented
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Security issues go through [private reporting](https://github.com/tibor-horvath/RapidRepo/security/advisories/new), not here.
+  - type: dropdown
+    id: package
+    attributes:
+      label: Package
+      multiple: true
+      options:
+        - RapidRepo
+        - RapidRepo.EntityFrameworkCore
+        - RapidRepo.Extensions.DependencyInjection
+        - RapidRepo.SourceGenerators
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: RapidRepo version
+      placeholder: "9.2.0"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: .NET, EF Core and database provider versions
+      placeholder: ".NET 10, EF Core 10.0.1, SQL Server"
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: The entity, the calls you make and anything relevant from your DbContext or DI setup.
+      render: csharp
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: Link the docs page that describes it, if there is one.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: Include the exception and stack trace if there is one.
+    validations:
+      required: true
