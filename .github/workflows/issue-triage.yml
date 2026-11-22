@@ -57,10 +57,14 @@ jobs:
             printf 'Body:\n%s\n' "$ISSUE_BODY" | head -c 12000
           } > "$RUNNER_TEMP/issue.txt"
 
+      # GitHub Models occasionally answers with a non-JSON body (e.g. a bare
+      # "OK"), which makes the action throw before our own JSON check runs.
+      # Retry once, then skip triage instead of failing the run.
       - name: Classify issue
         id: ai
+        continue-on-error: true
         uses: actions/ai-inference@a7805884c80886efc241e94a5351df715968a0ad # v2.1.1
-        with:
+        with: &classify
           model: openai/gpt-4o-mini
           temperature: "0"
           max-completion-tokens: "300"
@@ -92,12 +96,24 @@ jobs:
             includes a clear minimal reproduction and the actual result, leave it empty.
             For a question or a clear enhancement, usually leave it empty.
 
+      - name: Classify issue (retry)
+        id: ai_retry
+        if: steps.ai.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/ai-inference@a7805884c80886efc241e94a5351df715968a0ad # v2.1.1
+        with: *classify
+
+      - name: Report skipped triage
+        if: steps.ai.outcome == 'failure' && steps.ai_retry.outcome != 'success'
+        run: echo "::warning::GitHub Models did not return a usable response; skipping triage."
+
       - name: Apply labels
+        if: steps.ai.outcome == 'success' || steps.ai_retry.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           ISSUE: ${{ github.event.issue.number }}
-          RESPONSE_FILE: ${{ steps.ai.outputs.response-file }}
+          RESPONSE_FILE: ${{ steps.ai.outputs.response-file || steps.ai_retry.outputs.response-file }}
           EXISTING: ${{ join(github.event.issue.labels.*.name, ',') }}
           ACTION: ${{ github.event.action }}
         run: |
