@@ -13,6 +13,8 @@ internal static class TenantReachability
 {
     private static readonly ConditionalWeakTable<IEntityType, IReadOnlyList<IEntityType>> Reachable = new();
 
+    private static readonly ConditionalWeakTable<IModel, StrongBox<bool>> ModelsWithTenantData = new();
+
     /// <summary>
     /// Gets the entity types a query rooted at <paramref name="entityType"/> can read, <paramref name="entityType"/>
     /// included.
@@ -21,10 +23,14 @@ internal static class TenantReachability
         Reachable.GetValue(entityType, Walk);
 
     /// <summary>
-    /// Gets a value indicating whether a query rooted at <paramref name="entityType"/> can read a tenant entity.
+    /// Gets a value indicating whether <paramref name="model"/> maps a tenant entity. Lifting every filter of a query
+    /// in such a model is never safe: the caller can join any tenant entity set into it, and EF Core lifts filters for
+    /// the whole query, joins included.
     /// </summary>
-    public static bool ReachesTenantData(IEntityType entityType) =>
-        GetReachableTypes(entityType).Any(t => TenantTraits.IsTenantEntity(t.ClrType));
+    public static bool HasTenantData(IModel model) =>
+        ModelsWithTenantData.GetValue(
+            model,
+            m => new StrongBox<bool>(m.GetEntityTypes().Any(t => TenantTraits.IsTenantEntity(t.ClrType)))).Value;
 
     private static IReadOnlyList<IEntityType> Walk(IEntityType start)
     {

@@ -223,6 +223,18 @@ public sealed class TenancyTests : IDisposable
     }
 
     [Fact]
+    public void Add_OfALinkRow_ThatIsNotATenantEntity_WithACompositeKeyCarryingAnotherTenant_Throws()
+    {
+        var theirs = Seed(TenantB, new Order { Title = "theirs", Lines = [new OrderLine { Text = "their line" }] });
+
+        var commit = () => Commit(TenantA, context => context.OrderTags.Add(new OrderTag { TenantId = TenantB, OrderLineId = theirs.Lines[0].Id }));
+
+        commit.Should().Throw<TenantViolationException>().Which.EntityType.Should().Be<OrderTag>();
+        using var read = NewContext();
+        read.OrderTags.Should().BeEmpty();
+    }
+
+    [Fact]
     public void Update_ThatMovesAChild_UnderAnotherTenantsParent_Throws()
     {
         var mine = Seed(TenantA, new Order { Title = "mine", Lines = [new OrderLine { Text = "line" }] });
@@ -284,18 +296,32 @@ public sealed class TenancyTests : IDisposable
     }
 
     [Fact]
-    public void IgnoreAllQueryFilters_OnANonTenantEntity_IsUnaffected()
+    public void IgnoreAllQueryFilters_OnANonTenantEntityWithAnAnonymousFilter_Throws_InAModelWithTenantData()
     {
-        using (var seed = NewContext())
-        {
-            seed.Products.AddRange(new Product { Name = "hidden" }, new Product { Name = "shown" });
-            seed.SaveChanges();
-        }
-
+        // Lifting Product's anonymous filter would lift the tenant filter of any tenant set joined into the query.
         using var context = NewContext();
 
-        new EfRepository<Product, int>(context).GetAll(options: new EfReadOptions<Product> { IgnoreAllQueryFilters = true })
-            .Should().HaveCount(2);
+        var read = () => new EfRepository<Product, int>(context).GetAll(options: new EfReadOptions<Product> { IgnoreAllQueryFilters = true });
+
+        read.Should().Throw<TenantViolationException>().WithMessage("*Product*anonymous query filter*");
+    }
+
+    [Fact]
+    public void IgnoreAllQueryFilters_OnANonTenantEntity_KeepsTheTenantFilter_OnATenantSetJoinedIntoTheQuery()
+    {
+        var mine = Seed(TenantA, new Order { Title = "mine" });
+        var theirs = Seed(TenantB, new Order { Title = "theirs" });
+        Commit(TenantA, context => context.OrderNotes.Add(new OrderNote { OrderId = mine.Id, Text = "mine" }));
+        Commit(TenantB, context => context.OrderNotes.Add(new OrderNote { OrderId = theirs.Id, Text = "theirs" }));
+        _tenant.Current = TenantA;
+        using var context = NewContext();
+
+        var titles = new EfRepository<OrderNote, int>(context)
+            .Query(new EfReadOptions<OrderNote> { IgnoreAllQueryFilters = true })
+            .Join(context.Orders, n => n.OrderId, o => o.Id, (n, o) => o.Title)
+            .ToList();
+
+        titles.Should().Equal("mine");
     }
 
     [Fact]
@@ -312,6 +338,7 @@ public sealed class TenancyTests : IDisposable
         var notes = new EfRepository<OrderNote, int>(context).GetAll(options: options);
 
         notes.Should().NotBeEmpty();
+        notes.Should().Contain(n => n.Order != null && n.Order.Id == mine.Id);
         notes.Where(n => n.Order is not null).Should().OnlyContain(n => n.Order!.TenantId == TenantA);
     }
 
@@ -343,17 +370,14 @@ public sealed class TenancyTests : IDisposable
     }
 
     [Fact]
-    public void IncludeDeleted_OnANonTenantEntityWithAnAnonymousFilter_KeepsThe8xFallback()
+    public void IncludeDeleted_OnANonTenantEntityWithAnAnonymousFilter_Throws_InAModelWithTenantData()
     {
-        using (var seed = NewContext())
-        {
-            seed.Products.AddRange(new Product { Name = "hidden" }, new Product { Name = "gone", DeletedAt = DateTime.UtcNow });
-            seed.SaveChanges();
-        }
-
+        // The 8.x fallback lifts every filter, which would lift the tenant filter of any tenant set joined into the query.
         using var context = NewContext();
 
-        new EfRepository<Product, int>(context).GetAll(options: new ReadOptions { IncludeDeleted = true }).Should().HaveCount(2);
+        var read = () => new EfRepository<Product, int>(context).GetAll(options: new ReadOptions { IncludeDeleted = true });
+
+        read.Should().Throw<TenantViolationException>().WithMessage("*IncludeDeleted*Product*anonymous query filter*");
     }
 
     // ── Bulk operations ───────────────────────────────────────────────────────

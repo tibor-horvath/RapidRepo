@@ -38,7 +38,18 @@ public class OrderNote : BaseEntity<int>
     public string Text { get; set; } = "";
 }
 
-/// <summary>A non-tenant, soft-deletable entity with an anonymous filter: the 8.x fallback must keep working for it.</summary>
+/// <summary>
+/// Not a tenant entity, with a composite foreign key that includes TenantId: the database keeps it within the tenant
+/// the caller writes into <see cref="TenantId"/>, which nothing checks, so the commit must still check the reference.
+/// </summary>
+public class OrderTag : BaseEntity<int>
+{
+    public Guid TenantId { get; set; }
+
+    public int OrderLineId { get; set; }
+}
+
+/// <summary>A non-tenant, soft-deletable entity with an anonymous filter: in a model with tenant data, lifting it must throw.</summary>
 public class Product : BaseEntity<int>, IDeletableEntity
 {
     public string Name { get; set; } = "";
@@ -87,10 +98,15 @@ public class OrderContext(DbContextOptions options, ICurrentTenantProvider<Guid>
 
     public DbSet<OrderNote> OrderNotes => Set<OrderNote>();
 
+    public DbSet<OrderTag> OrderTags => Set<OrderTag>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Order>().HasMany(o => o.Lines).WithOne().HasForeignKey(l => l.OrderId);
         modelBuilder.Entity<OrderNote>().HasOne(n => n.Order).WithMany().HasForeignKey(n => n.OrderId);
+        modelBuilder.Entity<OrderTag>().HasOne<OrderLine>().WithMany()
+            .HasForeignKey(t => new { t.TenantId, t.OrderLineId })
+            .HasPrincipalKey(l => new { l.TenantId, l.Id });
         modelBuilder.Entity<Product>().HasQueryFilter(p => p.Name != "hidden");
         modelBuilder.Entity<Membership>().HasKey(m => new { m.OrgId, m.UserId });
         modelBuilder.AddSoftDeleteQueryFilters();

@@ -46,10 +46,18 @@ internal static class StoredTenantQuery
     /// tenant stored in that row. Entries whose row is the current tenant's, or is missing, are left out. With
     /// <paramref name="currentTenant"/> <see langword="null"/>, every entry whose row exists is returned.
     /// </summary>
+    /// <param name="strict">
+    /// <see langword="true"/> when the result becomes write state, such as the tenant an <c>UPDATE</c> is pinned to: a
+    /// row is then given only to the entry whose key matches it exactly, or to the one entry that matches it without
+    /// case or trailing spaces, and to no entry otherwise. <see langword="false"/> when the result only decides that
+    /// the commit fails and which entry the error names: a row then always goes to some entry
+    /// (see <see cref="FindMatch{TValue}"/>).
+    /// </param>
     public static async Task<Dictionary<EntityEntry, object?>> LoadOtherTenantsAsync(
         DbContext context,
         IReadOnlyList<EntityEntry> entries,
         object? currentTenant,
+        bool strict,
         bool async,
         CancellationToken cancellationToken)
     {
@@ -72,11 +80,29 @@ internal static class StoredTenantQuery
 
             var rows = await QueryAsync(context, root, keyProperties, byKey.Keys, currentTenant, async, cancellationToken);
 
+            var ambiguous = new HashSet<EntityEntry>();
+
             foreach (var (key, tenantId) in rows)
             {
-                foreach (var entry in FindMatch(byKey, key))
-                    foreign[entry] = tenantId;
+                List<EntityEntry>? matched;
+                if (!strict)
+                    matched = FindMatch(byKey, key);
+                else if (!TryFindUniqueMatch(byKey, key, out matched))
+                    continue;
+
+                foreach (var entry in matched)
+                {
+                    // Two rows for one entry: only a collation the loose comparison does not model gets here, so the
+                    // strict caller learns nothing about that entry rather than a guess.
+                    if (strict && !foreign.TryAdd(entry, tenantId))
+                        ambiguous.Add(entry);
+                    else if (!strict)
+                        foreign[entry] = tenantId;
+                }
             }
+
+            foreach (var entry in ambiguous)
+                foreign.Remove(entry);
         }
 
         return foreign;
@@ -90,7 +116,8 @@ internal static class StoredTenantQuery
     /// <remarks>
     /// The last fallback only decides which entry the error message names, never whether the commit fails: with a
     /// collation the loose comparison does not model (accents, for example), the message may name another entry of
-    /// the same batch than the one that matched.
+    /// the same batch than the one that matched. So it is for diagnostics only; write state uses
+    /// <see cref="TryFindUniqueMatch{TValue}"/>.
     /// </remarks>
     public static TValue FindMatch<TValue>(Dictionary<KeyValues, TValue> byKey, KeyValues key)
     {
@@ -107,6 +134,38 @@ internal static class StoredTenantQuery
         }
 
         return byKey.Values.First();
+    }
+
+    /// <summary>
+    /// Finds the value of <paramref name="byKey"/> for a key the database returned, without guessing: the exact key,
+    /// or else the only key equal to it without case or trailing spaces.
+    /// </summary>
+    /// <returns><see langword="false"/> when no key, or more than one, matches that way.</returns>
+    private static bool TryFindUniqueMatch<TValue>(Dictionary<KeyValues, TValue> byKey, KeyValues key, out TValue value)
+    {
+        if (byKey.TryGetValue(key, out value!))
+            return true;
+
+        var found = false;
+        foreach (var (candidate, candidateValue) in byKey)
+        {
+            if (candidate.Values.Length != key.Values.Length
+                || !candidate.Values.Zip(key.Values).All(pair => LooselyEqual(pair.First, pair.Second)))
+            {
+                continue;
+            }
+
+            if (found)
+            {
+                value = default!;
+                return false;
+            }
+
+            found = true;
+            value = candidateValue;
+        }
+
+        return found;
     }
 
     private static bool LooselyEqual(object? a, object? b) =>

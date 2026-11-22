@@ -96,7 +96,8 @@ internal static class IQueryableExtensions
     /// </item>
     /// <item>
     /// The entity has an anonymous filter: it may hold the soft-delete condition, and EF Core cannot bypass part of
-    /// it, so every filter is bypassed, as in RapidRepo 8.x.
+    /// it, so every filter is bypassed, as in RapidRepo 8.x. In a model with tenant entities this throws instead: EF
+    /// Core lifts filters for the whole query, so the tenant filter of any tenant set joined into it would go too.
     /// </item>
     /// <item>
     /// The entity has only other named filters, or none: there is no soft-delete filter to bypass, so the query is
@@ -121,14 +122,14 @@ internal static class IQueryableExtensions
 
         if (rootType.GetDeclaredQueryFilters().Any(f => f.IsAnonymous))
         {
-            // Lifting every filter would lift the tenant filter of the root, or of any tenant entity the query reaches
-            // through a navigation. Only queries that cannot read tenant data keep the 8.x fallback.
-            var entityType = model!.FindEntityType(typeof(TEntity))!;
-            if (TenantReachability.ReachesTenantData(entityType))
+            // Lifting every filter would lift the tenant filter of any tenant entity the query reads: the root, one it
+            // reaches through a navigation, or a set the caller joins into it. Only models without tenant entities keep
+            // the 8.x fallback.
+            if (TenantReachability.HasTenantData(model!))
             {
                 throw new TenantViolationException(
                     $"IncludeDeleted cannot be applied to {typeof(TEntity).Name}: it has an anonymous query filter, " +
-                    "which can only be lifted together with the tenant filter of the tenant data the query can read. " +
+                    "which can only be lifted together with the tenant filters of the model. " +
                     "Make the soft-delete filter named " +
                     "(AddSoftDeleteQueryFilters does so unless another anonymous filter exists) and use " +
                     "AddTenantQueryFilters for tenancy.",
@@ -149,8 +150,9 @@ internal static class IQueryableExtensions
     /// </summary>
     /// <param name="query">The query.</param>
     /// <param name="model">
-    /// The model the query runs against. Without it, or for a query that cannot read tenant data, every filter is
-    /// lifted, as before tenancy existed.
+    /// The model the query runs against. Without it, or in a model without tenant entities, every filter is lifted, as
+    /// before tenancy existed. Whether the root reaches tenant data through navigations does not matter: the caller can
+    /// join any tenant entity set into the query, and EF Core lifts filters for the whole query.
     /// </param>
     /// <returns>The query without its filters, the tenant filter excepted.</returns>
     /// <exception cref="TenantViolationException">
@@ -159,7 +161,7 @@ internal static class IQueryableExtensions
     public static IQueryable<TEntity> IgnoreAllFiltersButTenant<TEntity>(this IQueryable<TEntity> query, IModel? model)
         where TEntity : class
     {
-        if (model?.FindEntityType(typeof(TEntity)) is not { } entityType || !TenantReachability.ReachesTenantData(entityType))
+        if (model?.FindEntityType(typeof(TEntity)) is not { } entityType || !TenantReachability.HasTenantData(model))
             return query.IgnoreQueryFilters();
 
         var reachable = TenantReachability.GetReachableTypes(entityType);
@@ -169,7 +171,7 @@ internal static class IQueryableExtensions
             throw new TenantViolationException(
                 $"IgnoreAllQueryFilters cannot be applied to {typeof(TEntity).Name}: {anonymous.ClrType.Name}, which the " +
                 "query can read, has an anonymous query filter, and EF Core can only lift it together with the tenant " +
-                "filter. Name that filter, or read without IgnoreAllQueryFilters.",
+                "filters of the model. Name that filter, or read without IgnoreAllQueryFilters.",
                 typeof(TEntity));
         }
 

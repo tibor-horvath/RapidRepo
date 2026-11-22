@@ -92,7 +92,7 @@ internal static class EfTenancyEnforcer
 
         // Only rows of other tenants come back: the database matches the keys with its own collation, the way the
         // UPDATE or DELETE will. An entry left out has a row of the current tenant, or none.
-        var foreign = await StoredTenantQuery.LoadOtherTenantsAsync(context, existing, current, async, cancellationToken);
+        var foreign = await StoredTenantQuery.LoadOtherTenantsAsync(context, existing, current, strict: false, async, cancellationToken);
 
         foreach (var entry in existing)
         {
@@ -114,6 +114,8 @@ internal static class EfTenancyEnforcer
     /// In a host scope nothing is checked, but each update and delete is still pinned to the tenant stored in its row,
     /// read now, so a row moved by someone else before the write is not written. Taking the instance's
     /// <c>TenantId</c> instead would break moving a row on purpose, and deleting an instance built with only its key.
+    /// A row is matched to an entry strictly, never by guess: an entry left unmatched keeps the <c>TenantId</c> it
+    /// already compares, so its write still matches no row of another tenant than that.
     /// </summary>
     private static async Task PinStoredTenantsAsync(
         DbContext context,
@@ -124,7 +126,7 @@ internal static class EfTenancyEnforcer
         if (existing.Count == 0)
             return;
 
-        var stored = await StoredTenantQuery.LoadOtherTenantsAsync(context, existing, currentTenant: null, async, cancellationToken);
+        var stored = await StoredTenantQuery.LoadOtherTenantsAsync(context, existing, currentTenant: null, strict: true, async, cancellationToken);
 
         foreach (var (entry, tenantId) in stored)
         {

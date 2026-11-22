@@ -12,9 +12,11 @@ namespace RapidRepo.EntityFrameworkCore.Internal;
 /// </summary>
 /// <remarks>
 /// <para>
-/// A foreign key that includes <c>TenantId</c> is skipped: the database already keeps it within one tenant. So is a
-/// reference to a row added in the same commit, which the guard stamps with the current tenant, and a reference an
-/// update does not change.
+/// A foreign key of a tenant entity that maps its <c>TenantId</c> to the principal's <c>TenantId</c> is skipped: the
+/// commit checks the dependent's <c>TenantId</c>, and the database keeps the reference within it. The same foreign key
+/// on an entity that is not a tenant entity is checked: nothing checks that entity's <c>TenantId</c>, so a composite
+/// key alone does not keep the reference within the current tenant. A reference to a row added in the same commit,
+/// which the guard stamps with the current tenant, and a reference an update does not change, are skipped too.
 /// </para>
 /// <para>
 /// The database compares the keys, not this class, so a case-insensitive collation matches the same rows here as in

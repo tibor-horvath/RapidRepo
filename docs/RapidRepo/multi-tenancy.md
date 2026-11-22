@@ -70,7 +70,7 @@ The tenant provider is asked on every read and once per commit, but never while 
 - Reads of tenant entities return only the current tenant's rows.
 - With no current tenant (and no scope), reading a tenant entity throws a `TenantViolationException` instead of returning unfiltered rows.
 - `ReadOptions.IncludeDeleted` lifts only the soft-delete filter, never the tenant filter.
-- With EF Core, `EfReadOptions.IgnoreAllQueryFilters` lifts every filter except the tenant filter, on the root entity and on every tenant entity the query reaches through navigations. The tenant filter lifts itself only while the query *runs* inside a host scope, so a query built in a host scope (for example by `Query()`) and run after it is filtered by tenant again. On a tenant entity, `IgnoreAllQueryFilters` outside a host scope throws.
+- With EF Core, `EfReadOptions.IgnoreAllQueryFilters` lifts every filter except the tenant filter, on the root entity, on every tenant entity the query reaches through navigations, and on tenant sets joined into the query. The tenant filter lifts itself only while the query *runs* inside a host scope, so a query built in a host scope (for example by `Query()`) and run after it is filtered by tenant again. On a tenant entity, `IgnoreAllQueryFilters` outside a host scope throws.
 - Lookups by id for writes (`DeleteById`, `RestoreById`, `HardDeleteById`) go through the tenant filter, so another tenant's id behaves like a missing id.
 
 ### Commits
@@ -170,9 +170,9 @@ The check covers:
 - entities that are not tenant entities themselves, such as a link table between two tenant entities. Without a current tenant, a commit that sets such a reference throws, like any other tenant write;
 - rows of the other tenant that are soft-deleted.
 
-It skips references to rows added in the same commit, which get the current tenant anyway, foreign keys that map the dependent's `TenantId` to the principal's `TenantId`, and everything inside a host scope. The error doesn't say whether the referenced row exists, so map it to the same response as a missing reference (usually 400 or 404).
+It skips references to rows added in the same commit, which get the current tenant anyway, foreign keys of a tenant entity that map its `TenantId` to the principal's `TenantId`, and everything inside a host scope. Only tenant-entity dependents are exempt: on an entity that is not a tenant entity, such as a link table, nothing stamps or checks `TenantId`, so a composite key does not keep the reference within the current tenant, and the commit still checks it. The error doesn't say whether the referenced row exists, so map it to the same response as a missing reference (usually 400 or 404).
 
-The check costs one query per referenced entity type, and only in commits that set or change such a reference. To have the database enforce the rule as well, including for writes that bypass RapidRepo, use the composite-key pattern; the commit then skips the check for that key:
+The check costs one query per referenced entity type, and only in commits that set or change such a reference. To have the database enforce the rule as well, including for writes that bypass RapidRepo, use the composite-key pattern on a tenant entity; the commit then skips the check for that key:
 
 ```csharp
 modelBuilder.Entity<Invoice>().HasAlternateKey(i => new { i.TenantId, i.Id });
