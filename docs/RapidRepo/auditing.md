@@ -73,7 +73,7 @@ A unit of work finds the provider in one of two ways:
    }
    ```
 
-A provider passed to the constructor wins over one in the service provider. The service provider is asked at the first commit, not when the unit of work is created. Register the provider with `UseCurrentUserProvider` or `UseCurrentUser` in `AddRapidRepo`; see [Dependency Injection — Current user](../RapidRepo.Extensions.DependencyInjection/dependency-injection.md#current-user).
+A unit of work that takes neither cannot see the provider or `RequireCurrentUser` registered in `AddRapidRepo`, and silently stamps the default user key. A provider passed to the constructor wins over one in the service provider. The service provider is asked at the first commit, not when the unit of work is created. Register the provider with `UseCurrentUserProvider` or `UseCurrentUser` in `AddRapidRepo`; see [Dependency Injection — Current user](../RapidRepo.Extensions.DependencyInjection/dependency-injection.md#current-user).
 
 ### ASP.NET Core example
 

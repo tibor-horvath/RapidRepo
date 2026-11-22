@@ -59,6 +59,44 @@ public class GeneratedCodeCompilationTests
             cls.Should().NotContain("using System;", "keyword key types need no using directive");
     }
 
+    [Fact]
+    public void TypesInGlobalNamespace_GeneratedCodeCompiles()
+    {
+        // A single-file program (top-level statements) declares everything in the global namespace.
+        const string source = """
+            using Microsoft.EntityFrameworkCore;
+            using RapidRepo.Attributes;
+            using RapidRepo.Entities;
+            using RapidRepo.Repositories.Interfaces;
+
+            public readonly record struct Sku(string Value);
+
+            public class Product : BaseEntity<long> { }
+            public class Order : BaseEntity<Sku> { }
+
+            public interface IInvoiceRepository : IRepository<Invoice, long> { }
+            public class Invoice : BaseEntity<long> { }
+
+            public class ShopDbContext : DbContext
+            {
+                public DbSet<Product> Products { get; set; } = null!;
+                public DbSet<Order> Orders { get; set; } = null!;
+            }
+
+            [GenerateUnitOfWork(typeof(ShopDbContext))]
+            public partial class ShopUnitOfWork : RapidRepo.EntityFrameworkCore.EfUnitOfWork<System.Guid>
+            {
+                public ShopUnitOfWork(ShopDbContext db, System.IServiceProvider sp) : base(db, System.Guid.Empty, sp) { }
+            }
+            """;
+
+        var (output, generated) = Generate(source);
+
+        output.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        generated.Should().NotBeEmpty();
+        generated.Should().AllSatisfy(g => g.Source.Should().NotContain("global namespace"));
+    }
+
     private static (Compilation Output, IReadOnlyList<(string HintName, string Source)> Generated) Generate(string source)
     {
         var compilation = GeneratorHarness.Compile(

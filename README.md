@@ -79,6 +79,15 @@ Upgrading from 8.x? See the [migration guide](docs/migration/8.x-to-9.0.md).
 If standard CRUD is all you need, you don't need repository classes or assembly scanning. With [`RapidRepo.SourceGenerators`](docs/RapidRepo.SourceGenerators/generate-unit-of-work.md) referenced (see [Packages](#packages)), `[GenerateUnitOfWork]` reads the `DbSet`s of your context and generates a repository property for each one, plus an interface that declares them:
 
 ```csharp
+using Microsoft.EntityFrameworkCore;
+using RapidRepo.Attributes;            // [GenerateUnitOfWork]
+using RapidRepo.Entities;              // base entity classes
+using RapidRepo.EntityFrameworkCore;   // EfUnitOfWork, EfRepository
+using RapidRepo.Extensions;            // AddSoftDeleteQueryFilters()
+using RapidRepo.UnitOfWork;            // IUnitOfWork<TUserKey>
+
+namespace MyApp.Data;
+
 // 1. Define an entity
 public class Product : BaseAuditableDeletableEntity<long, Guid>
 {
@@ -95,9 +104,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         => modelBuilder.AddSoftDeleteQueryFilters();
 }
 
-// 3. Declare the Unit of Work; the generator adds a Products property and IAppUnitOfWorkRepositories
+// 3. Declare the Unit of Work; the generator adds a Products property and IAppUnitOfWorkRepositories.
+//    Passing IServiceProvider lets it pick up the current-user settings from AddRapidRepo (see Auditing).
 [GenerateUnitOfWork(typeof(AppDbContext))]
-public partial class AppUnitOfWork(AppDbContext dbContext) : EfUnitOfWork<Guid>(dbContext, Guid.Empty), IAppUnitOfWork;
+public partial class AppUnitOfWork(AppDbContext dbContext, IServiceProvider services)
+    : EfUnitOfWork<Guid>(dbContext, Guid.Empty, services), IAppUnitOfWork;
 
 public interface IAppUnitOfWork : IUnitOfWork<Guid>, IAppUnitOfWorkRepositories;
 
@@ -122,13 +133,25 @@ public class ProductService(IAppUnitOfWork unitOfWork)
 }
 ```
 
-Without the generator, write the property yourself: `public IRepository<Product, long> Products => GetRepository<Product, long>();`, and declare it on `IAppUnitOfWork`. When you add a custom repository interface for an entity, the generated property uses it instead; pass an `IServiceProvider` to the base constructor and scan the assembly that contains the repository so it can be resolved.
+Without the generator, write the property yourself: `public IRepository<Product, long> Products => GetRepository<Product, long>();`, and declare it on `IAppUnitOfWork`. When you add a custom repository interface for an entity, the generated property uses it instead; scan the assembly that contains the repository so the `IServiceProvider` can resolve it.
+
+> **Keep the `IServiceProvider`.** A unit of work built without one still works, but it cannot see `UseCurrentUserProvider`, `UseCurrentUser` or `RequireCurrentUser` from `AddRapidRepo`. Those settings are then ignored without an error, and commits without a user stamp `Guid.Empty`. See [Auditing — the current user](docs/RapidRepo/auditing.md#the-current-user).
 
 ### Custom repositories and a typed Unit of Work
 
 When you need query methods beyond standard CRUD, write a repository for that entity and let `AddRapidRepo` find it by scanning. Entities without a custom repository can still use the generic one through `GetRepository<TEntity, TKey>()` on the Unit of Work.
 
 ```csharp
+using Microsoft.EntityFrameworkCore;
+using RapidRepo.Entities;
+using RapidRepo.EntityFrameworkCore;
+using RapidRepo.Extensions;
+using RapidRepo.Repositories;              // SortOrder<T>
+using RapidRepo.Repositories.Interfaces;   // IRepository<TEntity, TKey>
+using RapidRepo.UnitOfWork;
+
+namespace MyApp.Data;
+
 // 1. Define an entity
 public class Product : BaseAuditableDeletableEntity<long, Guid>
 {
@@ -163,8 +186,8 @@ public interface IAppUnitOfWork : IUnitOfWork<Guid>
     IProductRepository Products { get; }
 }
 
-public class AppUnitOfWork(AppDbContext dbContext, IProductRepository products)
-    : EfUnitOfWork<Guid>(dbContext, Guid.Empty), IAppUnitOfWork
+public class AppUnitOfWork(AppDbContext dbContext, IProductRepository products, IServiceProvider services)
+    : EfUnitOfWork<Guid>(dbContext, Guid.Empty, services), IAppUnitOfWork
 {
     public IProductRepository Products { get; } = products;
 }
@@ -197,6 +220,8 @@ public class ProductService(IAppUnitOfWork unitOfWork)
 ## Documentation
 
 Start at the [documentation index](docs/README.md).
+
+The documentation is written with AI assistance and reviewed by the maintainer. Behaviour is pinned down by the conformance test suite; if anything in the docs doesn't match, please [open an issue](https://github.com/tibor-horvath/RapidRepo/issues).
 
 | Package | Topic | Description |
 |---|---|---|

@@ -82,8 +82,8 @@ public interface IAppUnitOfWork : IUnitOfWork<Guid>
     IProductRepository Products { get; }
 }
 
-public class AppUnitOfWork(AppDbContext db, IProductRepository products)
-    : EfUnitOfWork<Guid>(db, Guid.Empty), IAppUnitOfWork
+public class AppUnitOfWork(AppDbContext db, IProductRepository products, IServiceProvider services)
+    : EfUnitOfWork<Guid>(db, Guid.Empty, services), IAppUnitOfWork
 {
     public IProductRepository Products { get; } = products;
 }
@@ -91,8 +91,8 @@ public class AppUnitOfWork(AppDbContext db, IProductRepository products)
 
 | Constructor | Use when |
 |---|---|
-| `(DbContext, TUserKey defaultUserKey)` | Repositories are injected or come from `GetRepository` |
-| `(DbContext, TUserKey, IServiceProvider)` | The source generator's `ResolveRepository<TRepo>()` resolves custom repositories |
+| `(DbContext, TUserKey defaultUserKey)` | Repositories are injected or come from `GetRepository`, and no current-user provider or `RequireCurrentUser` is configured: without a service provider, the unit of work cannot see them |
+| `(DbContext, TUserKey, IServiceProvider)` | The usual choice with DI: finds the current-user provider and `RequireCurrentUser`, and lets `ResolveRepository<TRepo>()` resolve custom repositories |
 | `(DbContext, TUserKey, IServiceProvider?, TimeProvider?)` | You also want to control the audit clock |
 | `(DbContext, TUserKey, IServiceProvider?, TimeProvider?, ICurrentUserProvider<TUserKey>?)` | You pass the [current-user provider](../RapidRepo/auditing.md#the-current-user) directly instead of through the service provider |
 

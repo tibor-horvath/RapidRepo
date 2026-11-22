@@ -23,8 +23,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
 public class ProductRepository(AppDbContext db) : EfRepository<Product, long>(db), IProductRepository;
 
-public class AppUnitOfWork(AppDbContext db, IProductRepository products)
-    : EfUnitOfWork<Guid>(db, Guid.Empty), IAppUnitOfWork
+public class AppUnitOfWork(AppDbContext db, IProductRepository products, IServiceProvider services)
+    : EfUnitOfWork<Guid>(db, Guid.Empty, services), IAppUnitOfWork
 {
     public IProductRepository Products { get; } = products;
 }

@@ -45,7 +45,7 @@ IEnumerable<Product> active = await _unitOfWork.Products.GetAllAsync(
 
 ### GetAllPaged
 
-Returns a `Paged<TEntity>`, or a `Paged<TResult>` when a selector is supplied. The page index is 1-based.
+Returns a `Paged<TEntity>` (namespace `RapidRepo.Dtos`), or a `Paged<TResult>` when a selector is supplied. The page index is 1-based. **`pageIndex` defaults to `1` and `pageSize` to `10`**, so a call without them returns only the first 10 rows.
 
 ```csharp
 Paged<Product> page = await _unitOfWork.Products.GetAllPagedAsync(
@@ -113,6 +113,7 @@ int count = await _unitOfWork.Products.CountAsync(p => p.IsActive);
 | `condition` | `Expression<Func<TEntity, bool>>?` | `null` | Filter predicate |
 | `orderBy` | `SortOrder<TEntity>?` | `null` | Sort order |
 | `options` | `ReadOptions?` | `null` (`ReadOptions.Default`) | Read options; providers accept their own subclass |
+| `pageIndex` / `pageSize` | `int` | `1` / `10` | Paging, on `GetAllPaged` only |
 | `selector` | `Expression<Func<TEntity, TResult>>` | — | Projection, on the selector overloads |
 
 Which methods take which parameters:
