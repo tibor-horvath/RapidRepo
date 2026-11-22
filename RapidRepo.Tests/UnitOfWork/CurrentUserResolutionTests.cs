@@ -200,6 +200,19 @@ public class CurrentUserResolutionTests
         commit.Should().Throw<InvalidOperationException>();
     }
 
+    [Fact]
+    public void StrictMode_IsReadAtTheFirstCommit_NotInTheConstructor()
+    {
+        var services = new DictionaryServiceProvider();
+        var uow = new RecordingUnitOfWork(services);
+        services[typeof(CurrentUserOptions)] = new CurrentUserOptions { RequireCurrentUser = true };
+        uow.Staged.Add(new AuditedByUser());
+
+        var commit = () => uow.Commit();
+
+        commit.Should().Throw<InvalidOperationException>();
+    }
+
     public sealed class Plain : BaseEntity<int>;
 
     public sealed class AuditedWithoutUser : BaseAuditableEntity<int>;

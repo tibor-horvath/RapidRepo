@@ -51,14 +51,50 @@ public sealed class EfConformanceSession : IConformanceSession
         where TKey : notnull
         => new EfRepository<TEntity, TKey>(_dbContext);
 
+    /// <summary>Creates a repository over this session's context that records calls to its write overrides.</summary>
+    public IRepository<TEntity, TKey> CreateRecordingRepository<TEntity, TKey>(ICollection<string> calls)
+        where TEntity : BaseEntity<TKey>
+        where TKey : notnull
+        => new RecordingRepository<TEntity, TKey>(_dbContext, calls);
+
     public void Dispose() => _dbContext.Dispose();
+
+    private sealed class RecordingRepository<TEntity, TKey>(DbContext dbContext, ICollection<string> calls)
+        : EfRepository<TEntity, TKey>(dbContext)
+        where TEntity : BaseEntity<TKey>
+        where TKey : notnull
+    {
+        public override void Delete(TEntity entity)
+        {
+            calls.Add(nameof(Delete));
+            base.Delete(entity);
+        }
+
+        public override void HardDelete(TEntity entity)
+        {
+            calls.Add(nameof(HardDelete));
+            base.HardDelete(entity);
+        }
+
+        public override void HardDeleteRange(IEnumerable<TEntity> entities)
+        {
+            calls.Add(nameof(HardDeleteRange));
+            base.HardDeleteRange(entities);
+        }
+
+        public override void Restore(TEntity entity)
+        {
+            calls.Add(nameof(Restore));
+            base.Restore(entity);
+        }
+    }
 
     private sealed class ConformanceUnitOfWork(DbContext dbContext, TimeProvider clock, ICurrentUserProvider<Guid>? currentUserProvider)
         : EfUnitOfWork<Guid>(dbContext, ConformanceDefaults.DefaultUser, serviceProvider: null, clock, currentUserProvider);
 }
 
 /// <summary>EF Core InMemory: one named in-memory database per store.</summary>
-public sealed class EfInMemoryConformanceStore : IConformanceStore
+public sealed class EfInMemoryConformanceStore : IWriteRoutingConformanceStore
 {
     private readonly DbContextOptions<ConformanceDbContext> _options = new DbContextOptionsBuilder<ConformanceDbContext>()
         .UseInMemoryDatabase($"Conformance-{Guid.NewGuid()}")
@@ -66,6 +102,11 @@ public sealed class EfInMemoryConformanceStore : IConformanceStore
 
     public IConformanceSession OpenSession(TimeProvider clock, ICurrentUserProvider<Guid>? currentUserProvider = null) =>
         new EfConformanceSession(new ConformanceDbContext(_options), clock, currentUserProvider);
+
+    public IRepository<TEntity, TKey> CreateRecordingRepository<TEntity, TKey>(IConformanceSession session, ICollection<string> calls)
+        where TEntity : BaseEntity<TKey>
+        where TKey : notnull
+        => ((EfConformanceSession)session).CreateRecordingRepository<TEntity, TKey>(calls);
 
     public void Dispose()
     {
@@ -78,7 +119,7 @@ public sealed class EfInMemoryConformanceStore : IConformanceStore
 /// EF Core SQLite in memory: a real relational provider, so SQL translation, generated keys and transactions are
 /// exercised, which InMemory does not do. The database lives as long as the store's open connection.
 /// </summary>
-public sealed class EfSqliteConformanceStore : IConformanceStore
+public sealed class EfSqliteConformanceStore : IWriteRoutingConformanceStore
 {
     private readonly SqliteConnection _connection = new("DataSource=:memory:");
     private readonly DbContextOptions<ConformanceDbContext> _options;
@@ -94,6 +135,11 @@ public sealed class EfSqliteConformanceStore : IConformanceStore
 
     public IConformanceSession OpenSession(TimeProvider clock, ICurrentUserProvider<Guid>? currentUserProvider = null) =>
         new EfConformanceSession(new ConformanceDbContext(_options), clock, currentUserProvider);
+
+    public IRepository<TEntity, TKey> CreateRecordingRepository<TEntity, TKey>(IConformanceSession session, ICollection<string> calls)
+        where TEntity : BaseEntity<TKey>
+        where TKey : notnull
+        => ((EfConformanceSession)session).CreateRecordingRepository<TEntity, TKey>(calls);
 
     public void Dispose() => _connection.Dispose();
 }

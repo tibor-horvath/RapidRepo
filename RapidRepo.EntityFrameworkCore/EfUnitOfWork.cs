@@ -1,5 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using RapidRepo.Auditing;
@@ -89,46 +88,36 @@ public abstract class EfUnitOfWork<TUserKey> : UnitOfWorkBase<TUserKey>
     protected override IRepository<TEntity, TKey> CreateRepository<TEntity, TKey>() =>
         new EfRepository<TEntity, TKey>(DbContext);
 
-    /// <inheritdoc />
-    protected override void CommitCore(TUserKey? userId)
-    {
-        var versions = new EfVersionTracker();
+    /// <summary>
+    /// Applies the tenant rules to the context's staged changes, querying the database for the tenant stored in
+    /// updated and deleted rows and in rows that foreign keys point at.
+    /// </summary>
+    protected override void EnforceTenantRules() =>
+        // Synchronous all the way down: async: false makes the task complete before it is returned.
+        EfTenancyEnforcer.EnforceAsync(DbContext, CreateTenantGuard, async: false, CancellationToken.None).GetAwaiter().GetResult();
 
-        try
-        {
-            // Synchronous all the way down: async: false makes the task complete before it is returned.
-            EfTenancyEnforcer.EnforceAsync(DbContext, CreateTenantGuard, async: false, CancellationToken.None).GetAwaiter().GetResult();
-            StampChanges(userId, versions);
-            DbContext.SaveChanges();
-        }
-        catch (Exception exception)
-        {
-            if (OnCommitFailed(exception, versions) is { } conflict)
-                throw conflict;
+    /// <inheritdoc cref="EnforceTenantRules"/>
+    protected override Task EnforceTenantRulesAsync(CancellationToken cancellationToken) =>
+        EfTenancyEnforcer.EnforceAsync(DbContext, CreateTenantGuard, async: true, cancellationToken);
 
-            throw;
-        }
-    }
+    /// <summary>
+    /// Gets every added, modified or deleted entry of the context. Reading the entries detects changes, so edits to
+    /// tracked entities made without calling <c>Update</c> are committed too.
+    /// </summary>
+    protected override IReadOnlyList<StagedChange> GetStagedChanges() => EfStagedChange.From(DbContext);
 
-    /// <inheritdoc />
-    protected override async Task CommitCoreAsync(TUserKey? userId, CancellationToken cancellationToken)
-    {
-        var versions = new EfVersionTracker();
+    /// <summary>Saves the context.</summary>
+    protected override void PersistStagedChanges() => DbContext.SaveChanges();
 
-        try
-        {
-            await EfTenancyEnforcer.EnforceAsync(DbContext, CreateTenantGuard, async: true, cancellationToken);
-            StampChanges(userId, versions);
-            await DbContext.SaveChangesAsync(cancellationToken);
-        }
-        catch (Exception exception)
-        {
-            if (OnCommitFailed(exception, versions) is { } conflict)
-                throw conflict;
+    /// <summary>Saves the context.</summary>
+    protected override Task PersistStagedChangesAsync(CancellationToken cancellationToken) =>
+        DbContext.SaveChangesAsync(cancellationToken);
 
-            throw;
-        }
-    }
+    /// <summary>
+    /// Translates EF Core's <see cref="DbUpdateConcurrencyException"/> into a <see cref="ConcurrencyException"/> when it
+    /// concerns an <see cref="IVersionedEntity"/>.
+    /// </summary>
+    protected override Exception? TranslateCommitFailure(Exception exception) => EfConcurrency.Translate(exception);
 
     /// <summary>
     /// Joins an open transaction, and otherwise opens one. With an execution strategy that retries on failure, such
@@ -224,16 +213,6 @@ public abstract class EfUnitOfWork<TUserKey> : UnitOfWorkBase<TUserKey>
     }
 
     /// <summary>
-    /// Undoes the version changes of a failed commit and returns the <see cref="ConcurrencyException"/> to throw in
-    /// place of <paramref name="exception"/>, or <see langword="null"/> to rethrow it.
-    /// </summary>
-    private static ConcurrencyException? OnCommitFailed(Exception exception, EfVersionTracker versions)
-    {
-        versions.Revert();
-        return EfVersionTracker.Translate(exception);
-    }
-
-    /// <summary>
     /// Reads the current tenant from the context when it implements <see cref="ITenantDbContext{TTenantKey}"/>, so
     /// reads and commits agree on the tenant; otherwise from the registered tenant provider.
     /// </summary>
@@ -258,54 +237,5 @@ public abstract class EfUnitOfWork<TUserKey> : UnitOfWorkBase<TUserKey>
         return TenantDbContexts.Implements(DbContext, tenantKeyType)
             ? TenantDbContexts.SourceName(DbContext)
             : base.GetTenantSourceName(tenantKeyType);
-    }
-
-    /// <summary>
-    /// Stamps every added or modified entry with one timestamp for the whole commit, and sets up the concurrency
-    /// check of every updated or deleted <see cref="IVersionedEntity"/>.
-    /// </summary>
-    private void StampChanges(TUserKey? userId, EfVersionTracker versions)
-    {
-        var utcNow = Auditor.UtcNow;
-
-        foreach (var entry in DbContext.ChangeTracker.Entries())
-        {
-            if (Classify(entry) is { } kind)
-            {
-                Auditor.Stamp(entry.Entity, kind, userId, utcNow);
-            }
-
-            versions.Stamp(entry);
-        }
-    }
-
-    /// <summary>
-    /// Maps a change tracker entry to the kind of change it represents, or <see langword="null"/> when it is not
-    /// stamped (unchanged, detached or hard-deleted).
-    /// </summary>
-    /// <remarks>
-    /// A soft delete or restore is recognised by <see cref="EntityChangeClassifier.ClassifyUpdate"/>, from the
-    /// original <c>DeletedAt</c>. Only the transition counts, so saving an already deleted entity again does not
-    /// overwrite who deleted it and when.
-    /// </remarks>
-    private static EntityChangeKind? Classify(EntityEntry entry)
-    {
-        switch (entry.State)
-        {
-            case EntityState.Added:
-                return EntityChangeKind.Added;
-
-            case EntityState.Modified when entry.Entity is IDeletableEntity
-                && entry.Metadata.FindProperty(nameof(IDeletableEntity.DeletedAt)) is not null:
-                var originalDeletedAt = (DateTime?)entry.Property(nameof(IDeletableEntity.DeletedAt)).OriginalValue;
-
-                return EntityChangeClassifier.ClassifyUpdate(entry.Entity, originalDeletedAt);
-
-            case EntityState.Modified:
-                return EntityChangeKind.Modified;
-
-            default:
-                return null;
-        }
     }
 }

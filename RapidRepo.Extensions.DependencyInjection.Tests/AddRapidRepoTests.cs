@@ -631,6 +631,43 @@ public class AddRapidRepoTests
         act.Should().Throw<ArgumentNullException>();
     }
 
+    // ── ScanAssemblies / Include / Exclude null guards ─────────────────────────
+
+    [Fact]
+    public void ScanAssemblies_Null_Throws_ArgumentNullException()
+    {
+        var act = () => new RapidRepoOptions().ScanAssemblies(null!);
+
+        act.Should().Throw<ArgumentNullException>().WithParameterName("assemblies");
+    }
+
+    [Fact]
+    public void ScanAssemblies_NullElement_Throws_AndAddsNothing()
+    {
+        var options = new RapidRepoOptions();
+
+        var act = () => options.ScanAssemblies(typeof(AddRapidRepoTests).Assembly, null!);
+
+        act.Should().Throw<ArgumentNullException>().WithParameterName("assemblies");
+        options.Assemblies.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Include_Null_Throws_ArgumentNullException()
+    {
+        var act = () => new RapidRepoOptions().Include(null!);
+
+        act.Should().Throw<ArgumentNullException>().WithParameterName("predicate");
+    }
+
+    [Fact]
+    public void Exclude_Null_Throws_ArgumentNullException()
+    {
+        var act = () => new RapidRepoOptions().Exclude(null!);
+
+        act.Should().Throw<ArgumentNullException>().WithParameterName("predicate");
+    }
+
     // ── Filter precedence (exclude wins) ───────────────────────────────────────
 
     [Fact]

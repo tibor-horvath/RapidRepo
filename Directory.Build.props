@@ -36,9 +36,10 @@
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
 
-    <!-- Package validation baseline: the first release of the current major. Pack fails on any breaking change
-         against it, so bump this only when releasing a new major version. Opted into per library project. -->
-    <RapidRepoPackageValidationBaselineVersion>9.0.0</RapidRepoPackageValidationBaselineVersion>
+    <!-- Package validation baseline: the latest release. Pack fails on any breaking change against it, so API added
+         in a minor release is protected too. Bump it after each release; a new major resets it to that major's
+         first release. Opted into per library project. -->
+    <RapidRepoPackageValidationBaselineVersion>9.4.0</RapidRepoPackageValidationBaselineVersion>
   </PropertyGroup>
 
   <!-- Per-PR API check (.github/workflows/api-compat.yml): CI packs the base branch into RapidRepoApiBaselineDir
