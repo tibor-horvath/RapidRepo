@@ -11,13 +11,23 @@ namespace RapidRepo.EntityFrameworkCore.DependencyInjection;
 /// resolved when the startup validation runs, which <c>AddRapidRepo</c> sets up only when a tenant provider is
 /// configured, and a model without tenant entities passes without any other work.
 /// </summary>
-/// <typeparam name="TContext">The context to validate.</typeparam>
+/// <typeparam name="TContext">
+/// The context to validate: the bound context, or the base <see cref="DbContext"/> for an unbound provider.
+/// </typeparam>
 internal sealed class EfTenancyStartupValidator<TContext> : IRapidRepoStartupValidator
     where TContext : DbContext
 {
     public IReadOnlyList<string> Validate(IServiceProvider services)
     {
-        var context = services.GetRequiredService<TContext>();
+        // Unbound, nothing guarantees a base DbContext is registered; without one there is nothing to validate here,
+        // and the repositories that need it fail on first resolve with their own message.
+        var context = typeof(TContext) == typeof(DbContext)
+            ? services.GetService<TContext>()
+            : services.GetRequiredService<TContext>();
+
+        if (context is null)
+            return [];
+
         var result = TenancyValidator.Validate(context);
 
         if (!result.IsValid)

@@ -41,6 +41,12 @@ internal static class TenancyMessages
         "tenant's rows. Call modelBuilder.AddTenantQueryFilters(this) in OnModelCreating, after the entity types are " +
         "configured.";
 
+    public static string ReplacedTenantFilter(Type entityType) =>
+        $"{entityType.Name} has a query filter named '{ModelBuilderExtensions.TenantFilterKey}' that is not the " +
+        "tenant filter AddTenantQueryFilters registers, so reads may not be restricted to the current tenant. Don't " +
+        "register a filter under that name; call modelBuilder.AddTenantQueryFilters(this) after any other " +
+        "HasQueryFilter call for the entity.";
+
     public static string MissingTenantDbContext(Type contextType, Type keyType) =>
         $"{contextType.Name} maps tenant entities with tenant key type '{keyType.Name}' but does not implement " +
         $"ITenantDbContext<{keyType.Name}>, so neither the tenant filter nor the unit of work can find the current " +

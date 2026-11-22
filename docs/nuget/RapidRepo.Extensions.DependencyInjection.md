@@ -39,7 +39,7 @@ builder.Services.AddRapidRepo(options =>
 | `RegisterGenericRepositories` | `false` | Let the provider register its generic repository; requires a provider |
 | `Include` / `Exclude`, `IncludeNamespace` / `ExcludeNamespace`, `IncludeType<T>` / `ExcludeType<T>` | — | Filter which types are registered |
 | `UseCurrentUserProvider<TProvider, TUserKey>()` / `UseCurrentUser<TUserKey>(...)` | — | Supply the audit user, so commits don't have to pass one |
-| `RequireCurrentUser` | `false` | Throw instead of stamping the default user key when a commit has no user |
+| `RequireCurrentUser` | `false` | When a commit has no user and is about to stamp a user audit field (`CreatedBy`, `ModifiedBy`, `DeletedBy`), throw instead of stamping the default user key. Commits that stamp no user field succeed |
 | `UseCurrentTenantProvider<TProvider, TTenantKey>()` / `UseCurrentTenant<TTenantKey>(...)` | — | Supply the current tenant for multi-tenancy, and register the tenant scopes |
 | `ValidateTenancyOnStartup` | `true` | With a tenant provider, validate the tenancy setup when the host starts |
 

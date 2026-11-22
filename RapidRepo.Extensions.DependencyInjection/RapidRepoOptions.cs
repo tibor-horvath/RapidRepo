@@ -287,7 +287,7 @@ public sealed class RapidRepoOptions
     /// <summary>
     /// Register a delegate as the <see cref="ICurrentTenantProvider{TTenantKey}"/> that supplies the tenant of the
     /// current request, for example
-    /// <c>UseCurrentTenant&lt;Guid&gt;(sp =&gt; sp.GetRequiredService&lt;IHttpContextAccessor&gt;().HttpContext?.User.GetTenantId())</c>.
+    /// <c>UseCurrentTenant&lt;Guid&gt;(sp =&gt; sp.GetRequiredService&lt;IHttpContextAccessor&gt;().HttpContext?.User.GetTenantId() ?? Guid.Empty)</c>.
     /// This also turns on the startup validation (see <see cref="ValidateTenancyOnStartup"/>).
     /// </summary>
     /// <remarks>

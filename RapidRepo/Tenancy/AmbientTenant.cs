@@ -98,20 +98,25 @@ public static class AmbientTenant
 
         public object? TenantId { get; } = tenantId;
 
+        /// <remarks>
+        /// The frame is shared by every flow that inherited it, so it may have been disposed in one already. Whichever
+        /// flow it is still current in gets its parent back, so a flow never keeps an ended scope.
+        /// </remarks>
         public void Dispose()
         {
+            if (ReferenceEquals(CurrentFrame.Value, this))
+            {
+                _disposed = true;
+                CurrentFrame.Value = parent;
+                return;
+            }
+
             if (_disposed)
                 return;
 
-            if (!ReferenceEquals(CurrentFrame.Value, this))
-            {
-                throw new InvalidOperationException(
-                    "A tenant scope was disposed out of order, or in a different asynchronous flow than the one that " +
-                    "opened it. Dispose tenant scopes in reverse order of opening, with 'using'.");
-            }
-
-            _disposed = true;
-            CurrentFrame.Value = parent;
+            throw new InvalidOperationException(
+                "A tenant scope was disposed out of order, or in a different asynchronous flow than the one that " +
+                "opened it. Dispose tenant scopes in reverse order of opening, with 'using'.");
         }
     }
 }

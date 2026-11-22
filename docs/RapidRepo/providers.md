@@ -107,7 +107,9 @@ Tenancy is optional too. A provider that supports it:
 
 1. Filters reads of `ITenantEntity<TTenantKey>` to the current tenant, and throws `TenantViolationException.MissingTenant(...)` before reading without one. Resolve the current tenant with `AmbientTenant.ResolveCurrentTenant(keyType, source, sourceName)`, which applies the innermost override before asking your own source, and only asks it when no override applies. Where throwing is not possible, such as inside a query filter, use `ResolveCurrentTenantOrNull`, which treats a misconfigured empty string as no tenant. `TenantKeys` holds what counts as "no tenant" (`IsNone`, `Normalize`), so every source is read the same way. Inside `AmbientTenant.IsHostScope`, nothing is filtered.
 2. In `CommitCore` / `CommitCoreAsync`, before writing anything, gets one guard from `CreateTenantGuard()` and runs every staged tenant entity through it: `ApplyToAdded` for inserts, and `VerifyExisting` for updates and deletes: `VerifyExisting(entity, kind, storedTenantId)` with the `TenantId` **stored** in the database when you found the row for another tenant, `VerifyExisting(entity, kind)` otherwise. Read the stored tenants with one query per entity type. Never use the instance's `TenantId` for that: an instance built from a request can carry any value.
-3. Overrides `GetCurrentTenantId(Type)`, returning the source's raw answer, and `GetTenantSourceName(Type)`, naming it for error messages, if the tenant comes from somewhere other than the `ICurrentTenantProvider<TTenantKey>` in the service provider. `EfUnitOfWork` reads it from the context. `GetTenantSourceName` is called even while an override applies, so it must not read the tenant: decide the name from types alone, or the application's provider would run inside background jobs that have no request.
+3. Still before writing, verifies the **references**: the guard's tenant-entity checks don't cover them. For every foreign key to a tenant entity that an added entity sets, or that an update changes, find the referenced row and, when it belongs to another tenant, call `guard.VerifyReference(entity, principalType, foreignKeyProperties, storedPrincipalTenantId)`, which throws. This applies to staged entities of **every** type, including link entities that are not tenant entities themselves, so collect them separately from the tenant entities. Use `guard.RequireCurrentTenant(principalType)` for the tenant to compare against. Skip references to rows added in the same commit, foreign keys that map `TenantId` to the principal's `TenantId` (the store keeps those within one tenant), and everything when `guard.IsHostScope` is set.
+4. Writes each update and delete of a tenant entity only `WHERE TenantId` still holds the tenant it checked (in a host scope, the tenant stored when the commit started), so a row moved to another tenant between the check and the write is not written. Treat zero affected rows as the store's usual "row not found" error.
+5. Overrides `GetCurrentTenantId(Type)`, returning the source's raw answer, and `GetTenantSourceName(Type)`, naming it for error messages, if the tenant comes from somewhere other than the `ICurrentTenantProvider<TTenantKey>` in the service provider. `EfUnitOfWork` reads it from the context. `GetTenantSourceName` is called even while an override applies, so it must not read the tenant: decide the name from types alone, or the application's provider would run inside background jobs that have no request.
 
 `CreateTenantGuard`, `GetCurrentTenantId` and `GetTenantSourceName` are `protected` members of `UnitOfWorkBase` with working defaults, so a provider that does nothing about tenancy keeps compiling. `TenantConformanceTests` (opt-in through `ITenantConformanceStore`) check the rules, including hostile updates and deletes that carry another tenant's id.
 
@@ -177,6 +179,15 @@ public sealed class MyOrmTransactionConformanceTests : TransactionConformanceTes
 public sealed class MyOrmTenantConformanceTests : TenantConformanceTests<MyOrmTenantConformanceStore>;       // if it supports tenancy
 ```
 
-For the tenant suite, implement `ITenantConformanceStore` as well: the store also holds `Invoice`, isolated by tenant, and `OpenSession(clock, ICurrentTenantProvider<Guid> tenantProvider)` opens a session whose current tenant comes from that provider.
+For the tenant suite, implement `ITenantConformanceStore` as well: the store also holds `Invoice` and `Payment`, both isolated by tenant, with `Payment.InvoiceId` mapped as a foreign key to `Invoice`, and `OpenSession(clock, ICurrentTenantProvider<Guid> tenantProvider)` opens a session whose current tenant comes from that provider. The EF Core store maps them like this:
+
+```csharp
+protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+    modelBuilder.Entity<Payment>().HasOne<Invoice>().WithMany().HasForeignKey(p => p.InvoiceId);
+    modelBuilder.AddSoftDeleteQueryFilters();
+    modelBuilder.AddTenantQueryFilters(this);   // the context implements ITenantDbContext<Guid>
+}
+```
 
 The suite reads persisted state through a fresh session, so a provider's own caching or change tracking cannot hide a difference. The EF provider runs it against EF Core InMemory and SQLite; see `RapidRepo.EntityFrameworkCore.Tests/Conformance`.

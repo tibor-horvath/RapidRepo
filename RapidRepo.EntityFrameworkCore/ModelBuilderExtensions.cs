@@ -98,6 +98,12 @@ public static class ModelBuilderExtensions
     /// and matches every row inside a host scope. Without a current tenant it matches no rows.
     /// </para>
     /// <para>
+    /// It also maps <c>TenantId</c> as a concurrency token, so every update and delete of a tenant entity is written
+    /// only <c>WHERE TenantId</c> still holds the tenant the commit checked. A row moved to another tenant between the
+    /// check and the write is left alone, and EF Core reports it with a <see cref="DbUpdateConcurrencyException"/>,
+    /// as it does for a row that no longer exists. This adds no column and needs no migration.
+    /// </para>
+    /// <para>
     /// Unlike <see cref="AddSoftDeleteQueryFilters"/>, it never replaces an existing anonymous filter, which would
     /// silently drop the application's own tenant condition: it throws instead. Remove the tenant condition from that
     /// filter, and turn the rest of it into a named filter.
@@ -157,7 +163,12 @@ public static class ModelBuilderExtensions
             if (HasAnonymousFilter(entityType))
                 throw new InvalidOperationException(TenancyMessages.AnonymousFilter(entityType.ClrType));
 
-            modelBuilder.Entity(entityType.ClrType).HasQueryFilter(TenantFilterKey, BuildTenantFilter<TTenantKey>(entityType.ClrType, context));
+            var entity = modelBuilder.Entity(entityType.ClrType);
+            entity.HasQueryFilter(TenantFilterKey, BuildTenantFilter<TTenantKey>(entityType.ClrType, context));
+
+            // The commit checks the stored tenant before it writes; comparing TenantId in the UPDATE or DELETE itself
+            // makes that check hold until the write, so a row moved to another tenant in between is not written.
+            entity.Property(TenantTraits.TenantIdPropertyName).IsConcurrencyToken();
         }
 
         return modelBuilder;

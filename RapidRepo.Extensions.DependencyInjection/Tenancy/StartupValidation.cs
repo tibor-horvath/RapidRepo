@@ -14,6 +14,7 @@ internal static class StartupValidation
         var problems = scope.ServiceProvider
             .GetServices<IRapidRepoStartupValidator>()
             .SelectMany(v => v.Validate(scope.ServiceProvider))
+            .Distinct()   // a context validated both as itself and as the base DbContext reports once
             .ToList();
 
         if (problems.Count > 0)

@@ -83,7 +83,7 @@ Each type passed to the attribute is a **source** of entities:
 | A type deriving from `Microsoft.EntityFrameworkCore.DbContext` | Every public, non-static `DbSet<TEntity>` property whose entity derives from `BaseEntity<TId>` |
 | A type deriving from `BaseEntity<TId>` | That entity |
 
-Non-public `DbSet` properties are skipped, although [`UseEntityFrameworkCore<TContext>()`](../RapidRepo.EntityFrameworkCore/ef-core-registration.md#useentityframeworkcoretcontext) still registers a generic repository for them. To get a property for such an entity, pass its type as a source as well, for example `[GenerateUnitOfWork(typeof(AppDbContext), typeof(AuditEntry))]`.
+Non-public `DbSet` properties are skipped. [`UseEntityFrameworkCore<TContext>()`](../RapidRepo.EntityFrameworkCore/ef-core-registration.md#useentityframeworkcoretcontext) does register a generic repository for their entities, but only with `options.RegisterGenericRepositories = true`, which is off by default; turn it on before injecting `IRepository<TEntity, TKey>` for such an entity. To get a property for such an entity, pass its type as a source as well, for example `[GenerateUnitOfWork(typeof(AppDbContext), typeof(AuditEntry))]`.
 
 Entity sources are how providers without a `DbContext` use the generator. The two kinds can be mixed:
 

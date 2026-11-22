@@ -67,11 +67,16 @@ public sealed class TenancyStartupTests : IDisposable
     [Fact]
     public async Task WithoutATenantProvider_NothingIsRegistered_AndTheContextIsNotBuiltAtStartup()
     {
+        // Counts the contexts built by this provider only: the options are built once per context.
+        var constructed = 0;
         var services = new ServiceCollection();
-        services.AddDbContext<PlainContext>(o => o.UseSqlite(_database.Connection));
+        services.AddDbContext<PlainContext>(o =>
+        {
+            Interlocked.Increment(ref constructed);
+            o.UseSqlite(_database.Connection);
+        });
         services.AddRapidRepo(o => o.UseEntityFrameworkCore<PlainContext>());
         await using var provider = services.BuildServiceProvider();
-        var constructed = PlainContext.Constructed;
 
         foreach (var hosted in provider.GetServices<IHostedService>())
             await hosted.StartAsync(CancellationToken.None);
@@ -79,7 +84,7 @@ public sealed class TenancyStartupTests : IDisposable
         provider.GetServices<IHostedService>().Should().BeEmpty();
         provider.GetService<ITenantScope<Guid>>().Should().BeNull();
         provider.GetService<ITenantHostScope>().Should().BeNull();
-        PlainContext.Constructed.Should().Be(constructed);
+        constructed.Should().Be(0);
     }
 
     [Fact]
@@ -113,16 +118,36 @@ public sealed class TenancyStartupTests : IDisposable
     [Fact]
     public async Task Override_FromTheContainer_IsHonouredByTheContext()
     {
-        await using var provider = Build<OrderContext>(o => o.UseCurrentTenantProvider<TestTenant, Guid>());
+        var tenant = new TestTenant { Current = Guid.NewGuid() };
         var other = Guid.NewGuid();
+        var services = new ServiceCollection();
+        services.AddSingleton(tenant);
+        services.AddDbContext<OrderContext>(o => o.UseSqlite(_database.Connection));
+        services.AddRapidRepo(o => o.UseEntityFrameworkCore<OrderContext>().UseCurrentTenant<Guid>(sp => sp.GetRequiredService<TestTenant>().Current));
+        await using var provider = services.BuildServiceProvider();
 
-        using (provider.GetRequiredService<ITenantScope<Guid>>().Override(other))
+        using (var seedScope = provider.CreateScope())
         {
-            AmbientTenant.TryGetOverride(typeof(Guid), out var tenantId).Should().BeTrue();
-            tenantId.Should().Be(other);
+            var seed = seedScope.ServiceProvider.GetRequiredService<OrderContext>();
+            seed.Database.EnsureCreated();
+            using var host = provider.GetRequiredService<ITenantHostScope>().BeginHostScope();
+            seed.Orders.AddRange(
+                new Order { TenantId = tenant.Current, Title = "own" },
+                new Order { TenantId = other, Title = "other" });
+            seed.SaveChanges();
         }
 
-        AmbientTenant.TryGetOverride(typeof(Guid), out _).Should().BeFalse();
+        List<string> Titles()
+        {
+            using var scope = provider.CreateScope();
+            return new EfRepository<Order, int>(scope.ServiceProvider.GetRequiredService<OrderContext>())
+                .GetAll().Select(o => o.Title).ToList();
+        }
+
+        using (provider.GetRequiredService<ITenantScope<Guid>>().Override(other))
+            Titles().Should().Equal("other");
+
+        Titles().Should().Equal("own");
     }
 
     [Fact]

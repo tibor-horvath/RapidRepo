@@ -210,15 +210,40 @@ public abstract class TenantConformanceTests<TStore> : ConformanceTests<TStore>
     // ── References ────────────────────────────────────────────────────────────
 
     [Fact]
-    public void Add_ReferencingAnotherTenantsRow_Throws_AndWritesNothing()
+    public void Add_ReferencingAnotherTenantsRow_Throws_AndWritesNothing_OfTheWholeBatch()
     {
         var theirs = SeedInvoice(TenantB);
         var session = As(TenantA);
+        session.Widgets().Add(new Widget { Name = "innocent" });
+        session.Invoices().Add(new Invoice { Title = "own" });
         session.Payments().Add(new Payment { InvoiceId = theirs, Amount = 10 });
 
         var commit = () => session.UnitOfWork.Commit();
 
         commit.Should().Throw<TenantViolationException>().Which.EntityType.Should().Be<Payment>();
+        AssertNothingOfTheBatchWasWritten();
+    }
+
+    [Fact]
+    public async Task AddAsync_ReferencingAnotherTenantsRow_Throws_AndWritesNothing_OfTheWholeBatch()
+    {
+        var theirs = SeedInvoice(TenantB);
+        var session = As(TenantA);
+        await session.Widgets().AddAsync(new Widget { Name = "innocent" });
+        await session.Invoices().AddAsync(new Invoice { Title = "own" });
+        await session.Payments().AddAsync(new Payment { InvoiceId = theirs, Amount = 10 });
+
+        var commit = () => session.UnitOfWork.CommitAsync();
+
+        (await commit.Should().ThrowAsync<TenantViolationException>()).Which.EntityType.Should().Be<Payment>();
+        AssertNothingOfTheBatchWasWritten();
+    }
+
+    /// <summary>Only the seeded invoice of tenant B exists: no widget, no own invoice, no payment.</summary>
+    private void AssertNothingOfTheBatchWasWritten()
+    {
+        InNewSession(s => s.Widgets().Count()).Should().Be(0);
+        CountAsHost().Should().Be(1);
         CountPaymentsAsHost().Should().Be(0);
     }
 
@@ -308,6 +333,9 @@ public abstract class TenantConformanceTests<TStore> : ConformanceTests<TStore>
         var delete = As(TenantA);
         delete.Invoices().DeleteById(mine);
         delete.UnitOfWork.Commit();
+
+        As(TenantA).Invoices().GetById(mine).Should().BeNull();
+        ReadAsHost(mine)!.DeletedAt.Should().NotBeNull();
 
         var restore = As(TenantA);
         restore.Invoices().RestoreById(mine);

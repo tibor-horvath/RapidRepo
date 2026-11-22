@@ -49,13 +49,18 @@ internal static class EfTenancyEnforcer
         foreach (var entry in tenantEntries.Where(e => e.State == EntityState.Added))
             guard.ApplyToAdded(entry.Entity);
 
+        var existing = tenantEntries.Where(e => e.State != EntityState.Added).ToList();
+
         if (guard.IsHostScope)
+        {
+            await PinStoredTenantsAsync(context, existing, async, cancellationToken);
             return;
+        }
 
         await VerifyExistingAsync(
             context,
             guard,
-            tenantEntries.Where(e => e.State != EntityState.Added).ToList(),
+            existing,
             async,
             cancellationToken);
 
@@ -98,5 +103,36 @@ internal static class EfTenancyEnforcer
             else
                 guard.VerifyExisting(entry.Entity, kind);
         }
+
+        // TenantId is a concurrency token, so the UPDATE or DELETE matches the row only while it still belongs to the
+        // tenant just checked: a row moved to another tenant since then is not written.
+        foreach (var entry in existing)
+            PinTenant(entry, current);
     }
+
+    /// <summary>
+    /// In a host scope nothing is checked, but each update and delete is still pinned to the tenant stored in its row,
+    /// read now, so a row moved by someone else before the write is not written. Taking the instance's
+    /// <c>TenantId</c> instead would break moving a row on purpose, and deleting an instance built with only its key.
+    /// </summary>
+    private static async Task PinStoredTenantsAsync(
+        DbContext context,
+        IReadOnlyList<EntityEntry> existing,
+        bool async,
+        CancellationToken cancellationToken)
+    {
+        if (existing.Count == 0)
+            return;
+
+        var stored = await StoredTenantQuery.LoadOtherTenantsAsync(context, existing, currentTenant: null, async, cancellationToken);
+
+        foreach (var (entry, tenantId) in stored)
+        {
+            if (tenantId is not null)
+                PinTenant(entry, tenantId);
+        }
+    }
+
+    private static void PinTenant(EntityEntry entry, object tenantId) =>
+        entry.Property(TenantTraits.TenantIdPropertyName).OriginalValue = tenantId;
 }

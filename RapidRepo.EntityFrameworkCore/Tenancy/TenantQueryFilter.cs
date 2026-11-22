@@ -29,7 +29,10 @@ public static class TenantQueryFilter
     /// <see cref="ITenantDbContext{TTenantKey}.CurrentTenantId"/>.
     /// </summary>
     /// <remarks>
-    /// An empty string matches no rows rather than throwing here: the repository's read check reports it.
+    /// An empty string matches no rows rather than throwing here: the repository's read check reports it. Inside a host
+    /// scope it returns <see langword="null"/> without asking the context: <see cref="IsHostScope{TTenantKey}"/> lifts
+    /// the filter there, and EF Core evaluates both parameters, so asking would run the application's tenant provider
+    /// where it may have no request to read (a background job).
     /// </remarks>
     /// <typeparam name="TTenantKey">The tenant key type.</typeparam>
     /// <param name="context">The context the query runs on.</param>
@@ -38,6 +41,10 @@ public static class TenantQueryFilter
         where TTenantKey : notnull
     {
         ArgumentNullException.ThrowIfNull(context);
+
+        if (AmbientTenant.IsHostScope)
+            return null;
+
         return AmbientTenant.ResolveCurrentTenantOrNull(typeof(TTenantKey), () => context.CurrentTenantId);
     }
 }

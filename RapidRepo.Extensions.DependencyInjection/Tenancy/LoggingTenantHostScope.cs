@@ -22,11 +22,21 @@ internal sealed class LoggingTenantHostScope(
         [CallerLineNumber] int callerLineNumber = 0)
     {
         var scope = _inner.BeginHostScope(callerMemberName, callerFilePath, callerLineNumber);
-        _logger.LogInformation(
-            "RapidRepo host scope opened by {CallerMemberName} ({CallerFilePath}:{CallerLineNumber}); tenant filters and write guards are lifted.",
-            callerMemberName,
-            callerFilePath,
-            callerLineNumber);
+        try
+        {
+            _logger.LogInformation(
+                "RapidRepo host scope opened by {CallerMemberName} ({CallerFilePath}:{CallerLineNumber}); tenant filters and write guards are lifted.",
+                callerMemberName,
+                callerFilePath,
+                callerLineNumber);
+        }
+        catch
+        {
+            // The caller never gets the handle, so close the host scope here rather than leave the filters lifted.
+            scope.Dispose();
+            throw;
+        }
+
         return scope;
     }
 }

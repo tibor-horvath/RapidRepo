@@ -125,7 +125,7 @@ Every read takes a `ReadOptions`. Pass an `EfReadOptions<TEntity>` for the EF Co
 | `Track` | `true` | Whether returned entities are tracked. Projections, counts and existence checks are never tracked |
 | `SplitQuery` | `false` | Load collection includes through [split queries](https://learn.microsoft.com/ef/core/querying/single-split-queries) |
 | `OrderBy` | `null` | An ordering applied to the query directly. Overrides the `SortOrder` argument; use it only for orderings a `SortOrder` cannot express |
-| `IgnoreAllQueryFilters` | `false` | Bypass every global query filter, not only soft delete |
+| `IgnoreAllQueryFilters` | `false` | Bypass every global query filter, not only soft delete. The tenant filter stays and lifts itself only in a host scope; see [Tenant query filters](#tenant-query-filters) |
 
 ```csharp
 var products = await repo.GetAllAsync(
@@ -228,7 +228,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurren
 - `EfUnitOfWork` reads the tenant from the same `CurrentTenantId`, so reads and commits always agree.
 - Every tenant entity of a context uses the same tenant key type. Map entities with another key type in a separate context.
 - `AddTenantQueryFilters` never replaces an existing anonymous filter, because that would silently drop your own tenant condition. It throws instead; see [Migrating a hand-written tenant filter](../RapidRepo/multi-tenancy.md#migrating-a-hand-written-tenant-filter).
-- `EfReadOptions.IgnoreAllQueryFilters` on a tenant entity throws outside a host scope. On a tenant entity with an anonymous filter, `IncludeDeleted` throws rather than lift every filter. Non-tenant entities keep the 8.x fallback described above.
+- It maps `TenantId` as a concurrency token, so updates and deletes are written only `WHERE TenantId` still holds the tenant the commit checked. A row moved to another tenant in between makes the commit throw `DbUpdateConcurrencyException` and writes nothing.
+- `EfReadOptions.IgnoreAllQueryFilters` lifts every filter but the tenant filter, on the root and on every tenant entity reached through navigations. The tenant filter lifts itself only while the query runs inside a host scope, so an `IQueryable` from `Query()` built in a host scope is filtered by tenant again when it runs after the scope. On a tenant entity, `IgnoreAllQueryFilters` throws outside a host scope.
+- When a query can read tenant data (its root, or an entity it reaches through navigations, is a tenant entity) and an entity it reads has an anonymous filter, `IgnoreAllQueryFilters` and the anonymous-filter fallback of `IncludeDeleted` throw rather than lift the tenant filter with it. Queries that cannot read tenant data keep the 8.x fallback described above.
+- The validation fails when a filter registered under `TenantFilterKey` is not the one `AddTenantQueryFilters` builds, for example a later `HasQueryFilter(ModelBuilderExtensions.TenantFilterKey, e => true)`.
 - `ExecuteUpdate` and `ExecuteDelete` honour the filter, so they stay scoped to the current tenant. They bypass stamping and the write guards, so never set `TenantId` in them.
 
 **Context pooling.** With `AddDbContextPool`, a context outlives the scope it was leased in and can't take scoped services. Read the tenant from ambient state instead, for example through a singleton provider over `IHttpContextAccessor`. The filter reads `CurrentTenantId` per query, so a reused instance always sees the current request's tenant.

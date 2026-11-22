@@ -1,9 +1,12 @@
 using AwesomeAssertions;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using RapidRepo.Extensions;
 using RapidRepo.Repositories;
 using RapidRepo.Tenancy;
 using RapidRepo.Tenancy.Host;
+using System.Data.Common;
 
 namespace RapidRepo.EntityFrameworkCore.Tests.Tenancy;
 
@@ -118,6 +121,24 @@ public sealed class TenancyTests : IDisposable
 
         context.Model.FindEntityType(typeof(Order))!.GetDeclaredQueryFilters().Select(f => f.Key)
             .Should().BeEquivalentTo([ModelBuilderExtensions.SoftDeleteFilterKey, ModelBuilderExtensions.TenantFilterKey]);
+    }
+
+    [Fact]
+    public void Validate_ATenantFilterReplacedUnderItsKey_ByOneThatMatchesEveryRow_Fails()
+    {
+        using var context = new ReplacedFilterContext(_database.Options);
+
+        var result = TenancyValidator.Validate(context);
+
+        result.Errors.Should().ContainSingle().Which.Should().StartWith("Order ").And.Contain("not the tenant filter");
+    }
+
+    [Fact]
+    public void AddTenantQueryFilters_MapsTenantId_AsAConcurrencyToken()
+    {
+        using var context = NewContext();
+
+        context.Model.FindEntityType(typeof(Order))!.FindProperty(nameof(Order.TenantId))!.IsConcurrencyToken.Should().BeTrue();
     }
 
     // ── Graphs ─────────────────────────────────────────────────────────────────
@@ -275,6 +296,50 @@ public sealed class TenancyTests : IDisposable
 
         new EfRepository<Product, int>(context).GetAll(options: new EfReadOptions<Product> { IgnoreAllQueryFilters = true })
             .Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void IgnoreAllQueryFilters_OnANonTenantEntity_KeepsTheTenantFilter_OnTheTenantDataItReaches()
+    {
+        var mine = Seed(TenantA, new Order { Title = "mine" });
+        var theirs = Seed(TenantB, new Order { Title = "theirs" });
+        Commit(TenantA, context => context.OrderNotes.Add(new OrderNote { OrderId = mine.Id, Text = "mine" }));
+        Commit(TenantB, context => context.OrderNotes.Add(new OrderNote { OrderId = theirs.Id, Text = "theirs" }));
+        _tenant.Current = TenantA;
+        using var context = NewContext();
+        var options = new EfReadOptions<OrderNote> { IgnoreAllQueryFilters = true, Include = q => q.Include(n => n.Order!) };
+
+        var notes = new EfRepository<OrderNote, int>(context).GetAll(options: options);
+
+        notes.Should().NotBeEmpty();
+        notes.Where(n => n.Order is not null).Should().OnlyContain(n => n.Order!.TenantId == TenantA);
+    }
+
+    [Fact]
+    public void IgnoreAllQueryFilters_InAQueryBuiltInAHostScope_IsFilteredByTenant_WhenItRunsAfterIt()
+    {
+        Seed(TenantA, new Order { Title = "mine" });
+        Seed(TenantB, new Order { Title = "theirs" });
+        _tenant.Current = TenantA;
+        using var context = NewContext();
+        IQueryable<Order> query;
+
+        using (_hostScope.BeginHostScope())
+            query = new EfRepository<Order, int>(context).Query(new EfReadOptions<Order> { IgnoreAllQueryFilters = true });
+
+        query.Select(o => o.Title).ToList().Should().Equal("mine");
+    }
+
+    [Fact]
+    public void Reads_InAHostScope_NeverAskTheTenantProvider()
+    {
+        Seed(TenantA, new Order());
+        Seed(TenantB, new Order());
+        using var context = new OrderContext(_database.Options, new ThrowingTenant());
+
+        using var host = _hostScope.BeginHostScope();
+
+        new EfRepository<Order, int>(context).GetAll().Should().HaveCount(2);
     }
 
     [Fact]
@@ -439,6 +504,62 @@ public sealed class TenancyTests : IDisposable
         read.Skus.Single().Name.Should().Be("renamed");
     }
 
+    // ── Races ──────────────────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AStaleWrite_OfARowMovedToAnotherTenant_AfterTheCheck_WritesNothing(bool softDelete)
+    {
+        // Order has no Version, so only the tenant check stands between the stale commit and the moved row.
+        var order = Seed(TenantA, new Order { Title = "mine" });
+        _tenant.Current = TenantA;
+        var options = new DbContextOptionsBuilder()
+            .UseSqlite(_database.Connection)
+            .AddInterceptors(new MoveBeforeWrite(order.Id, TenantB))
+            .Options;
+        using var context = new OrderContext(options, _tenant);
+        var repository = new EfRepository<Order, int>(context);
+        var loaded = repository.GetById(order.Id)!;
+
+        if (softDelete)
+        {
+            repository.Delete(loaded);
+        }
+        else
+        {
+            loaded.Title = "stale";
+            repository.Update(loaded);
+        }
+
+        var commit = () => new TestUnitOfWork(context).Commit();
+
+        commit.Should().Throw<DbUpdateConcurrencyException>();
+        using var host = _hostScope.BeginHostScope();
+        using var read = NewContext();
+        var row = read.Orders.IgnoreQueryFilters().Single(o => o.Id == order.Id);
+        row.TenantId.Should().Be(TenantB);
+        row.Title.Should().Be("mine");
+        row.DeletedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public void AHostScopeUpdate_ThatMovesARow_ToAnotherTenant_IsWritten()
+    {
+        var order = Seed(TenantA, new Order { Title = "mine" });
+
+        using (_hostScope.BeginHostScope())
+        {
+            using var context = NewContext();
+            new EfRepository<Order, int>(context).Update(new Order { Id = order.Id, TenantId = TenantB, Title = "moved" });
+            new TestUnitOfWork(context).Commit();
+        }
+
+        using var host = _hostScope.BeginHostScope();
+        using var read = NewContext();
+        read.Orders.Single(o => o.Id == order.Id).TenantId.Should().Be(TenantB);
+    }
+
     // ── Overrides ──────────────────────────────────────────────────────────────
 
     [Fact]
@@ -496,5 +617,46 @@ public sealed class TenancyTests : IDisposable
     {
         Commit(tenantId, context => context.Add(entity));
         return entity;
+    }
+
+    /// <summary>
+    /// Stands in for a concurrent host-scope move: just before the commit's first write, and so after the commit has
+    /// checked the stored tenant, moves the order to another tenant.
+    /// </summary>
+    private sealed class MoveBeforeWrite(int orderId, Guid tenantId) : DbCommandInterceptor
+    {
+        private bool _moved;
+
+        public override InterceptionResult<DbDataReader> ReaderExecuting(
+            DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result)
+        {
+            Move(command);
+            return result;
+        }
+
+        public override InterceptionResult<int> NonQueryExecuting(
+            DbCommand command, CommandEventData eventData, InterceptionResult<int> result)
+        {
+            Move(command);
+            return result;
+        }
+
+        private void Move(DbCommand command)
+        {
+            var text = command.CommandText.TrimStart();
+            if (_moved || !(text.StartsWith("UPDATE", StringComparison.OrdinalIgnoreCase)
+                            || text.StartsWith("DELETE", StringComparison.OrdinalIgnoreCase)))
+            {
+                return;
+            }
+
+            _moved = true;
+            using var move = command.Connection!.CreateCommand();
+            move.Transaction = command.Transaction;
+            move.CommandText = "UPDATE \"Orders\" SET \"TenantId\" = $tenant WHERE \"Id\" = $id";
+            move.Parameters.Add(new SqliteParameter("$tenant", tenantId.ToString().ToUpperInvariant()));   // EF stores a Guid as upper-case text
+            move.Parameters.Add(new SqliteParameter("$id", orderId));
+            move.ExecuteNonQuery();
+        }
     }
 }

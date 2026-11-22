@@ -67,7 +67,7 @@ It is, and RapidRepo builds on it rather than hiding it. What it adds is a small
 - Built-in soft delete (`DeletedAt`, `DeletedBy`) with restore and permanent-delete escape hatches
 - Explicit transactions across several commits (`ExecuteInTransactionAsync`), safe with EF Core's `EnableRetryOnFailure`
 - Opt-in optimistic concurrency (`IVersionedEntity`) with a provider-neutral `ConcurrencyException`
-- Opt-in row-level multi-tenancy (`ITenantEntity<TTenantKey>`): tenant stamping, filtering, and write guards that check the stored row, so a request can't update or delete another tenant's data
+- Opt-in row-level multi-tenancy (`ITenantEntity<TTenantKey>`): tenant stamping, filtering, and write guards that check the stored row, so a request can't update or delete another tenant's data through the repositories and Unit of Work. Raw SQL and other paths around EF Core are not covered; see [what is not guarded](docs/RapidRepo/multi-tenancy.md#what-is-not-guarded)
 - Paged query results via `Paged<T>`, with declarative sorting
 - Optional companion packages for DI registration and Unit of Work source generation
 

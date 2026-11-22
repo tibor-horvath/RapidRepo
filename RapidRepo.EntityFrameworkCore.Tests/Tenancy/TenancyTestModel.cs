@@ -32,6 +32,9 @@ public class OrderNote : BaseEntity<int>
 {
     public int OrderId { get; set; }
 
+    /// <summary>A navigation into tenant data from an entity that is not tenant-filtered itself.</summary>
+    public Order? Order { get; set; }
+
     public string Text { get; set; } = "";
 }
 
@@ -87,7 +90,7 @@ public class OrderContext(DbContextOptions options, ICurrentTenantProvider<Guid>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Order>().HasMany(o => o.Lines).WithOne().HasForeignKey(l => l.OrderId);
-        modelBuilder.Entity<OrderNote>().HasOne<Order>().WithMany().HasForeignKey(n => n.OrderId);
+        modelBuilder.Entity<OrderNote>().HasOne(n => n.Order).WithMany().HasForeignKey(n => n.OrderId);
         modelBuilder.Entity<Product>().HasQueryFilter(p => p.Name != "hidden");
         modelBuilder.Entity<Membership>().HasKey(m => new { m.OrgId, m.UserId });
         modelBuilder.AddSoftDeleteQueryFilters();
@@ -102,6 +105,16 @@ public sealed class StrictForeignKeyContext(DbContextOptions options) : OrderCon
 {
     protected override void ConfigureTenancy(ModelBuilder modelBuilder) =>
         modelBuilder.AddTenantQueryFilters(this, o => o.RequireTenantScopedForeignKeys = true);
+}
+
+/// <summary>Replaces the tenant filter of <see cref="Order"/> with one that matches every row.</summary>
+public sealed class ReplacedFilterContext(DbContextOptions options) : OrderContext(options)
+{
+    protected override void ConfigureTenancy(ModelBuilder modelBuilder)
+    {
+        base.ConfigureTenancy(modelBuilder);
+        modelBuilder.Entity<Order>().HasQueryFilter(ModelBuilderExtensions.TenantFilterKey, o => true);
+    }
 }
 
 /// <summary>Forgets AddTenantQueryFilters.</summary>
@@ -130,16 +143,9 @@ public sealed class HandWrittenFilterContext(DbContextOptions options) : DbConte
     }
 }
 
-/// <summary>No tenant entities at all. Counts its instances, so a test can tell whether startup built one.</summary>
-public sealed class PlainContext : DbContext
+/// <summary>No tenant entities at all.</summary>
+public sealed class PlainContext(DbContextOptions<PlainContext> options) : DbContext(options)
 {
-    private static int _constructed;
-
-    public PlainContext(DbContextOptions<PlainContext> options)
-        : base(options) => Interlocked.Increment(ref _constructed);
-
-    public static int Constructed => Volatile.Read(ref _constructed);
-
     public DbSet<Product> Products => Set<Product>();
 }
 

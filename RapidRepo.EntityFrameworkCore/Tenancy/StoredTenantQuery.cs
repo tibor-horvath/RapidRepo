@@ -43,12 +43,13 @@ internal static class StoredTenantQuery
 
     /// <summary>
     /// Returns the entries whose row belongs to another tenant than <paramref name="currentTenant"/>, with the
-    /// tenant stored in that row. Entries whose row is the current tenant's, or is missing, are left out.
+    /// tenant stored in that row. Entries whose row is the current tenant's, or is missing, are left out. With
+    /// <paramref name="currentTenant"/> <see langword="null"/>, every entry whose row exists is returned.
     /// </summary>
     public static async Task<Dictionary<EntityEntry, object?>> LoadOtherTenantsAsync(
         DbContext context,
         IReadOnlyList<EntityEntry> entries,
-        object currentTenant,
+        object? currentTenant,
         bool async,
         CancellationToken cancellationToken)
     {

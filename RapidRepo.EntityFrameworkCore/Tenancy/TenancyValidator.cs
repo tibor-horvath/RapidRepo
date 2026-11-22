@@ -4,6 +4,7 @@ using RapidRepo.EntityFrameworkCore.Internal;
 using RapidRepo.Extensions;
 using RapidRepo.Tenancy;
 using System.Diagnostics;
+using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 
 namespace RapidRepo.EntityFrameworkCore;
@@ -141,8 +142,45 @@ public static class TenancyValidator
             return;
         }
 
-        if (entityType.FindDeclaredQueryFilter(ModelBuilderExtensions.TenantFilterKey) is null)
+        var filter = entityType.FindDeclaredQueryFilter(ModelBuilderExtensions.TenantFilterKey);
+
+        if (filter is null)
             errors.Add(TenancyMessages.MissingTenantFilter(entityType.ClrType));
+        else if (!IsTenantFilter(filter.Expression))
+            errors.Add(TenancyMessages.ReplacedTenantFilter(entityType.ClrType));
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether <paramref name="filter"/> has the shape <c>AddTenantQueryFilters</c> gives it,
+    /// <c>e =&gt; TenantQueryFilter.IsHostScope(c) || e.TenantId == TenantQueryFilter.CurrentTenantId(c)</c>, so a
+    /// filter registered under the same key that does not restrict rows to the current tenant is caught.
+    /// </summary>
+    internal static bool IsTenantFilter(LambdaExpression? filter)
+    {
+        if (filter is not { Parameters: [var entity], Body: BinaryExpression { NodeType: ExpressionType.OrElse } body })
+            return false;
+
+        return IsCallTo(body.Left, nameof(TenantQueryFilter.IsHostScope))
+            && body.Right is BinaryExpression { NodeType: ExpressionType.Equal } equal
+            && ((IsTenantIdOf(equal.Left, entity) && IsCallTo(equal.Right, nameof(TenantQueryFilter.CurrentTenantId)))
+                || (IsTenantIdOf(equal.Right, entity) && IsCallTo(equal.Left, nameof(TenantQueryFilter.CurrentTenantId))));
+    }
+
+    private static bool IsCallTo(Expression expression, string methodName) =>
+        StripConvert(expression) is MethodCallExpression call
+        && call.Method.DeclaringType == typeof(TenantQueryFilter)
+        && call.Method.Name == methodName;
+
+    private static bool IsTenantIdOf(Expression expression, ParameterExpression entity) =>
+        StripConvert(expression) is MemberExpression { Member.Name: TenantTraits.TenantIdPropertyName } member
+        && StripConvert(member.Expression!) == entity;
+
+    private static Expression StripConvert(Expression expression)
+    {
+        while (expression is UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } convert)
+            expression = convert.Operand;
+
+        return expression;
     }
 
     private static void CheckForeignKeys(

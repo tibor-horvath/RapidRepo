@@ -43,7 +43,7 @@ public static class TenantTraits
     public static object? GetTenantId(object entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
-        return RequireAccessor(entity.GetType()).Get(entity);
+        return RequireAccessor(entity.GetType(), nameof(entity)).Get(entity);
     }
 
     /// <summary>
@@ -55,13 +55,13 @@ public static class TenantTraits
     public static void SetTenantId(object entity, object tenantId)
     {
         ArgumentNullException.ThrowIfNull(entity);
-        RequireAccessor(entity.GetType()).Set(entity, tenantId);
+        RequireAccessor(entity.GetType(), nameof(entity)).Set(entity, tenantId);
     }
 
-    private static Accessor RequireAccessor(Type entityType) =>
+    private static Accessor RequireAccessor(Type entityType, string paramName) =>
         GetAccessor(entityType)
         ?? throw new ArgumentException(
-            $"'{entityType.Name}' does not implement {nameof(ITenantEntity<int>)}<TTenantKey>.", nameof(entityType));
+            $"'{entityType.Name}' does not implement {nameof(ITenantEntity<int>)}<TTenantKey>.", paramName);
 
     private static Accessor? GetAccessor(Type entityType)
     {

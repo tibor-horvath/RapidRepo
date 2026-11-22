@@ -70,6 +70,7 @@ The tenant provider is asked on every read and once per commit, but never while 
 - Reads of tenant entities return only the current tenant's rows.
 - With no current tenant (and no scope), reading a tenant entity throws a `TenantViolationException` instead of returning unfiltered rows.
 - `ReadOptions.IncludeDeleted` lifts only the soft-delete filter, never the tenant filter.
+- With EF Core, `EfReadOptions.IgnoreAllQueryFilters` lifts every filter except the tenant filter, on the root entity and on every tenant entity the query reaches through navigations. The tenant filter lifts itself only while the query *runs* inside a host scope, so a query built in a host scope (for example by `Query()`) and run after it is filtered by tenant again. On a tenant entity, `IgnoreAllQueryFilters` outside a host scope throws.
 - Lookups by id for writes (`DeleteById`, `RestoreById`, `HardDeleteById`) go through the tenant filter, so another tenant's id behaves like a missing id.
 
 ### Commits
@@ -88,6 +89,8 @@ The current tenant is resolved once per commit. Every tenant entity in the commi
 A commit that breaks a rule writes nothing.
 
 **Why the stored tenant.** `Update(entity)` accepts an instance the repository never loaded, such as one built from a request body. Its `TenantId` proves nothing: a caller of tenant B can send `{ Id: <tenant A's id>, TenantId: B }`. So before writing, the unit of work reads the stored `TenantId` of every updated or deleted tenant entity, with one query per entity type, and compares that. This check is always on.
+
+**The check holds until the write.** With EF Core, `AddTenantQueryFilters` maps `TenantId` as a concurrency token, so each `UPDATE` and `DELETE` of a tenant entity also matches `WHERE TenantId = <the tenant just checked>`; in a host scope, the tenant stored in the row when the commit starts. If another writer moves the row to another tenant between the check and the write, nothing is written and EF Core throws a `DbUpdateConcurrencyException`, as for a row that no longer exists. This works for entities without a `Version` too, and needs no schema change.
 
 `TenantViolationException` is not a concurrency conflict, and retrying doesn't help. Map it to HTTP 403 or 404.
 
@@ -167,7 +170,7 @@ The check covers:
 - entities that are not tenant entities themselves, such as a link table between two tenant entities. Without a current tenant, a commit that sets such a reference throws, like any other tenant write;
 - rows of the other tenant that are soft-deleted.
 
-It skips references to rows added in the same commit, which get the current tenant anyway, foreign keys that include `TenantId`, and everything inside a host scope. The error doesn't say whether the referenced row exists, so map it to the same response as a missing reference (usually 400 or 404).
+It skips references to rows added in the same commit, which get the current tenant anyway, foreign keys that map the dependent's `TenantId` to the principal's `TenantId`, and everything inside a host scope. The error doesn't say whether the referenced row exists, so map it to the same response as a missing reference (usually 400 or 404).
 
 The check costs one query per referenced entity type, and only in commits that set or change such a reference. To have the database enforce the rule as well, including for writes that bypass RapidRepo, use the composite-key pattern; the commit then skips the check for that key:
 
@@ -179,7 +182,7 @@ modelBuilder.Entity<InvoiceLine>()
     .HasPrincipalKey(i => new { i.TenantId, i.Id });
 ```
 
-The EF Core validation warns about every foreign key between tenant entities that doesn't include `TenantId` (ownerships aside: an owned type always belongs to its owner's tenant). To make the warning an error, use `AddTenantQueryFilters(this, o => o.RequireTenantScopedForeignKeys = true)`.
+The EF Core validation warns about every foreign key between tenant entities that doesn't map `TenantId` to the principal's `TenantId` (ownerships aside: an owned type always belongs to its owner's tenant). To make the warning an error, use `AddTenantQueryFilters(this, o => o.RequireTenantScopedForeignKeys = true)`.
 
 ---
 
@@ -188,6 +191,7 @@ The EF Core validation warns about every foreign key between tenant entities tha
 - **Raw SQL** (`FromSql`, `ExecuteSql`) and any other client of the database.
 - **Bulk updates.** With EF Core, `ExecuteUpdate` and `ExecuteDelete` stay scoped to the current tenant, because they honour query filters. They bypass stamping and the `TenantId` guard, so never set `TenantId` in them.
 - **Unique indexes.** With a global unique index, a unique-violation error tells tenant B that tenant A's value exists. Include `TenantId` in unique indexes.
+- **String tenant keys that differ only in case.** The database compares `TenantId` with its collation, which is case-insensitive by default on SQL Server, while the commit compares tenant keys exactly. Two tenants `acme` and `ACME` would share rows in reads. Use one canonical form for string tenant keys (or a `Guid`), or give the `TenantId` column a case-sensitive collation.
 
 For enforcement that also covers these, add database row-level security (SQL Server RLS with `SESSION_CONTEXT`, PostgreSQL RLS with `current_setting`) as defence in depth.
 

@@ -15,7 +15,18 @@ internal sealed class LoggingTenantScope<TTenantKey>(ILoggerFactory? loggerFacto
     public IDisposable Override(TTenantKey tenantId)
     {
         var scope = _inner.Override(tenantId);
-        _logger.LogInformation("RapidRepo tenant override opened for tenant {TenantId}.", tenantId);
+
+        try
+        {
+            _logger.LogInformation("RapidRepo tenant override opened for tenant {TenantId}.", tenantId);
+        }
+        catch
+        {
+            // The caller never gets the handle, so close the override here rather than leave it in force.
+            scope.Dispose();
+            throw;
+        }
+
         return scope;
     }
 }

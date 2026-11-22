@@ -51,8 +51,12 @@ public sealed class EfReadOptions<TEntity> : ReadOptions
     public bool Track { get; init; } = true;
 
     /// <summary>
-    /// Gets a value indicating whether every global query filter is bypassed, not only the soft-delete one
-    /// (for example a tenant filter as well).
+    /// Gets a value indicating whether every global query filter is bypassed, not only the soft-delete one.
     /// </summary>
+    /// <remarks>
+    /// The tenant filter of <c>AddTenantQueryFilters</c> is the exception: it stays in the query, on the root and on
+    /// the tenant entities reached through navigations, and lifts itself only while the query runs inside a host
+    /// scope. On a tenant entity, this option throws outside a host scope.
+    /// </remarks>
     public bool IgnoreAllQueryFilters { get; init; }
 }

@@ -106,6 +106,25 @@ public class TenantScopeTests
         again.Should().NotThrow();
     }
 
+    [Fact]
+    public async Task DisposingAnInheritedScope_InAChildFlow_StillLetsTheOwnerRestoreItsTenant()
+    {
+        using var outer = _tenants.Override(TenantA);
+        var scope = _tenants.Override(TenantB);
+
+        await Task.Run(() =>
+        {
+            scope.Dispose();
+            OverrideFor<Guid>().Should().Be(TenantA);
+        }, TestContext.Current.CancellationToken);
+
+        OverrideFor<Guid>().Should().Be(TenantB, "the owner has not disposed its scope yet");
+
+        scope.Dispose();
+
+        OverrideFor<Guid>().Should().Be(TenantA);
+    }
+
     [Theory]
     [InlineData("")]
     public void Override_WithAnEmptyString_Throws(string tenantId)

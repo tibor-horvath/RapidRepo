@@ -53,7 +53,7 @@ internal static class IQueryableExtensions
 
         if (efOptions is { IgnoreAllQueryFilters: true })
         {
-            query = query.IgnoreQueryFilters();
+            query = query.IgnoreAllFiltersButTenant(context?.Model);
         }
         else if (options.IncludeDeleted)
         {
@@ -121,13 +121,15 @@ internal static class IQueryableExtensions
 
         if (rootType.GetDeclaredQueryFilters().Any(f => f.IsAnonymous))
         {
-            // Lifting every filter of a tenant entity would lift its tenant isolation with it. Only non-tenant
-            // entities keep the 8.x fallback.
-            if (TenantTraits.IsTenantEntity(typeof(TEntity)))
+            // Lifting every filter would lift the tenant filter of the root, or of any tenant entity the query reaches
+            // through a navigation. Only queries that cannot read tenant data keep the 8.x fallback.
+            var entityType = model!.FindEntityType(typeof(TEntity))!;
+            if (TenantReachability.ReachesTenantData(entityType))
             {
                 throw new TenantViolationException(
                     $"IncludeDeleted cannot be applied to {typeof(TEntity).Name}: it has an anonymous query filter, " +
-                    "which can only be lifted together with the tenant filter. Make the soft-delete filter named " +
+                    "which can only be lifted together with the tenant filter of the tenant data the query can read. " +
+                    "Make the soft-delete filter named " +
                     "(AddSoftDeleteQueryFilters does so unless another anonymous filter exists) and use " +
                     "AddTenantQueryFilters for tenancy.",
                     typeof(TEntity));
@@ -137,6 +139,48 @@ internal static class IQueryableExtensions
         }
 
         return query;
+    }
+
+    /// <summary>
+    /// Lifts every query filter except the tenant filter, which stays in the query and lifts itself when the query
+    /// <em>executes</em> inside a host scope. So a query built in a host scope and run after it, such as one returned
+    /// by <c>Query()</c>, is filtered by tenant again, and so are the tenant entities the query reaches through
+    /// navigations.
+    /// </summary>
+    /// <param name="query">The query.</param>
+    /// <param name="model">
+    /// The model the query runs against. Without it, or for a query that cannot read tenant data, every filter is
+    /// lifted, as before tenancy existed.
+    /// </param>
+    /// <returns>The query without its filters, the tenant filter excepted.</returns>
+    /// <exception cref="TenantViolationException">
+    /// A type the query can read has an anonymous filter, which cannot be lifted without the tenant filter.
+    /// </exception>
+    public static IQueryable<TEntity> IgnoreAllFiltersButTenant<TEntity>(this IQueryable<TEntity> query, IModel? model)
+        where TEntity : class
+    {
+        if (model?.FindEntityType(typeof(TEntity)) is not { } entityType || !TenantReachability.ReachesTenantData(entityType))
+            return query.IgnoreQueryFilters();
+
+        var reachable = TenantReachability.GetReachableTypes(entityType);
+
+        if (reachable.Select(t => t.GetRootType()).FirstOrDefault(t => t.GetDeclaredQueryFilters().Any(f => f.IsAnonymous)) is { } anonymous)
+        {
+            throw new TenantViolationException(
+                $"IgnoreAllQueryFilters cannot be applied to {typeof(TEntity).Name}: {anonymous.ClrType.Name}, which the " +
+                "query can read, has an anonymous query filter, and EF Core can only lift it together with the tenant " +
+                "filter. Name that filter, or read without IgnoreAllQueryFilters.",
+                typeof(TEntity));
+        }
+
+        var keys = model.GetEntityTypes()
+            .SelectMany(t => t.GetDeclaredQueryFilters())
+            .Where(f => !f.IsAnonymous && f.Key != ModelBuilderExtensions.TenantFilterKey)
+            .Select(f => f.Key!)
+            .Distinct()
+            .ToList();
+
+        return keys.Count == 0 ? query : query.IgnoreQueryFilters(keys);
     }
 
     /// <summary>
