@@ -12,7 +12,8 @@ RapidRepo's core package defines the contracts and the rules; a provider impleme
 | `ReadOptions`, `SortOrder<T>` | `RapidRepo.Repositories` | Read options and a declarative sort order, both inspectable |
 | `Paging` | `RapidRepo.Repositories` | Page validation, the page offset, the default page order and building `Paged<T>` |
 | `WriteRepositoryBase<TEntity, TKey>` | `RapidRepo.Repositories` | Soft vs. hard delete, restore, argument guards and error messages |
-| `UnitOfWorkBase<TUserKey>` | `RapidRepo.UnitOfWork` | `Commit`/`CommitAsync`, `GetRepository`, `ResolveRepository`, and the auditor |
+| `UnitOfWorkBase<TUserKey>` | `RapidRepo.UnitOfWork` | `Commit`/`CommitAsync`, the commit sequence (tenant rules, audit, versions, rollback on failure), `GetRepository`, `ResolveRepository`, and the auditor |
+| `StagedChange`, `StagedChangeState` | `RapidRepo.UnitOfWork` | One staged change as the commit sequence sees it; your provider derives from it |
 | `AuditStamper<TUserKey>`, `EntityChangeKind` | `RapidRepo.Auditing` | The audit rules, applied per entity and change kind |
 | `EntityChangeClassifier` | `RapidRepo.Auditing` | Tells a soft delete or a restore from a plain update, from the original `DeletedAt` |
 | `EntityTraits<TEntity>` | `RapidRepo.Entities` | Soft-delete support and a compiled `DeletedBy` setter, cached per entity type |
@@ -66,25 +67,30 @@ Watch for `Contains` on an array: since C# 14 it binds to `MemoryExtensions.Cont
 
 ## Unit of work
 
-Derive from `UnitOfWorkBase<TUserKey>` and implement:
+Derive from `UnitOfWorkBase<TUserKey>`. The commit sequence lives in its `CommitCore` / `CommitCoreAsync`: tenant rules, then the staged changes, audit fields with one timestamp for the whole commit, versions, and persisting; on any failure the versions are restored. `userId` arrives already resolved from the commit's argument and the current-user provider. Your provider implements the steps only it can do:
 
 | Member | Responsibility |
 |---|---|
 | `CreateRepository<TEntity, TKey>()` | Your generic repository, bound to this unit of work. Generated code reaches it through `GetRepository` |
-| `CommitCore` / `CommitCoreAsync` | Map each staged change to an `EntityChangeKind` (inserts are `Added`; for updates call `EntityChangeClassifier.ClassifyUpdate(entity, originalDeletedAt)`), call `Auditor.Stamp(entity, kind, userId, utcNow)` with one `Auditor.UtcNow` for the whole commit, then persist everything, ideally in one transaction. `userId` arrives already resolved from the commit's argument and the current-user provider, so a provider needs no code for either |
+| `GetStagedChanges()` | Every entity to insert, update or remove, as your own `StagedChange` subclass. Override its `TryGetOriginalDeletedAt` so soft deletes and restores are told apart from edits (see below) |
+| `PersistStagedChanges()` / `PersistStagedChangesAsync` | Write everything, ideally in one transaction. The async one falls back to the sync one if you don't override it |
+| `TranslateCommitFailure(exception)` | Optional. Return a `ConcurrencyException` for your store's conflict error, or `null` to rethrow |
+| `EnforceTenantRules()` / `EnforceTenantRulesAsync` | Only with [multi-tenancy](#multi-tenancy). The default refuses any staged tenant entity rather than write one unchecked |
+
+A unit of work that overrides `CommitCore` / `CommitCoreAsync` itself takes over the whole commit and none of the hooks run; units of work written before the sequence moved into the core keep working that way.
 
 Offer a constructor that takes an `ICurrentUserProvider<TUserKey>?` and passes it to the `UnitOfWorkBase` constructor, as `EfUnitOfWork` does, so applications that don't pass an `IServiceProvider` can still supply one.
 
 ### Optimistic concurrency
 
-For each staged change of an `IVersionedEntity`, a provider must:
+The commit sequence increments the `Version` of every updated `IVersionedEntity`, and restores it if the commit fails. For each modified or deleted one it calls your `StagedChange.ExpectVersion(expected)`; the default throws `NotSupportedException`, so a provider that ignores versions refuses them rather than lose writes silently. A provider must:
 
-1. **Update** (`Modified`, `SoftDeleted`, `Restored`): call `VersionStamper.Stamp(entity)`, which increments `Version` and returns the expected version, and write the row only `WHERE Version = expected`.
-2. **Hard delete:** delete only `WHERE Version = entity.Version`.
-3. **Insert:** write `Version` as it is.
-4. Treat zero affected rows as a conflict and throw `new ConcurrencyException(entities, yourException)`. That constructor writes the message from the entity types, so every provider reports a conflict the same way.
+1. **Update** (`Modified`, including soft delete and restore): write the row only `WHERE Version = expected`.
+2. **Hard delete:** delete only `WHERE Version = expected`.
+3. **Insert:** write `Version` as it is; `ExpectVersion` is not called.
+4. Treat zero affected rows as a conflict and throw `new ConcurrencyException(entities, yourException)`, from `PersistStagedChanges` or through `TranslateCommitFailure`. That constructor writes the message from the entity types, so every provider reports a conflict the same way.
 5. Persist nothing from a commit that conflicts, so run the commit in one transaction.
-6. If the commit fails for any reason, call `VersionStamper.Revert(entity, expected)` for every stamped entity.
+6. Undo whatever `ExpectVersion` set up in `RevertExpectedVersion`, which the sequence calls on failure, so a retried commit checks the version again.
 
 These predicates identify a row by key and version, so they cannot tell a row from a later one that reuses its key and has reached the same version. RapidRepo leaves key reuse for versioned entities unsupported and documents it as such ([Optimistic Concurrency](concurrency.md#how-the-version-changes)); a provider for a store that reuses keys must add its own row discriminator to the predicates.
 
@@ -99,21 +105,21 @@ Transactions are optional: without an override, the transaction members throw `N
 | `BeginTransactionCoreAsync(isolationLevel, cancellationToken)` | Required. Open a transaction and return it as an `IUnitOfWorkTransaction` that rolls back when disposed without `CommitAsync`. When a transaction is already open, return `JoinedTransaction.Instance` instead, and throw `InvalidOperationException` if `isolationLevel` is stricter than the open transaction's. Pass `isolationLevel` through, and leave the database's default when it is `null` |
 | `ExecuteInTransactionCoreAsync(operation, isolationLevel, cancellationToken)` | Optional. The default opens a transaction with `BeginTransactionCoreAsync` and runs `operation` through `RunInTransactionAsync`, which commits when it completes. Override it to add retries, as `EfUnitOfWork` does with the execution strategy; reuse `RunInTransactionAsync` inside |
 
-While a transaction is open, `CommitCore` / `CommitCoreAsync` must write in it rather than open their own. The `TransactionConformanceTests` check commit, rollback, joining and the hand-opened form.
+While a transaction is open, `PersistStagedChanges` / `PersistStagedChangesAsync` must write in it rather than open their own. The `TransactionConformanceTests` check commit, rollback, joining and the hand-opened form.
 
 ### Multi-tenancy
 
 Tenancy is optional too. A provider that supports it:
 
 1. Filters reads of `ITenantEntity<TTenantKey>` to the current tenant, and throws `TenantViolationException.MissingTenant(...)` before reading without one. Resolve the current tenant with `AmbientTenant.ResolveCurrentTenant(keyType, source, sourceName)`, which applies the innermost override before asking your own source, and only asks it when no override applies. Where throwing is not possible, such as inside a query filter, use `ResolveCurrentTenantOrNull`, which treats a misconfigured empty string as no tenant. `TenantKeys` holds what counts as "no tenant" (`IsNone`, `Normalize`), so every source is read the same way. Inside `AmbientTenant.IsHostScope`, nothing is filtered.
-2. In `CommitCore` / `CommitCoreAsync`, before writing anything, gets one guard from `CreateTenantGuard()` and runs every staged tenant entity through it: `ApplyToAdded` for inserts, and `VerifyExisting` for updates and deletes: `VerifyExisting(entity, kind, storedTenantId)` with the `TenantId` **stored** in the database when you found the row for another tenant, `VerifyExisting(entity, kind)` otherwise. Read the stored tenants with one query per entity type. Never use the instance's `TenantId` for that: an instance built from a request can carry any value.
+2. Overrides `EnforceTenantRules` / `EnforceTenantRulesAsync`, which the commit sequence runs before stamping or writing anything. There it gets one guard from `CreateTenantGuard()` and runs every staged tenant entity through it: `ApplyToAdded` for inserts, and `VerifyExisting` for updates and deletes: `VerifyExisting(entity, kind, storedTenantId)` with the `TenantId` **stored** in the database when you found the row for another tenant, `VerifyExisting(entity, kind)` otherwise. Read the stored tenants with one query per entity type. Never use the instance's `TenantId` for that: an instance built from a request can carry any value.
 3. Still before writing, verifies the **references**: the guard's tenant-entity checks don't cover them. For every foreign key to a tenant entity that an added entity sets, or that an update changes, find the referenced row and, when it belongs to another tenant, call `guard.VerifyReference(entity, principalType, foreignKeyProperties, storedPrincipalTenantId)`, which throws. This applies to staged entities of **every** type, including link entities that are not tenant entities themselves, so collect them separately from the tenant entities. A composite foreign key that includes `TenantId` exempts only a tenant-entity dependent: on a link entity nothing checks `TenantId`, so verify its references like any other. Use `guard.RequireCurrentTenant(principalType)` for the tenant to compare against. Skip references to rows added in the same commit, foreign keys of a **tenant entity** that map its `TenantId` to the principal's `TenantId` (the guard checks that `TenantId`, and the store keeps the reference within it), and everything when `guard.IsHostScope` is set.
 4. Writes each update and delete of a tenant entity only `WHERE TenantId` still holds the tenant it checked (in a host scope, the tenant stored when the commit started), so a row moved to another tenant between the check and the write is not written. Treat zero affected rows of an `IVersionedEntity` as a conflict and throw `ConcurrencyException`, as in [Optimistic concurrency](#optimistic-concurrency); for other entities, raise the store's usual "row not found" error.
 5. Overrides `GetCurrentTenantId(Type)`, returning the source's raw answer, and `GetTenantSourceName(Type)`, naming it for error messages, if the tenant comes from somewhere other than the `ICurrentTenantProvider<TTenantKey>` in the service provider. `EfUnitOfWork` reads it from the context. `GetTenantSourceName` is called even while an override applies, so it must not read the tenant: decide the name from types alone, or the application's provider would run inside background jobs that have no request.
 
-`CreateTenantGuard`, `GetCurrentTenantId` and `GetTenantSourceName` are `protected` members of `UnitOfWorkBase` with working defaults, so a provider that does nothing about tenancy keeps compiling. `TenantConformanceTests` (opt-in through `ITenantConformanceStore`) check the rules, including hostile updates and deletes that carry another tenant's id.
+`CreateTenantGuard`, `GetCurrentTenantId` and `GetTenantSourceName` are `protected` members of `UnitOfWorkBase` with working defaults, so a provider that does nothing about tenancy keeps compiling; its commits refuse tenant entities through the default `EnforceTenantRules`. `TenantConformanceTests` (opt-in through `ITenantConformanceStore`) check the rules, including hostile updates and deletes that carry another tenant's id.
 
-Report a soft delete as `SoftDeleted` only on the transition from not deleted to deleted, so an edit to an already deleted entity keeps its deletion stamp. `EntityChangeClassifier` applies this rule; it needs the `DeletedAt` the entity had before the change. A change-tracking provider reads its original value. A command-based provider records it the first time it stages the entity, before `StageDeletionChange` calls `applyChange`.
+A soft delete is stamped as `SoftDeleted` only on the transition from not deleted to deleted, so an edit to an already deleted entity keeps its deletion stamp. The commit sequence applies this rule through `EntityChangeClassifier`; it needs the `DeletedAt` the entity had before the change, which your `StagedChange.TryGetOriginalDeletedAt` returns. A change-tracking provider reads its original value. A command-based provider records it the first time it stages the entity, before `StageDeletionChange` calls `applyChange`.
 
 ---
 
@@ -175,9 +181,12 @@ public sealed class MyOrmQueryConformanceTests : QueryConformanceTests<MyOrmConf
 public sealed class MyOrmQueryExpressionConformanceTests : QueryExpressionConformanceTests<MyOrmConformanceStore>;
 public sealed class MyOrmConcurrencyConformanceTests : ConcurrencyConformanceTests<MyOrmConformanceStore>;
 public sealed class MyOrmConcurrencyAtomicityConformanceTests : ConcurrencyAtomicityConformanceTests<MyOrmConformanceStore>;
+public sealed class MyOrmWriteRoutingConformanceTests : WriteRoutingConformanceTests<MyOrmConformanceStore>; // store implements IWriteRoutingConformanceStore
 public sealed class MyOrmTransactionConformanceTests : TransactionConformanceTests<MyOrmConformanceStore>;   // if it supports transactions
 public sealed class MyOrmTenantConformanceTests : TenantConformanceTests<MyOrmTenantConformanceStore>;       // if it supports tenancy
 ```
+
+For the write-routing suite, implement `IWriteRoutingConformanceStore`: `CreateRecordingRepository` returns a subclass of your repository class that overrides `Delete`, `HardDelete`, `HardDeleteRange` and `Restore` to record each call before calling the base. The suite checks that the write rules reach those overrides, so a custom repository sees every hard delete, not only direct calls.
 
 For the tenant suite, implement `ITenantConformanceStore` as well: the store also holds `Invoice` and `Payment`, both isolated by tenant, with `Payment.InvoiceId` mapped as a foreign key to `Invoice`, and `OpenSession(clock, ICurrentTenantProvider<Guid> tenantProvider)` opens a session whose current tenant comes from that provider. The EF Core store maps them like this:
 

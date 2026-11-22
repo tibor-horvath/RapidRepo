@@ -11,6 +11,7 @@ public sealed class InMemoryAuditConformanceTests : AuditConformanceTests<EfInMe
 public sealed class InMemoryQueryConformanceTests : QueryConformanceTests<EfInMemoryConformanceStore>;
 public sealed class InMemoryQueryExpressionConformanceTests : QueryExpressionConformanceTests<EfInMemoryConformanceStore>;
 public sealed class InMemoryConcurrencyConformanceTests : ConcurrencyConformanceTests<EfInMemoryConformanceStore>;
+public sealed class InMemoryWriteRoutingConformanceTests : WriteRoutingConformanceTests<EfInMemoryConformanceStore>;
 
 // No InMemory ConcurrencyAtomicityConformanceTests: EF Core InMemory has no transactions, so rows written before the
 // conflict stay written. SQLite covers atomicity. No InMemory TransactionConformanceTests either, for the same reason.
@@ -24,6 +25,7 @@ public sealed class SqliteQueryExpressionConformanceTests : QueryExpressionConfo
 public sealed class SqliteConcurrencyConformanceTests : ConcurrencyConformanceTests<EfSqliteConformanceStore>;
 public sealed class SqliteConcurrencyAtomicityConformanceTests : ConcurrencyAtomicityConformanceTests<EfSqliteConformanceStore>;
 public sealed class SqliteTransactionConformanceTests : TransactionConformanceTests<EfSqliteConformanceStore>;
+public sealed class SqliteWriteRoutingConformanceTests : WriteRoutingConformanceTests<EfSqliteConformanceStore>;
 
 // Multi-tenancy, opt-in through ITenantConformanceStore.
 
