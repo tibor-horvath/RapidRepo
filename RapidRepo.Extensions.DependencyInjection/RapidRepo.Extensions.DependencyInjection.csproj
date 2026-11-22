@@ -7,8 +7,6 @@
     <Description>Microsoft.Extensions.DependencyInjection integration for RapidRepo: AddRapidRepo(...) scans assemblies and registers your repositories, generic repositories and Unit of Work in one call.</Description>
     <PackageTags>$(PackageTags);dependency-injection;di;aspnetcore</PackageTags>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <!-- CS1591: interface implementations and obsolete shims are documented on the contracts, not repeated here. -->
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <EnablePackageValidation>true</EnablePackageValidation>
     <PackageValidationBaselineVersion>$(RapidRepoPackageValidationBaselineVersion)</PackageValidationBaselineVersion>
   </PropertyGroup>
