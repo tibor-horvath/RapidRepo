@@ -33,4 +33,10 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Lets the snapshot tests find Snapshots/ on disk. [CallerFilePath] can't be used for this: deterministic CI
+         builds map source paths to /_/, which doesn't exist at test time. -->
+    <AssemblyMetadata Include="ProjectDirectory" Value="$(MSBuildProjectDirectory)" />
+  </ItemGroup>
+
 </Project>
