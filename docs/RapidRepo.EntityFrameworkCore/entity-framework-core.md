@@ -100,6 +100,18 @@ At commit, `EfUnitOfWork` reads each change from the change tracker, stamps the 
 
 `EfUnitOfWork` never disposes the `DbContext`; whoever created it does.
 
+### Transactions
+
+`EfUnitOfWork` implements [transactions](../RapidRepo/transactions.md) over `DbContext.Database`:
+
+- `ExecuteInTransactionAsync` runs the whole transaction through the context's execution strategy (`Database.CreateExecutionStrategy()`). With `EnableRetryOnFailure`, or any strategy that retries on failure, a transient failure retries the transaction as a whole, instead of failing with *"The configured execution strategy ... does not support user-initiated transactions"*. Before a retry, the change tracker is cleared, so the entities the failed attempt tracked are not saved twice.
+- If the connection fails while the transaction itself is committing, the database may have committed it even though an error was reported, and the retry then runs the whole transaction again. Make the work safe to repeat where that matters, for example with a unique key that rejects the second insert, or check for it at the start of the delegate. See EF Core's [Transaction commit failure and the idempotency issue](https://learn.microsoft.com/ef/core/miscellaneous/connection-resiliency#transaction-commit-failure-and-the-idempotency-issue).
+- `BeginTransactionAsync` can't be retried by the strategy, so with a strategy that retries on failure it throws `InvalidOperationException` pointing to `ExecuteInTransactionAsync`. Without one, it opens a transaction with `Database.BeginTransactionAsync`.
+- Both join a transaction that is already open on the context (`Database.CurrentTransaction`), including one you opened yourself. A requested `isolationLevel` stricter than the open transaction's throws `InvalidOperationException`; the check is skipped when the open transaction's level can't be read.
+- Both open their transaction through `BeginTransactionCoreAsync`, so an override of it in your derived unit of work applies to either.
+- An `isolationLevel` is passed to `Database.BeginTransactionAsync(isolationLevel)`, which needs a relational provider.
+- EF Core InMemory doesn't support transactions and, by default, throws on `BeginTransaction` (`TransactionIgnoredWarning`).
+
 ---
 
 ## Read options

@@ -1,11 +1,16 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using RapidRepo.Auditing;
 using RapidRepo.Concurrency;
 using RapidRepo.Entities;
 using RapidRepo.Entities.Interfaces;
+using RapidRepo.EntityFrameworkCore.Internal;
 using RapidRepo.Repositories.Interfaces;
 using RapidRepo.UnitOfWork;
+using System.Data;
+using System.Data.Common;
 
 namespace RapidRepo.EntityFrameworkCore;
 
@@ -21,6 +26,13 @@ namespace RapidRepo.EntityFrameworkCore;
 public abstract class EfUnitOfWork<TUserKey> : UnitOfWorkBase<TUserKey>
     where TUserKey : struct
 {
+    /// <summary>
+    /// Set while the execution strategy opens a transaction through <see cref="BeginTransactionCoreAsync"/>, which may
+    /// then open one even though the strategy retries on failure. A field is enough: like the <see cref="DbContext"/>,
+    /// the unit of work is not thread-safe.
+    /// </summary>
+    private bool _strategyIsOpeningTransaction;
+
     protected EfUnitOfWork(DbContext dbContext, TUserKey defaultUserKey)
         : this(dbContext, defaultUserKey, serviceProvider: null, timeProvider: null)
     {
@@ -102,6 +114,99 @@ public abstract class EfUnitOfWork<TUserKey> : UnitOfWorkBase<TUserKey>
 
             throw;
         }
+    }
+
+    /// <summary>
+    /// Joins an open transaction, and otherwise opens one. With an execution strategy that retries on failure, such
+    /// as <c>EnableRetryOnFailure</c>, a transaction opened by <c>BeginTransactionAsync</c> could not be retried, so it
+    /// is refused in favour of <c>ExecuteInTransactionAsync</c>, which opens its transaction through the strategy.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// The context's execution strategy retries on failure, or the open transaction runs at an isolation level weaker
+    /// than <paramref name="isolationLevel"/>.
+    /// </exception>
+    protected override async Task<IUnitOfWorkTransaction> BeginTransactionCoreAsync(
+        IsolationLevel? isolationLevel,
+        CancellationToken cancellationToken)
+    {
+        var openedByStrategy = _strategyIsOpeningTransaction;
+        _strategyIsOpeningTransaction = false;
+
+        if (DbContext.Database.CurrentTransaction is { } openTransaction)
+        {
+            EnsureJoinable(openTransaction, isolationLevel);
+            return JoinedTransaction.Instance;
+        }
+
+        if (!openedByStrategy && DbContext.Database.CreateExecutionStrategy().RetriesOnFailure)
+        {
+            throw new InvalidOperationException(
+                "BeginTransactionAsync cannot be used with an execution strategy that retries on failure, such as " +
+                "EnableRetryOnFailure: the strategy cannot retry a transaction it did not start. Use " +
+                "ExecuteInTransactionAsync instead, which runs the whole transaction through the strategy.");
+        }
+
+        var transaction = isolationLevel is { } level
+            ? await DbContext.Database.BeginTransactionAsync(level, cancellationToken)
+            : await DbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        return new EfUnitOfWorkTransaction(transaction);
+    }
+
+    /// <summary>
+    /// Runs the transaction through the context's execution strategy, so that a strategy that retries on failure
+    /// retries the transaction as a whole. Before a retry, the change tracker is cleared: the entities the failed
+    /// attempt tracked would otherwise be saved again.
+    /// </summary>
+    protected override Task<TResult> ExecuteInTransactionCoreAsync<TResult>(
+        Func<CancellationToken, Task<TResult>> operation,
+        IsolationLevel? isolationLevel,
+        CancellationToken cancellationToken)
+    {
+        if (DbContext.Database.CurrentTransaction is not null)
+            return base.ExecuteInTransactionCoreAsync(operation, isolationLevel, cancellationToken);
+
+        var isRetry = false;
+
+        return DbContext.Database.CreateExecutionStrategy().ExecuteAsync(
+            async ct =>
+            {
+                if (isRetry)
+                    DbContext.ChangeTracker.Clear();
+
+                isRetry = true;
+                _strategyIsOpeningTransaction = true;
+
+                try
+                {
+                    return await base.ExecuteInTransactionCoreAsync(operation, isolationLevel, ct);
+                }
+                finally
+                {
+                    _strategyIsOpeningTransaction = false;
+                }
+            },
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Refuses to join <paramref name="openTransaction"/> when it runs at an isolation level weaker than the one
+    /// requested, which would otherwise be ignored silently. A level that can't be read is not checked.
+    /// </summary>
+    private static void EnsureJoinable(IDbContextTransaction openTransaction, IsolationLevel? requested)
+    {
+        if (requested is not { } requestedLevel || requestedLevel == IsolationLevel.Unspecified)
+            return;
+
+        var openLevel = (openTransaction as IInfrastructure<DbTransaction>)?.Instance.IsolationLevel;
+
+        if (openLevel is not { } open || open == IsolationLevel.Unspecified || IsolationLevels.Satisfies(open, requestedLevel))
+            return;
+
+        throw new InvalidOperationException(
+            $"A transaction at isolation level {requestedLevel} was requested, but the transaction already open on the " +
+            $"context, which it would join, runs at {open}. Open the outer transaction at {requestedLevel} or " +
+            "stricter, or request a level it provides.");
     }
 
     /// <summary>

@@ -81,6 +81,8 @@ At commit the unit of work:
 await _unitOfWork.CommitAsync(userId: currentUserId);
 ```
 
+Each commit is its own transaction. To make several commits succeed or fail together, run them in `ExecuteInTransactionAsync`; see [Transactions](transactions.md).
+
 ---
 
 ## Disposal

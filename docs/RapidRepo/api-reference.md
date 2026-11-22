@@ -190,5 +190,7 @@ The projection overloads that also take a condition (`GetAll`, `GetAllPaged`, `G
 |---|---|
 | `CommitAsync(userId?, cancellationToken)` | Stamps audit fields and versions, and persists every staged change. Throws `ConcurrencyException` on a conflict of an `IVersionedEntity` |
 | `Commit(userId?)` | Synchronous version of `CommitAsync` |
+| `ExecuteInTransactionAsync(operation, isolationLevel?, cancellationToken)` | Runs `operation` in a transaction: commits it when `operation` completes, rolls it back when it throws. An overload returns `operation`'s result. Joins a transaction that is already open |
+| `BeginTransactionAsync(isolationLevel?, cancellationToken)` | Opens a transaction by hand and returns an `IUnitOfWorkTransaction` (`CommitAsync`, `RollbackAsync`; disposing without commit rolls back). Never retried |
 
-Without a `userId`, the audit user comes from the `ICurrentUserProvider<TUserKey>`, if any, and otherwise is the default user key. See [Auditing](auditing.md) for the audit rules and [the current user](auditing.md#the-current-user), and [Optimistic Concurrency](concurrency.md) for conflicts.
+Without a `userId`, the audit user comes from the `ICurrentUserProvider<TUserKey>`, if any, and otherwise is the default user key. See [Auditing](auditing.md) for the audit rules and [the current user](auditing.md#the-current-user), [Optimistic Concurrency](concurrency.md) for conflicts, and [Transactions](transactions.md) for grouping commits. A unit of work whose provider doesn't support transactions throws `NotSupportedException` from the transaction members.
