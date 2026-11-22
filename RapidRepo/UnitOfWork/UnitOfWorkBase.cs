@@ -405,10 +405,15 @@ public abstract class UnitOfWorkBase<TUserKey> : IUnitOfWork<TUserKey>
     /// Restores every version stamped by the failed commit, so the entities carry the version they were read at and
     /// a retried commit checks against it again, and returns the exception to throw instead, if any.
     /// </summary>
+    /// <remarks>
+    /// Undone in reverse order: a provider that stages an entity more than once stamps it more than once, and only
+    /// the first expected version is the one it was read at.
+    /// </remarks>
     private Exception? OnCommitFailed(Exception exception, List<(StagedChange Change, long Version)> expected)
     {
-        foreach (var (change, version) in expected)
+        for (var i = expected.Count - 1; i >= 0; i--)
         {
+            var (change, version) = expected[i];
             VersionStamper.Revert((IVersionedEntity)change.Entity, version);
             change.RevertExpectedVersion();
         }

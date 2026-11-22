@@ -152,6 +152,23 @@ public class CommitSequenceTests
     }
 
     [Fact]
+    public void FailedCommit_RestoresTheReadVersion_OfAnEntityStagedTwice()
+    {
+        var updated = new Versioned { Version = 3 };
+        var uow = new HookUnitOfWork(
+            new FakeChange(updated, StagedChangeState.Modified),
+            new FakeChange(updated, StagedChangeState.Modified))
+        {
+            PersistFailure = new InvalidOperationException("store down"),
+        };
+
+        var commit = () => uow.Commit();
+
+        commit.Should().Throw<InvalidOperationException>();
+        updated.Version.Should().Be(3);
+    }
+
+    [Fact]
     public void FailedCommit_RethrowsTheOriginal_WhenThereIsNoTranslation()
     {
         var updated = new Versioned { Version = 3 };

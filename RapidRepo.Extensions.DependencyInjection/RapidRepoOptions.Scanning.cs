@@ -14,8 +14,15 @@ public sealed partial class RapidRepoOptions
     internal IReadOnlyList<Func<Type, bool>> Excludes => _excludes;
 
     /// <summary>Add assemblies to scan for repository implementations. Duplicates are ignored.</summary>
+    /// <exception cref="ArgumentNullException"><paramref name="assemblies"/> or one of its elements is <c>null</c>.</exception>
     public RapidRepoOptions ScanAssemblies(params Assembly[] assemblies)
     {
+        ArgumentNullException.ThrowIfNull(assemblies);
+
+        // Checked before adding any, so a null element leaves the scan list unchanged.
+        foreach (var assembly in assemblies)
+            ArgumentNullException.ThrowIfNull(assembly, nameof(assemblies));
+
         foreach (var assembly in assemblies)
             if (!_assemblies.Contains(assembly))
                 _assemblies.Add(assembly);
@@ -54,8 +61,10 @@ public sealed partial class RapidRepoOptions
     /// Additive include predicate. A type is registered only if at least one include predicate returns <c>true</c>
     /// (when any includes are configured). Evaluated after excludes; exclude always wins.
     /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="predicate"/> is <c>null</c>.</exception>
     public RapidRepoOptions Include(Func<Type, bool> predicate)
     {
+        ArgumentNullException.ThrowIfNull(predicate);
         _includes.Add(predicate);
         return this;
     }
@@ -64,8 +73,10 @@ public sealed partial class RapidRepoOptions
     /// Additive exclude predicate. A type that matches any exclude predicate is skipped,
     /// regardless of include predicates.
     /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="predicate"/> is <c>null</c>.</exception>
     public RapidRepoOptions Exclude(Func<Type, bool> predicate)
     {
+        ArgumentNullException.ThrowIfNull(predicate);
         _excludes.Add(predicate);
         return this;
     }
