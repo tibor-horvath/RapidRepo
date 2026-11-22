@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+﻿using AwesomeAssertions;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 using RapidRepo.Repositories;

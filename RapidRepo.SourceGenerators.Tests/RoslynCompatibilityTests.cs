@@ -1,5 +1,5 @@
 using System.Reflection;
-using FluentAssertions;
+using AwesomeAssertions;
 using RapidRepo.SourceGenerators;
 
 namespace RapidRepo.SourceGenerators.Tests;

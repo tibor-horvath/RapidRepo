@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 
 namespace RapidRepo.Extensions.DependencyInjection.Tests.Architecture;
 

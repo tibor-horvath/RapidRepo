@@ -96,14 +96,14 @@ reviews:
     # ---- Tests ----
     - path: "RapidRepo.Testing.Conformance/**/*.cs"
       instructions: |
-        Provider conformance suite (xUnit + FluentAssertions) that every provider's test project
+        Provider conformance suite (xUnit v3 + AwesomeAssertions) that every provider's test project
         runs through IConformanceStore. Tests here must only use the provider-neutral contracts,
         never EF Core. A behaviour asserted here becomes a requirement for every provider, so check
         that it matches the documented contract rather than one provider's quirks.
 
     - path: "**/*.Tests/**/*.cs"
       instructions: |
-        xUnit + FluentAssertions + Moq.
+        xUnit v3 + AwesomeAssertions + Moq.
         - Tests should assert observable behaviour, not implementation details, and cover edge cases
           (null, empty, soft-deleted, concurrent commits).
         - No dependence on test order, wall-clock time (use a fake TimeProvider), or shared static

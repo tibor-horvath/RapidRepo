@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using RapidRepo.EntityFrameworkCore.Tests.DependencyInjection.TestData;
 using RapidRepo.Repositories.Interfaces;

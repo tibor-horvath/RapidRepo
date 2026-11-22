@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
-using FluentAssertions;
-using FluentAssertions.Execution;
+using AwesomeAssertions;
+using AwesomeAssertions.Execution;
 using Microsoft.CodeAnalysis;
 
 namespace RapidRepo.SourceGenerators.Tests;
