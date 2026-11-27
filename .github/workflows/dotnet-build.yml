@@ -35,7 +35,7 @@ concurrency:
 jobs:
   ci:
     name: Build & Test
-    uses: tibor-horvath/ci-toolkit/.github/workflows/dotnet-build-test.yml@11a36a951031ecef7f20f3e1206014dd2c5ddac8 # v2.1.0
+    uses: tibor-horvath/ci-toolkit/.github/workflows/dotnet-build-test.yml@c97cf48f4e459a501fcb6a1f49d6d9216cd69a0b # v2.1.1
     with:
       dotnet-version: "11.0.x"
       runsettings: "coverlet.runsettings"
@@ -46,7 +46,7 @@ jobs:
 
   secrets:
     name: Secret scan
-    uses: tibor-horvath/ci-toolkit/.github/workflows/secret-scan.yml@11a36a951031ecef7f20f3e1206014dd2c5ddac8 # v2.1.0
+    uses: tibor-horvath/ci-toolkit/.github/workflows/secret-scan.yml@c97cf48f4e459a501fcb6a1f49d6d9216cd69a0b # v2.1.1
     permissions:
       contents: read
 
@@ -54,7 +54,7 @@ jobs:
     name: Coverage PR Comment
     needs: ci
     if: github.event_name == 'pull_request'
-    uses: tibor-horvath/ci-toolkit/.github/workflows/dotnet-coverage-comment.yml@11a36a951031ecef7f20f3e1206014dd2c5ddac8 # v2.1.0
+    uses: tibor-horvath/ci-toolkit/.github/workflows/dotnet-coverage-comment.yml@c97cf48f4e459a501fcb6a1f49d6d9216cd69a0b # v2.1.1
     with:
       dotnet-version: "11.0.x"
       thresholds: "60 80"
