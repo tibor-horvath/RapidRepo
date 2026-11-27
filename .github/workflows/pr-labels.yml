@@ -18,7 +18,7 @@ concurrency:
 jobs:
   path-labels:
     name: Path labels
-    uses: tibor-horvath/ci-toolkit/.github/workflows/pr-path-labels.yml@11a36a951031ecef7f20f3e1206014dd2c5ddac8 # v2.1.0
+    uses: tibor-horvath/ci-toolkit/.github/workflows/pr-path-labels.yml@c97cf48f4e459a501fcb6a1f49d6d9216cd69a0b # v2.1.1
     with:
       sync-labels: true
     permissions:
